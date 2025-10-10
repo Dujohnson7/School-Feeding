@@ -3,7 +3,7 @@ import type React from "react"
 
 import { useState } from "react"
 import { Link } from "react-router-dom"
-import { AlertCircle, ArrowLeft, Check, Home, Package, ShoppingCart } from "lucide-react"
+import { AlertCircle, ArrowLeft, Check } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -76,39 +76,7 @@ export function RequestFoodForm() {
   ]
 
   return (
-    <div className="flex min-h-screen bg-muted/40">
-      {/* Sidebar */}
-      <div className="hidden w-64 flex-col bg-primary text-primary-foreground md:flex">
-        <div className="flex h-14 items-center border-b border-primary-foreground/10 px-4">
-          <h2 className="text-lg font-semibold">School Feeding</h2>
-        </div>
-        <div className="flex-1 overflow-auto py-2">
-          <nav className="grid items-start px-2 text-sm font-medium">
-            <Link
-              to="/school-dashboard"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-primary-foreground/80 transition-all hover:text-primary-foreground"
-            >
-              <Home className="h-4 w-4" />
-              Dashboard
-            </Link>
-            <Link
-              to="/request-food"
-              className="flex items-center gap-3 rounded-lg bg-primary-foreground/10 px-3 py-2 text-primary-foreground transition-all hover:text-primary-foreground"
-            >
-              <ShoppingCart className="h-4 w-4" />
-              Request Food
-            </Link>
-            <Link
-              to="/track-delivery"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-primary-foreground/80 transition-all hover:text-primary-foreground"
-            >
-              <Package className="h-4 w-4" />
-              Track Delivery
-            </Link>
-          </nav>
-        </div>
-      </div>
-
+    <div className="flex-1">
       {/* Main Content */}
       <div className="flex flex-1 flex-col">
         {/* Header */}

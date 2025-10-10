@@ -198,60 +198,12 @@ export function AdminAuditLogs() {
   }
 
   return (
-    <div className="flex min-h-screen bg-muted/40">
-      {/* Sidebar */}
-      <div className="hidden w-64 flex-col bg-primary text-primary-foreground md:flex">
-        <div className="flex h-14 items-center border-b border-primary-foreground/10 px-4">
-          <h2 className="text-lg font-semibold">System Admin</h2>
-        </div>
-        <div className="flex-1 overflow-auto py-2">
-          <nav className="grid items-start px-2 text-sm font-medium">
-            <Link
-              to="/admin-dashboard"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-primary-foreground/80 transition-all hover:text-primary-foreground"
-            >
-              <Home className="h-4 w-4" />
-              Dashboard
-            </Link>
-            <Link
-              to="/admin-users"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-primary-foreground/80 transition-all hover:text-primary-foreground"
-            >
-              <Users className="h-4 w-4" />
-              User Management
-            </Link>
-            <Link
-              to="/admin-logs"
-              className="flex items-center gap-3 rounded-lg bg-primary-foreground/10 px-3 py-2 text-primary-foreground transition-all hover:text-primary-foreground"
-            >
-              <FileText className="h-4 w-4" />
-              Audit Logs
-            </Link>
-            <Link
-              to="/admin-settings"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-primary-foreground/80 transition-all hover:text-primary-foreground"
-            >
-              <Settings className="h-4 w-4" />
-              System Settings
-            </Link>
-          </nav>
-        </div>
-        <div className="mt-auto p-4">
-          <Button
-            variant="outline"
-            className="w-full justify-start gap-2 bg-primary-foreground/10 text-primary-foreground"
-          >
-            <LogOut className="h-4 w-4" />
-            <span>Log out</span>
-          </Button>
-        </div>
-      </div>
-
+    <div className="flex-1">
       {/* Main Content */}
       <div className="flex flex-1 flex-col">
         {/* Header */}
         <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
-          <Link href="#" className="lg:hidden">
+          <Link to="/admin-dashboard" className="lg:hidden">
             <Shield className="h-6 w-6" />
             <span className="sr-only">Home</span>
           </Link>
@@ -267,8 +219,7 @@ export function AdminAuditLogs() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src="/placeholder.svg" alt="Avatar" />
-                    <AvatarFallback>SA</AvatarFallback>
+                    <AvatarImage src="/userIcon.png" alt="Avatar" /> 
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
@@ -300,87 +251,59 @@ export function AdminAuditLogs() {
 
         {/* Main Content */}
         <main className="flex-1 overflow-auto p-4 md:p-6">
-          <div className="space-y-6">
-            {/* Header Actions */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold">Audit Logs</h2>
-                <p className="text-muted-foreground">Monitor all system activities and user actions</p>
-              </div>
-              <Button onClick={handleExportLogs}>
-                <Download className="mr-2 h-4 w-4" />
-                Export Logs
-              </Button>
-            </div>
-
-            {/* Filters */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Filters</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Search</label>
-                    <div className="relative">
-                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Search logs..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-8"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Action</label>
-                    <Select value={selectedAction} onValueChange={setSelectedAction}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Filter by action" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Actions</SelectItem>
-                        <SelectItem value="CREATE">Create</SelectItem>
-                        <SelectItem value="UPDATE">Update</SelectItem>
-                        <SelectItem value="DELETE">Delete</SelectItem>
-                        <SelectItem value="LOGIN">Login</SelectItem>
-                        <SelectItem value="LOGOUT">Logout</SelectItem>
-                        <SelectItem value="APPROVE">Approve</SelectItem>
-                        <SelectItem value="REJECT">Reject</SelectItem>
-                        <SelectItem value="PAYMENT">Payment</SelectItem>
-                        <SelectItem value="BACKUP">Backup</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Status</label>
-                    <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Filter by status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Status</SelectItem>
-                        <SelectItem value="success">Success</SelectItem>
-                        <SelectItem value="failed">Failed</SelectItem>
-                        <SelectItem value="warning">Warning</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Date Range</label>
-                    <DatePickerWithRange date={dateRange} setDate={setDateRange} />
+          <Card>
+            <CardHeader>
+              <CardTitle>Audit Logs</CardTitle>
+              <CardDescription>Monitor all system activities and user actions</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-6 flex flex-col gap-4 md:flex-row">
+                <div className="flex-1">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="search"
+                      placeholder="Search by user, action, resource, or details..."
+                      className="w-full pl-8"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+                <div className="flex gap-2">
+                  <Select value={selectedAction} onValueChange={setSelectedAction}>
+                    <SelectTrigger className="w-[130px]">
+                      <SelectValue placeholder="Action" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Actions</SelectItem>
+                      <SelectItem value="CREATE">Create</SelectItem>
+                      <SelectItem value="UPDATE">Update</SelectItem>
+                      <SelectItem value="DELETE">Delete</SelectItem>
+                      <SelectItem value="LOGIN">Login</SelectItem>
+                      <SelectItem value="APPROVE">Approve</SelectItem>
+                      <SelectItem value="BACKUP">Backup</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                    <SelectTrigger className="w-[130px]">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="success">Success</SelectItem>
+                      <SelectItem value="failed">Failed</SelectItem>
+                      <SelectItem value="warning">Warning</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button onClick={handleExportLogs}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Export
+                  </Button>
+                </div>
+              </div>
 
-            {/* Logs Table */}
-            <Card>
-              <CardHeader>
-                <CardTitle>System Logs ({filteredLogs.length})</CardTitle>
-                <CardDescription>Complete audit trail of all system activities</CardDescription>
-              </CardHeader>
-              <CardContent>
+              <div className="rounded-md border">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -394,27 +317,35 @@ export function AdminAuditLogs() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredLogs.map((log) => (
-                      <TableRow key={log.id}>
-                        <TableCell className="font-mono text-sm">{log.timestamp}</TableCell>
-                        <TableCell>
-                          <div>
-                            <div className="font-medium">{log.user}</div>
-                            <div className="text-sm text-muted-foreground">{log.userRole}</div>
-                          </div>
+                    {filteredLogs.length > 0 ? (
+                      filteredLogs.map((log) => (
+                        <TableRow key={log.id}>
+                          <TableCell className="font-mono text-sm">{log.timestamp}</TableCell>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{log.user}</div>
+                              <div className="text-sm text-muted-foreground">{log.userRole}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell>{getActionBadge(log.action)}</TableCell>
+                          <TableCell>{log.resource}</TableCell>
+                          <TableCell className="max-w-xs truncate">{log.details}</TableCell>
+                          <TableCell>{getStatusBadge(log.status)}</TableCell>
+                          <TableCell className="font-mono text-sm">{log.ipAddress}</TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={7} className="h-24 text-center">
+                          No audit logs found.
                         </TableCell>
-                        <TableCell>{getActionBadge(log.action)}</TableCell>
-                        <TableCell>{log.resource}</TableCell>
-                        <TableCell className="max-w-xs truncate">{log.details}</TableCell>
-                        <TableCell>{getStatusBadge(log.status)}</TableCell>
-                        <TableCell className="font-mono text-sm">{log.ipAddress}</TableCell>
                       </TableRow>
-                    ))}
+                    )}
                   </TableBody>
                 </Table>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
         </main>
       </div>
     </div>

@@ -1,43 +1,11 @@
 import { Link } from "react-router-dom"
 import { useLocation } from "react-router-dom"
-import {
-  BarChart3,
-  Building2,
-  ChevronDown,
-  FileText,
-  Heart,
-  Home,
-  Package,
-  Settings,
-  Truck,
-  Users,
-  Warehouse,
-  CreditCard,
-  Receipt,
-  ClipboardList,
-  UserCheck,
-  Shield,
-  LogOut,
-  User,
-} from "lucide-react"
+import {  BarChart3,  Building2,  ChevronDown,  FileText,  Heart,  Home,  Package,  Settings,  Truck,  Users,  Warehouse,  CreditCard,  Receipt,  ClipboardList,  UserCheck,  Shield,  LogOut,  User, } from "lucide-react"
 
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarRail,
-} from "@/components/ui/sidebar"
+import {Sidebar,SidebarContent,SidebarFooter,SidebarGroup,SidebarGroupContent,SidebarGroupLabel,SidebarHeader,SidebarMenu,SidebarMenuButton,SidebarMenuItem,SidebarRail, } from "@/components/ui/sidebar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-
-// Define menu items for different user roles
+ 
 const menuItems = {
   admin: [
     {
@@ -180,19 +148,7 @@ const menuItems = {
       url: "/stock-reports",
       icon: FileText,
     },
-  ],
-  parent: [
-    {
-      title: "Payment",
-      url: "/parent-pay",
-      icon: CreditCard,
-    },
-    {
-      title: "Receipts",
-      url: "/parent-receipts",
-      icon: Receipt,
-    },
-  ],
+  ], 
 }
 
 interface AppSidebarProps {
@@ -240,7 +196,7 @@ export function AppSidebar({
               {currentMenuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={pathname === item.url}>
-                    <Link href={item.url}>
+                    <Link to={item.url}>
                       <item.icon />
                       <span>{item.title}</span>
                     </Link>

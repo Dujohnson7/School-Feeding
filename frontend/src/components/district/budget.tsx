@@ -112,74 +112,12 @@ export function DistrictBudget() {
   )
 
   return (
-    <div className="flex min-h-screen bg-muted/40">
-      {/* Sidebar */}
-      <div className="hidden w-64 flex-col bg-primary text-primary-foreground md:flex">
-        <div className="flex h-14 items-center border-b border-primary-foreground/10 px-4">
-          <h2 className="text-lg font-semibold">District Coordinator</h2>
-        </div>
-        <div className="flex-1 overflow-auto py-2">
-          <nav className="grid items-start px-2 text-sm font-medium">
-            <Link
-              to="/district-dashboard"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-primary-foreground/80 transition-all hover:text-primary-foreground"
-            >
-              <Home className="h-4 w-4" />
-              Dashboard
-            </Link>
-            <Link
-              to="/district-approvals"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-primary-foreground/80 transition-all hover:text-primary-foreground"
-            >
-              <Check className="h-4 w-4" />
-              Approvals
-            </Link>
-            <Link
-              to="/manage-suppliers"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-primary-foreground/80 transition-all hover:text-primary-foreground"
-            >
-              <Truck className="h-4 w-4" />
-              Suppliers
-            </Link>
-            <Link
-              to="/district-budget"
-              className="flex items-center gap-3 rounded-lg bg-primary-foreground/10 px-3 py-2 text-primary-foreground transition-all hover:text-primary-foreground"
-            >
-              <DollarSign className="h-4 w-4" />
-              Budget
-            </Link>
-            <Link
-              to="/district-reports"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-primary-foreground/80 transition-all hover:text-primary-foreground"
-            >
-              <FileText className="h-4 w-4" />
-              Reports
-            </Link>
-            <Link
-              to="/district-settings"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-primary-foreground/80 transition-all hover:text-primary-foreground"
-            >
-              <Settings className="h-4 w-4" />
-              Settings
-            </Link>
-          </nav>
-        </div>
-        <div className="mt-auto p-4">
-          <Button
-            variant="outline"
-            className="w-full justify-start gap-2 bg-primary-foreground/10 text-primary-foreground"
-          >
-            <LogOut className="h-4 w-4" />
-            <span>Log out</span>
-          </Button>
-        </div>
-      </div>
-
+    <div className="flex-1">
       {/* Main Content */}
       <div className="flex flex-1 flex-col">
         {/* Header */}
         <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
-          <Link href="#" className="lg:hidden">
+          <Link to="/district-dashboard" className="lg:hidden">
             <Package className="h-6 w-6" />
             <span className="sr-only">Home</span>
           </Link>

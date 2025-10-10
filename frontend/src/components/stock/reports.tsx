@@ -1,21 +1,7 @@
 
 import { useState } from "react"
 import { Link } from "react-router-dom"
-import {
-  Bell,
-  Calendar,
-  Download,
-  FileText,
-  Filter,
-  Home,
-  LogOut,
-  Package,
-  Search,
-  Settings,
-  Truck,
-  User,
-  Warehouse,
-} from "lucide-react"
+import { Bell, Calendar, Download, FileText, Filter, Search, Settings, User, LogOut } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -144,74 +130,12 @@ export function StockReports() {
   ]
 
   return (
-    <div className="flex min-h-screen bg-muted/40">
-      {/* Sidebar */}
-      <div className="hidden w-64 flex-col bg-primary text-primary-foreground md:flex">
-        <div className="flex h-14 items-center border-b border-primary-foreground/10 px-4">
-          <h2 className="text-lg font-semibold">Stock Manager</h2>
-        </div>
-        <div className="flex-1 overflow-auto py-2">
-          <nav className="grid items-start px-2 text-sm font-medium">
-            <Link
-              to="/stock-dashboard"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-primary-foreground/80 transition-all hover:text-primary-foreground"
-            >
-              <Home className="h-4 w-4" />
-              Dashboard
-            </Link>
-            <Link
-              to="/stock-inventory"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-primary-foreground/80 transition-all hover:text-primary-foreground"
-            >
-              <Warehouse className="h-4 w-4" />
-              Inventory
-            </Link>
-            <Link
-              to="/stock-receiving"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-primary-foreground/80 transition-all hover:text-primary-foreground"
-            >
-              <Package className="h-4 w-4" />
-              Receiving
-            </Link>
-            <Link
-              to="/stock-distribution"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-primary-foreground/80 transition-all hover:text-primary-foreground"
-            >
-              <Truck className="h-4 w-4" />
-              Distribution
-            </Link>
-            <Link
-              to="/stock-reports"
-              className="flex items-center gap-3 rounded-lg bg-primary-foreground/10 px-3 py-2 text-primary-foreground transition-all hover:text-primary-foreground"
-            >
-              <FileText className="h-4 w-4" />
-              Reports
-            </Link>
-            <Link
-              to="/stock-settings"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-primary-foreground/80 transition-all hover:text-primary-foreground"
-            >
-              <Settings className="h-4 w-4" />
-              Settings
-            </Link>
-          </nav>
-        </div>
-        <div className="mt-auto p-4">
-          <Button
-            variant="outline"
-            className="w-full justify-start gap-2 bg-primary-foreground/10 text-primary-foreground"
-          >
-            <LogOut className="h-4 w-4" />
-            <span>Log out</span>
-          </Button>
-        </div>
-      </div>
-
+    <div className="flex-1">
       {/* Main Content */}
       <div className="flex flex-1 flex-col">
         {/* Header */}
         <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
-          <Link href="#" className="lg:hidden">
+          <Link to="/stock-dashboard" className="lg:hidden">
             <FileText className="h-6 w-6" />
             <span className="sr-only">Home</span>
           </Link>

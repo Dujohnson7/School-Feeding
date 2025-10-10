@@ -135,74 +135,12 @@ export function GovBudget() {
   )
 
   return (
-    <div className="flex min-h-screen bg-muted/40">
-      {/* Sidebar */}
-      <div className="hidden w-64 flex-col bg-primary text-primary-foreground md:flex">
-        <div className="flex h-14 items-center border-b border-primary-foreground/10 px-4">
-          <h2 className="text-lg font-semibold">Government Portal</h2>
-        </div>
-        <div className="flex-1 overflow-auto py-2">
-          <nav className="grid items-start px-2 text-sm font-medium">
-            <Link
-              to="/gov-dashboard"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-primary-foreground/80 transition-all hover:text-primary-foreground"
-            >
-              <Home className="h-4 w-4" />
-              Dashboard
-            </Link>
-            <Link
-              to="/gov-analytics"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-primary-foreground/80 transition-all hover:text-primary-foreground"
-            >
-              <BarChart3 className="h-4 w-4" />
-              Analytics
-            </Link>
-            <Link
-              to="/gov-budget"
-              className="flex items-center gap-3 rounded-lg bg-primary-foreground/10 px-3 py-2 text-primary-foreground transition-all hover:text-primary-foreground"
-            >
-              <DollarSign className="h-4 w-4" />
-              Budget Management
-            </Link>
-            <Link
-              to="/gov-reports"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-primary-foreground/80 transition-all hover:text-primary-foreground"
-            >
-              <FileText className="h-4 w-4" />
-              Reports
-            </Link>
-            <Link
-              to="/admin-users"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-primary-foreground/80 transition-all hover:text-primary-foreground"
-            >
-              <Users className="h-4 w-4" />
-              User Management
-            </Link>
-            <Link
-              to="/admin-settings"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-primary-foreground/80 transition-all hover:text-primary-foreground"
-            >
-              <Settings className="h-4 w-4" />
-              Settings
-            </Link>
-          </nav>
-        </div>
-        <div className="mt-auto p-4">
-          <Button
-            variant="outline"
-            className="w-full justify-start gap-2 bg-primary-foreground/10 text-primary-foreground"
-          >
-            <LogOut className="h-4 w-4" />
-            <span>Log out</span>
-          </Button>
-        </div>
-      </div>
-
+    <div className="flex-1">
       {/* Main Content */}
       <div className="flex flex-1 flex-col">
         {/* Header */}
         <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
-          <Link href="#" className="lg:hidden">
+          <Link to="/gov-dashboard" className="lg:hidden">
             <Package className="h-6 w-6" />
             <span className="sr-only">Home</span>
           </Link>
@@ -362,7 +300,7 @@ export function GovBudget() {
                 </Dialog>
               </div>
             </div>
-
+                                                          
             <TabsContent value="allocations" className="space-y-4">
               {/* Filters */}
               <div className="flex items-center gap-4">
@@ -469,30 +407,12 @@ export function GovBudget() {
                   <div className="grid gap-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="fiscal-year">Fiscal Year</Label>
-                        <Select>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select fiscal year" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="2025">2025</SelectItem>
-                            <SelectItem value="2026">2026</SelectItem>
-                            <SelectItem value="2027">2027</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <Label htmlFor="fiscal-year">Fiscal Year</Label> 
+                        <Input type="number" placeholder="Enter Fiscal Year. eg:2025" id="fiscal-year" />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="budget-type">Budget Type</Label>
-                        <Select>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select budget type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="annual">Annual Budget</SelectItem>
-                            <SelectItem value="supplementary">Supplementary Budget</SelectItem>
-                            <SelectItem value="emergency">Emergency Budget</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <Label htmlFor="budget-type">Budget Amount</Label> 
+                        <Input type="number" placeholder="Enter Budget Amount in Rwf" />
                       </div>
                     </div>
 
@@ -516,23 +436,10 @@ export function GovBudget() {
                       <Button onClick={handleImportBudget}>
                         <Upload className="mr-2 h-4 w-4" />
                         Import Budget
-                      </Button>
-                      <Button variant="outline">
-                        <Download className="mr-2 h-4 w-4" />
-                        Download Template
-                      </Button>
+                      </Button> 
                     </div>
                   </div>
 
-                  <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                    <h4 className="text-sm font-medium mb-2 text-blue-900">Import Guidelines:</h4>
-                    <ul className="text-sm text-blue-700 space-y-1">
-                      <li>• Ensure the file contains columns: District, Allocated Amount, Purpose</li>
-                      <li>• All amounts should be in Rwandan Francs (RWF)</li>
-                      <li>• District names must match existing district records</li>
-                      <li>• Maximum file size: 10MB</li>
-                    </ul>
-                  </div>
                 </CardContent>
               </Card>
             </TabsContent>

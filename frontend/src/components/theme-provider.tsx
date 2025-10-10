@@ -11,8 +11,7 @@ type ThemeProviderProps = {
 export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
   const [theme, setTheme] = React.useState(props.defaultTheme || 'light')
 
-  React.useEffect(() => {
-    // Simple theme management without next-themes
+  React.useEffect(() => { 
     const savedTheme = localStorage.getItem('theme') || props.defaultTheme || 'light'
     setTheme(savedTheme)
     

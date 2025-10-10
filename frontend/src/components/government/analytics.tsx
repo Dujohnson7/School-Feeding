@@ -83,60 +83,12 @@ export function GovAnalytics() {
   }
 
   return (
-    <div className="flex min-h-screen bg-muted/40">
-      {/* Sidebar */}
-      <div className="hidden w-64 flex-col bg-primary text-primary-foreground md:flex">
-        <div className="flex h-14 items-center border-b border-primary-foreground/10 px-4">
-          <h2 className="text-lg font-semibold">MINEDUC / RAB</h2>
-        </div>
-        <div className="flex-1 overflow-auto py-2">
-          <nav className="grid items-start px-2 text-sm font-medium">
-            <Link
-              to="/gov-dashboard"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-primary-foreground/80 transition-all hover:text-primary-foreground"
-            >
-              <Home className="h-4 w-4" />
-              Dashboard
-            </Link>
-            <Link
-              to="/gov-analytics"
-              className="flex items-center gap-3 rounded-lg bg-primary-foreground/10 px-3 py-2 text-primary-foreground transition-all hover:text-primary-foreground"
-            >
-              <BarChart3 className="h-4 w-4" />
-              Analytics
-            </Link>
-            <Link
-              to="/gov-reports"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-primary-foreground/80 transition-all hover:text-primary-foreground"
-            >
-              <FileText className="h-4 w-4" />
-              Reports
-            </Link>
-            <Link
-              to="/gov-settings"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-primary-foreground/80 transition-all hover:text-primary-foreground"
-            >
-              <Settings className="h-4 w-4" />
-              Settings
-            </Link>
-          </nav>
-        </div>
-        <div className="mt-auto p-4">
-          <Button
-            variant="outline"
-            className="w-full justify-start gap-2 bg-primary-foreground/10 text-primary-foreground"
-          >
-            <LogOut className="h-4 w-4" />
-            <span>Log out</span>
-          </Button>
-        </div>
-      </div>
-
+    <div className="flex-1">
       {/* Main Content */}
       <div className="flex flex-1 flex-col">
         {/* Header */}
         <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
-          <Link href="#" className="lg:hidden">
+          <Link to="/gov-dashboard" className="lg:hidden">
             <BarChart3 className="h-6 w-6" />
             <span className="sr-only">Home</span>
           </Link>
@@ -234,8 +186,7 @@ export function GovAnalytics() {
           <Tabs defaultValue="overview" className="w-full">
             <TabsList className="mb-4 w-full justify-start">
               <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="schools">Schools</TabsTrigger>
-              <TabsTrigger value="nutrition">Nutrition</TabsTrigger>
+              <TabsTrigger value="schools">Schools</TabsTrigger> 
               <TabsTrigger value="budget">Budget</TabsTrigger>
             </TabsList>
 
@@ -462,12 +413,7 @@ export function GovAnalytics() {
                             <span>On-time delivery</span>
                             <span>96%</span>
                           </div>
-                          <Progress value={96} className="h-1" />
-                          <div className="flex justify-between text-xs">
-                            <span>Student satisfaction</span>
-                            <span>94%</span>
-                          </div>
-                          <Progress value={94} className="h-1" />
+                          <Progress value={96} className="h-3" /> 
                         </div>
                       </div>
 
@@ -478,12 +424,7 @@ export function GovAnalytics() {
                             <span>On-time delivery</span>
                             <span>93%</span>
                           </div>
-                          <Progress value={93} className="h-1" />
-                          <div className="flex justify-between text-xs">
-                            <span>Student satisfaction</span>
-                            <span>91%</span>
-                          </div>
-                          <Progress value={91} className="h-1" />
+                          <Progress value={93} className="h-3" /> 
                         </div>
                       </div>
 
@@ -494,12 +435,7 @@ export function GovAnalytics() {
                             <span>On-time delivery</span>
                             <span>89%</span>
                           </div>
-                          <Progress value={89} className="h-1" />
-                          <div className="flex justify-between text-xs">
-                            <span>Student satisfaction</span>
-                            <span>88%</span>
-                          </div>
-                          <Progress value={88} className="h-1" />
+                          <Progress value={89} className="h-3" /> 
                         </div>
                       </div>
                     </div>
@@ -507,102 +443,7 @@ export function GovAnalytics() {
                 </Card>
               </div>
             </TabsContent>
-
-            <TabsContent value="nutrition">
-              <div className="grid gap-4 md:grid-cols-2">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Nutritional Standards Compliance</CardTitle>
-                    <CardDescription>Adherence to national nutrition guidelines</CardDescription>
-                  </CardHeader>
-                  <CardContent className="h-80">
-                    <div className="space-y-4">
-                      <div>
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="text-sm font-medium">Protein Requirements</span>
-                          <span className="text-sm">96%</span>
-                        </div>
-                        <Progress value={96} className="h-2" />
-                      </div>
-
-                      <div>
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="text-sm font-medium">Carbohydrate Balance</span>
-                          <span className="text-sm">94%</span>
-                        </div>
-                        <Progress value={94} className="h-2" />
-                      </div>
-
-                      <div>
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="text-sm font-medium">Vitamin Content</span>
-                          <span className="text-sm">92%</span>
-                        </div>
-                        <Progress value={92} className="h-2" />
-                      </div>
-
-                      <div>
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="text-sm font-medium">Mineral Content</span>
-                          <span className="text-sm">89%</span>
-                        </div>
-                        <Progress value={89} className="h-2" />
-                      </div>
-
-                      <div>
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="text-sm font-medium">Caloric Requirements</span>
-                          <span className="text-sm">98%</span>
-                        </div>
-                        <Progress value={98} className="h-2" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Food Safety Metrics</CardTitle>
-                    <CardDescription>Safety and quality indicators</CardDescription>
-                  </CardHeader>
-                  <CardContent className="h-80">
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4 text-center">
-                        <div className="p-4 bg-green-50 rounded-lg">
-                          <div className="text-2xl font-bold text-green-600">99.8%</div>
-                          <div className="text-xs text-muted-foreground">Food Safety Score</div>
-                        </div>
-                        <div className="p-4 bg-blue-50 rounded-lg">
-                          <div className="text-2xl font-bold text-blue-600">0.2%</div>
-                          <div className="text-xs text-muted-foreground">Contamination Rate</div>
-                        </div>
-                      </div>
-
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm">Temperature Control</span>
-                          <Badge className="bg-green-600">Excellent</Badge>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm">Storage Conditions</span>
-                          <Badge className="bg-green-600">Excellent</Badge>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm">Hygiene Standards</span>
-                          <Badge variant="outline" className="bg-green-100 text-green-800">
-                            Good
-                          </Badge>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm">Expiry Management</span>
-                          <Badge className="bg-green-600">Excellent</Badge>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
+ 
 
             <TabsContent value="budget">
               <div className="grid gap-4 md:grid-cols-2">

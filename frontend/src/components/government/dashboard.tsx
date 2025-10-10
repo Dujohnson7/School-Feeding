@@ -1,19 +1,8 @@
 
 import { useState } from "react"
 import { Link } from "react-router-dom"
-import {
-  BarChart3,
-  Bell,
-  Building2,
-  DollarSign,
-  Home,
-  LogOut,
-  Settings,
-  TrendingUp,
-  User,
-  Users,
-  FileText,
-} from "lucide-react"
+import { BarChart3, Building2, DollarSign, Home, MapPinCheck, Users, FileText } from "lucide-react"
+import PageHeader from "@/components/shared/page-header"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -35,31 +24,23 @@ export function GovDashboard() {
   const stats = [
     {
       title: "Total Schools",
-      value: "2,847",
-      change: "+12",
-      changeType: "positive" as const,
+      value: "1,247",
       icon: Building2,
     },
     {
       title: "Students Fed Daily",
-      value: "1,245,678",
-      change: "+5.2%",
-      changeType: "positive" as const,
+      value: "342,156",
       icon: Users,
     },
     {
-      title: "Monthly Budget",
-      value: "RWF 2.4B",
-      change: "-2.1%",
-      changeType: "negative" as const,
-      icon: DollarSign,
+      title: "Districts Covered",
+      value: "30",
+      icon: MapPinCheck,
     },
     {
-      title: "Program Coverage",
-      value: "94.7%",
-      change: "+1.3%",
-      changeType: "positive" as const,
-      icon: TrendingUp,
+      title: "Program Budget",
+      value: "RWF 2.4B",
+      icon: DollarSign,
     },
   ]
 
@@ -69,6 +50,57 @@ export function GovDashboard() {
     { name: "Northern Province", schools: 523, students: 234567, coverage: 92, budget: 410000000 },
     { name: "Western Province", schools: 612, students: 267890, coverage: 94, budget: 480000000 },
     { name: "Southern Province", schools: 692, students: 287976, coverage: 96, budget: 580000000 },
+  ]
+
+  const nationalOverview = [
+    { name: "Kigali City", value: 98 },
+    { name: "Northern Province", value: 92 },
+    { name: "Southern Province", value: 94 },
+    { name: "Eastern Province", value: 95 },
+    { name: "Western Province", value: 89 },
+  ]
+
+  const monthlyFoodDistribution = [
+    { month: "Jan", tons: 120 },
+    { month: "Feb", tons: 160 },
+    { month: "Mar", tons: 180 },
+    { month: "Apr", tons: 170 },
+    { month: "May", tons: 150 },
+    { month: "Jun", tons: 140 },
+    { month: "Jul", tons: 165 },
+    { month: "Aug", tons: 155 },
+    { month: "Sep", tons: 175 },
+    { month: "Oct", tons: 185 },
+    { month: "Nov", tons: 190 },
+    { month: "Dec", tons: 195 },
+  ]
+
+  const kpis = [
+    { name: "Nutrition Standards Compliance", value: 96 },
+    { name: "On-time Delivery Rate", value: 93 },
+    { name: "Budget Utilization", value: 87 },
+    { name: "School Participation", value: 99 },
+    { name: "Supplier Performance", value: 91 },
+  ]
+
+  const alerts = [
+    { title: "Budget Alert", desc: "Eastern Province exceeding budget", severity: "High" as const },
+    { title: "Delivery Delay", desc: "15 schools affected in Kigali", severity: "Medium" as const },
+    { title: "New Supplier", desc: "Application pending approval", severity: "Info" as const },
+  ]
+
+  const topDistricts = [
+    { name: "Nyarugenge", meta: "42 schools, 98% efficiency", status: "Excellent" },
+    { name: "Gasabo", meta: "58 schools, 97% efficiency", status: "Excellent" },
+    { name: "Kicukiro", meta: "35 schools, 96% efficiency", status: "Excellent" },
+    { name: "Rwamagana", meta: "28 schools, 95% efficiency", status: "Good" },
+  ]
+
+  const milestones = [
+    { title: "Q1 Report Due", date: "Apr 30, 2025", days: 7 },
+    { title: "Budget Review", date: "May 15, 2025", days: 22 },
+    { title: "Supplier Evaluation", date: "Jun 1, 2025", days: 39 },
+    { title: "Annual Conference", date: "Jul 20, 2025", days: 88 },
   ]
 
   const recentActivities = [
@@ -99,105 +131,20 @@ export function GovDashboard() {
   ]
 
   return (
-    <div className="flex min-h-screen bg-muted/40">
-      {/* Sidebar */}
-      <div className="hidden w-64 flex-col bg-primary text-primary-foreground md:flex">
-        <div className="flex h-14 items-center border-b border-primary-foreground/10 px-4">
-          <h2 className="text-lg font-semibold">MINEDUC / RAB</h2>
-        </div>
-        <div className="flex-1 overflow-auto py-2">
-          <nav className="grid items-start px-2 text-sm font-medium">
-            <Link
-              to="/gov-dashboard"
-              className="flex items-center gap-3 rounded-lg bg-primary-foreground/10 px-3 py-2 text-primary-foreground transition-all hover:text-primary-foreground"
-            >
-              <Home className="h-4 w-4" />
-              Dashboard
-            </Link>
-            <Link
-              to="/gov-analytics"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-primary-foreground/80 transition-all hover:text-primary-foreground"
-            >
-              <BarChart3 className="h-4 w-4" />
-              Analytics
-            </Link>
-            <Link
-              to="/gov-reports"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-primary-foreground/80 transition-all hover:text-primary-foreground"
-            >
-              <FileText className="h-4 w-4" />
-              Reports
-            </Link>
-            <Link
-              to="/gov-settings"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-primary-foreground/80 transition-all hover:text-primary-foreground"
-            >
-              <Settings className="h-4 w-4" />
-              Settings
-            </Link>
-          </nav>
-        </div>
-        <div className="mt-auto p-4">
-          <Button
-            variant="outline"
-            className="w-full justify-start gap-2 bg-primary-foreground/10 text-primary-foreground"
-          >
-            <LogOut className="h-4 w-4" />
-            <span>Log out</span>
-          </Button>
-        </div>
-      </div>
-
+    <div className="flex-1">
       {/* Main Content */}
       <div className="flex flex-1 flex-col">
         {/* Header */}
-        <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
-          <Link href="#" className="lg:hidden">
-            <Home className="h-6 w-6" />
-            <span className="sr-only">Home</span>
-          </Link>
-          <div className="w-full flex-1">
-            <h1 className="text-lg font-semibold">Government Dashboard</h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-              <span className="sr-only">Notifications</span>
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src="/placeholder.svg" alt="Avatar" />
-                    <AvatarFallback>GV</AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">Government Official</p>
-                    <p className="text-xs leading-none text-muted-foreground">official@mineduc.gov.rw</p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <User className="mr-2 h-4 w-4" />
-                  <span>Profile</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Settings</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </header>
+        <PageHeader
+          title="Government Dashboard"
+          homeTo="/gov-dashboard"
+          HomeIcon={Home}
+          profileTo="/gov-profile"
+          userName="Government Official"
+          userEmail="official@mineduc.gov.rw"
+          avatarSrc="/userIcon.png"
+          avatarFallback="GV"
+        />
 
         {/* Main Content */}
         <main className="flex-1 overflow-auto p-4 md:p-6">
@@ -215,8 +162,7 @@ export function GovDashboard() {
                     <p className="text-xs text-muted-foreground">
                       <span className={stat.changeType === "positive" ? "text-green-600" : "text-red-600"}>
                         {stat.change}
-                      </span>{" "}
-                      from last month
+                      </span>{" "} 
                     </p>
                   </CardContent>
                 </Card>
@@ -224,7 +170,140 @@ export function GovDashboard() {
             </div>
 
             <div className="grid gap-6 md:grid-cols-2">
-              {/* District Performance */}
+              {/* National Overview */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>National Overview</CardTitle>
+                  <CardDescription>School feeding program performance across Rwanda</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-6">
+                    <div className="grid gap-4">
+                      {nationalOverview.map((p) => (
+                        <div key={p.name} className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-medium leading-none">{p.name}</p>
+                            <span className="text-xs text-muted-foreground">{p.value}%</span>
+                          </div>
+                          <Progress value={p.value} className="h-2" />
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Monthly Food Distribution */}
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium leading-none">Monthly Food Distribution (Tons)</p>
+                      <div className="mt-2 flex h-40 items-end gap-2">
+                        {monthlyFoodDistribution.map((m) => {
+                          const h = Math.max(10, Math.min(100, (m.tons / 200) * 100))
+                          return (
+                            <div key={m.month} className="flex flex-1 flex-col items-center gap-1">
+                              <div className="w-full rounded-t-sm bg-primary/90" style={{ height: `${h}%` }} />
+                              <span className="text-[10px] text-muted-foreground">{m.month}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Key Performance Indicators */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Key Performance Indicators</CardTitle>
+                  <CardDescription>National program metrics</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {kpis.map((k) => (
+                      <div key={k.name} className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-medium leading-none">{k.name}</p>
+                          <span className="text-xs text-muted-foreground">{k.value}%</span>
+                        </div>
+                        <Progress value={k.value} className="h-2" />
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-3">
+              {/* Recent Alerts */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recent Alerts</CardTitle>
+                  <CardDescription>System notifications requiring attention</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {alerts.map((a, idx) => (
+                      <div key={idx} className="flex items-start justify-between gap-3 rounded-md border p-3">
+                        <div>
+                          <p className="text-sm font-medium leading-none">{a.title}</p>
+                          <p className="text-xs text-muted-foreground">{a.desc}</p>
+                        </div>
+                        <Badge
+                          variant={
+                            a.severity === "High" ? "destructive" : a.severity === "Medium" ? "secondary" : "outline"
+                          }
+                        >
+                          {a.severity}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Top Performing Districts */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Top Performing Districts</CardTitle>
+                  <CardDescription>Districts with highest efficiency</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {topDistricts.map((d) => (
+                      <div key={d.name} className="flex items-center justify-between rounded-md border p-3">
+                        <div>
+                          <p className="text-sm font-medium leading-none">{d.name}</p>
+                          <p className="text-xs text-muted-foreground">{d.meta}</p>
+                        </div>
+                        <Badge variant="default">{d.status}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Upcoming Milestones */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Upcoming Milestones</CardTitle>
+                  <CardDescription>Important dates and deadlines</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {milestones.map((m) => (
+                      <div key={m.title} className="flex items-center justify-between rounded-md border p-3">
+                        <div>
+                          <p className="text-sm font-medium leading-none">{m.title}</p>
+                          <p className="text-xs text-muted-foreground">{m.date}</p>
+                        </div>
+                        <div className="text-xs text-muted-foreground">{m.days} days</div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* District Performance & Recent Activities */}
+            <div className="grid gap-6 md:grid-cols-2">
               <Card>
                 <CardHeader>
                   <CardTitle>District Performance</CardTitle>
@@ -254,7 +333,6 @@ export function GovDashboard() {
                 </CardContent>
               </Card>
 
-              {/* Recent Activities */}
               <Card>
                 <CardHeader>
                   <CardTitle>Recent Activities</CardTitle>
@@ -275,30 +353,6 @@ export function GovDashboard() {
                 </CardContent>
               </Card>
             </div>
-
-            {/* Quick Actions */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
-                <CardDescription>Frequently used administrative actions</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-4 md:grid-cols-3">
-                  <Button className="h-20 flex-col gap-2 bg-transparent" variant="outline">
-                    <FileText className="h-6 w-6" />
-                    <span>Generate National Report</span>
-                  </Button>
-                  <Button className="h-20 flex-col gap-2 bg-transparent" variant="outline">
-                    <DollarSign className="h-6 w-6" />
-                    <span>Review Budget Allocation</span>
-                  </Button>
-                  <Button className="h-20 flex-col gap-2 bg-transparent" variant="outline">
-                    <BarChart3 className="h-6 w-6" />
-                    <span>View Analytics</span>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
           </div>
         </main>
       </div>

@@ -161,7 +161,7 @@ export function Login() {
               <hr /> 
               <div className="text-center text-sm text-gray-600">
                 Don't have an account?{" "}
-                <Link href="mailto:dujohnson123@gmail.com"  className="text-blue-600 hover:underline">
+                <Link to="mailto:dujohnson123@gmail.com"  className="text-blue-600 hover:underline">
                   Contact Administrator
                 </Link>
               </div>

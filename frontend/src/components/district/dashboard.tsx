@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom"
-import { Bell, Check, FileText, Home, LogOut, Package, School, Settings, Truck, User } from "lucide-react"
+import { Check, FileText, Package, School, Truck } from "lucide-react"
+import PageHeader from "@/components/shared/page-header"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -17,112 +18,21 @@ import { Badge } from "@/components/ui/badge"
 
 export function DistrictDashboard() {
   return (
-    <div className="flex min-h-screen bg-muted/40">
-      {/* Sidebar */}
-      <div className="hidden w-64 flex-col bg-primary text-primary-foreground md:flex">
-        <div className="flex h-14 items-center border-b border-primary-foreground/10 px-4">
-          <h2 className="text-lg font-semibold">District Coordinator</h2>
-        </div>
-        <div className="flex-1 overflow-auto py-2">
-          <nav className="grid items-start px-2 text-sm font-medium">
-            <Link
-              to="/district-dashboard"
-              className="flex items-center gap-3 rounded-lg bg-primary-foreground/10 px-3 py-2 text-primary-foreground transition-all hover:text-primary-foreground"
-            >
-              <Home className="h-4 w-4" />
-              Dashboard
-            </Link>
-            <Link
-              to="/district-approvals"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-primary-foreground/80 transition-all hover:text-primary-foreground"
-            >
-              <Check className="h-4 w-4" />
-              Approvals
-            </Link>
-            <Link
-              to="/manage-suppliers"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-primary-foreground/80 transition-all hover:text-primary-foreground"
-            >
-              <Truck className="h-4 w-4" />
-              Suppliers
-            </Link>
-            <Link
-              to="/district-reports"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-primary-foreground/80 transition-all hover:text-primary-foreground"
-            >
-              <Package className="h-4 w-4" />
-              Reports
-            </Link>
-            <Link
-              to="/district-settings"
-              className="flex items-center gap-3 rounded-lg px-3 py-2 text-primary-foreground/80 transition-all hover:text-primary-foreground"
-            >
-              <Settings className="h-4 w-4" />
-              Settings
-            </Link>
-          </nav>
-        </div>
-        <div className="mt-auto p-4">
-          <Button
-            variant="outline"
-            className="w-full justify-start gap-2 bg-primary-foreground/10 text-primary-foreground"
-          >
-            <LogOut className="h-4 w-4" />
-            <span>Log out</span>
-          </Button>
-        </div>
-      </div>
-
+    <div className="flex-1">
       {/* Main Content */}
       <div className="flex flex-1 flex-col">
+
         {/* Header */}
-        <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
-          <Link href="#" className="lg:hidden">
-            <Package className="h-6 w-6" />
-            <span className="sr-only">Home</span>
-          </Link>
-          <div className="w-full flex-1">
-            <h1 className="text-lg font-semibold">District Dashboard</h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-              <span className="sr-only">Notifications</span>
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src="/placeholder.svg" alt="Avatar" />
-                    <AvatarFallback>DC</AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">District Coordinator</p>
-                    <p className="text-xs leading-none text-muted-foreground">coordinator@district.rw</p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <User className="mr-2 h-4 w-4" />
-                  <span>Profile</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Settings</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </header>
+        <PageHeader
+          title="District Dashboard"
+          homeTo="/district-dashboard"
+          HomeIcon={Package}
+          profileTo="/district-profile"
+          userName="District Coordinator"
+          userEmail="coordinator@district.rw"
+          avatarSrc="/userIcon.png"
+          avatarFallback="DC"
+        />
 
         {/* Main Content */}
         <main className="flex-1 overflow-auto p-4 md:p-6">
