@@ -1,6 +1,11 @@
 package com.schoolfeeding.sf_backend.domain.base;
 
+import com.schoolfeeding.sf_backend.util.audit.EAction;
+import com.schoolfeeding.sf_backend.util.audit.EActionStatus;
+import com.schoolfeeding.sf_backend.util.audit.EResource;
 import jakarta.persistence.EntityListeners;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.MappedSuperclass;
 import lombok.Getter;
 import lombok.Setter;
@@ -31,11 +36,14 @@ public class AbstractAuditEntity {
     @LastModifiedDate
     private LocalDateTime updated;
 
-    private String action;
+    @Enumerated(EnumType.STRING)
+    private EAction action;
 
-    private String resource;
+    @Enumerated(EnumType.STRING)
+    private EResource resource;
 
-    private String actionStatus;
+    @Enumerated(EnumType.STRING)
+    private EActionStatus actionStatus;
 
     private String details;
 }
