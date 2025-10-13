@@ -13,7 +13,7 @@ import lombok.Setter;
 public class School extends AbstractBaseEntity {
 
     @Column(name = "School_Name",unique = true, nullable = false)
-    private String Name;
+    private String name;
 
     @Column(name = "Director_Name", nullable = false)
     private String DirectorNames;
