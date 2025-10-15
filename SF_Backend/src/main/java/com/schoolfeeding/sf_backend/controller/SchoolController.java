@@ -3,55 +3,49 @@ package com.schoolfeeding.sf_backend.controller;
 import com.schoolfeeding.sf_backend.domain.dto.SchoolDTO;
 import com.schoolfeeding.sf_backend.domain.entity.School;
 import com.schoolfeeding.sf_backend.domain.service.SchoolService;
-import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.validation.Valid;
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/schools")
+@RequiredArgsConstructor
 public class SchoolController {
 
     private final SchoolService schoolService;
 
-    public SchoolController(SchoolService schoolService) {
-        this.schoolService = schoolService;
-    }
 
-    // POST /api/schools (Create School)
     @PostMapping
     public ResponseEntity<School> createSchool(@Valid @RequestBody SchoolDTO dto) {
-        School school = schoolService.createSchool(dto);
-        return new ResponseEntity<>(school, HttpStatus.CREATED);
+        return ResponseEntity.ok(schoolService.createSchool(dto));
     }
 
-    // GET /api/schools (List All Schools)
+
     @GetMapping
     public ResponseEntity<List<School>> getAllSchools() {
-        List<School> schools = schoolService.findAllSchools();
-        return ResponseEntity.ok(schools);
+        return ResponseEntity.ok(schoolService.getAllSchools());
     }
 
-    // GET /api/schools/{id} (Get School by ID)
     @GetMapping("/{id}")
-    public ResponseEntity<School> getSchoolById(@PathVariable Long id) {
-        School school = schoolService.getSchoolById(id);
-        return ResponseEntity.ok(school);
+    public ResponseEntity<School> getSchoolById(@PathVariable UUID id) {
+        return ResponseEntity.ok(schoolService.getSchoolById(id));
     }
 
-    // PUT /api/schools/{id} (Update School)
+
     @PutMapping("/{id}")
-    public ResponseEntity<School> updateSchool(@PathVariable Long id, @Valid @RequestBody SchoolDTO dto) {
-        School updatedSchool = schoolService.updateSchool(id, dto);
-        return ResponseEntity.ok(updatedSchool);
+    public ResponseEntity<School> updateSchool(@PathVariable UUID id, @Valid @RequestBody SchoolDTO dto) {
+        return ResponseEntity.ok(schoolService.updateSchool(id, dto));
     }
 
-    // DELETE /api/schools/{id} (Delete School)
+ 
     @DeleteMapping("/{id}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteSchool(@PathVariable Long id) {
+    public ResponseEntity<String> deleteSchool(@PathVariable UUID id) {
         schoolService.deleteSchool(id);
+        return ResponseEntity.ok("School deleted (soft delete)");
     }
 }
+

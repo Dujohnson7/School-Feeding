@@ -18,16 +18,15 @@ public class AuthController {
         this.usersService = usersService;
     }
 
-    // POST /api/auth/login
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody Map<String, String> credentials) {
         String email = credentials.get("email");
         String password = credentials.get("password");
 
-        // Manually authenticate using your service
+        
         Users user = usersService.authenticateUser(email, password);
 
-        // Return only user info, no tokens needed
+        
         Map<String, Object> response = new HashMap<>();
         response.put("role", user.getRole().name());
         response.put("email", user.getEmail());

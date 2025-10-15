@@ -11,12 +11,12 @@ import java.time.LocalDateTime;
 @Repository
 public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
 
-    // CORRECTED: Changed 'AndActionContainingIgnoreCase' to 'AndActivityActionContainingIgnoreCase'
+    
     Page<AuditLog> findByTimestampBetweenAndSeverityContainingIgnoreCaseAndActivityActionContainingIgnoreCase(
              LocalDateTime startDate,
              LocalDateTime endDate,
              String severity,
-             String search, // Maps to activityAction
+             String search, 
              Pageable pageable
     );
 }

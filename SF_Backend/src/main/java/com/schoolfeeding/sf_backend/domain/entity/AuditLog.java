@@ -15,10 +15,9 @@ import java.time.LocalDateTime;
 @Table(name = "audit_logs")
 public class AuditLog extends AbstractBaseEntity {
 
-    // Renamed to avoid name collision. Lombok will generate: 
-    // public String getActivityAction() and public void setActivityAction(String action)
+   
     @Column(name = "action", nullable = false) 
-    private String activityAction; // Maps to DB column 'action'
+    private String activityAction; 
 
     @Column(name = "actor", nullable = false)
     private String actor; 
@@ -35,14 +34,12 @@ public class AuditLog extends AbstractBaseEntity {
     public AuditLog() {
     }
 
-    // Constructor updated to use the new field name
+    
     public AuditLog(String action, String actor, String severity, String details) {
-        this.activityAction = action; // 'action' argument is saved to 'activityAction' field
+        this.activityAction = action; 
         this.actor = actor;
         this.severity = severity;
         this.details = details;
     }
     
-    // NOTE: The custom getAction() and setAction() methods are REMOVED to eliminate the 
-    // conflict with the base class method, regardless of its return type.
 }

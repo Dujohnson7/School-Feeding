@@ -1,5 +1,7 @@
 package com.schoolfeeding.sf_backend.domain.dto;
 
+import java.util.UUID;
+
 import com.schoolfeeding.sf_backend.util.role.ERole;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -20,11 +22,11 @@ public class UserCreationDTO {
     private String email;
 
     @NotBlank
-    private String password; // Will be hashed in the service layer
+    private String password; 
 
     @NotNull
     private ERole role;
 
-    private Long districtId; // Use Long for ID references
-    private Long schoolId;
+    private UUID districtId; 
+    private UUID schoolId;
 }

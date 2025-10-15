@@ -18,7 +18,7 @@ public class JwtTokenProvider {
     @Value("${app.jwtSecret:yourSuperSecretKeyThatIsAtLeast256BitsLongAndShouldBeStoredSecurely}")
     private String jwtSecret;
 
-    @Value("${app.jwtExpirationMs:86400000}") // 24 hours
+    @Value("${app.jwtExpirationMs:86400000}") 
     private int jwtExpirationMs;
 
     private SecretKey getSigningKey() {
@@ -26,9 +26,7 @@ public class JwtTokenProvider {
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    /**
-     * Generates a JWT token based on the user's authentication information.
-     */
+    
     public String generateToken(Authentication authentication) {
         UserDetails userPrincipal = (UserDetails) authentication.getPrincipal();
 
@@ -39,16 +37,14 @@ public class JwtTokenProvider {
                 .subject(userPrincipal.getUsername())
                 .issuedAt(now)
                 .expiration(expiryDate)
-                .signWith(getSigningKey()) // ✅ In 0.12.x no need to specify algorithm
+                .signWith(getSigningKey()) 
                 .compact();
     }
 
-    /**
-     * Retrieves the username (subject) from the JWT token.
-     */
+   
     public String getUserIdFromJWT(String token) {
         Claims claims = Jwts.parser()
-                .verifyWith(getSigningKey()) // ✅ SecretKey expected
+                .verifyWith(getSigningKey()) 
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
@@ -56,9 +52,7 @@ public class JwtTokenProvider {
         return claims.getSubject();
     }
 
-    /**
-     * Validates the integrity and expiration of the JWT token.
-     */
+    
     public boolean validateToken(String authToken) {
         try {
             Jwts.parser()

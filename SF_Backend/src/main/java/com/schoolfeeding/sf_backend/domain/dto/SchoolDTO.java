@@ -1,7 +1,10 @@
 package com.schoolfeeding.sf_backend.domain.dto;
 
+import java.util.UUID;
+
 import com.schoolfeeding.sf_backend.util.accounting.EBank;
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -25,7 +28,7 @@ public class SchoolDTO {
     private String phone;
 
     @NotNull(message = "District ID is required")
-    private Long districtId;
+    private UUID districtId;
 
     @NotBlank(message = "Address is required")
     private String address;
@@ -35,4 +38,9 @@ public class SchoolDTO {
 
     @NotBlank(message = "Bank Account number is required")
     private String bankAccount;
+
+    
+    @NotNull(message = "Number of students is required")
+    @Min(value = 0, message = "Number of students must be a non-negative number")
+    private Integer numberStudent;
 }

@@ -9,10 +9,9 @@ import lombok.Setter;
 @Entity
 @Getter
 @Setter
-
 public class School extends AbstractBaseEntity {
 
-    @Column(name = "School_Name",unique = true, nullable = false)
+    @Column(name = "School_Name", nullable = false)
     private String name;
 
     @Column(name = "Director_Name", nullable = false)
@@ -37,4 +36,8 @@ public class School extends AbstractBaseEntity {
 
     @Column(name = "Bank_Account", nullable = false)
     private String BankAccount;
+
+    
+    @Column(name = "number_student", nullable = false)
+    private Integer numberStudent;
 }

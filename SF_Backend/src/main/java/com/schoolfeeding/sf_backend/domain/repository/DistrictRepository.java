@@ -5,11 +5,17 @@ import com.schoolfeeding.sf_backend.util.address.EDistrict;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
-public interface DistrictRepository extends JpaRepository<District, Long> {
+public interface DistrictRepository extends JpaRepository<District, UUID> {
 
-    // Custom method to check if a district already exists by its Enum name
+    Optional<District> findByIdAndIsDeletedFalse(UUID id);
+
+    List<District> findByIsDeletedFalse();
+    long countByIsDeletedFalse();
+
     Optional<District> findByDistrict(EDistrict district);
 }

@@ -18,7 +18,7 @@ import java.io.IOException;
 
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    // NOTE: You must inject the UserDetailsService implementation here
+   
     @Autowired
     private UserDetailsService userDetailsService;
 
@@ -34,7 +34,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (StringUtils.hasText(jwt) && tokenProvider.validateToken(jwt)) {
                 String userId = tokenProvider.getUserIdFromJWT(jwt);
 
-                // Load user details (requires your UserDetailsService to be implemented correctly)
+            
                 UserDetails userDetails = userDetailsService.loadUserByUsername(userId);
                 
                 if (userDetails != null) {
@@ -42,12 +42,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             userDetails, null, userDetails.getAuthorities());
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-                    // Set the user in Spring Security's context
+                   
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
             }
         } catch (Exception ex) {
-            // Log the exception if needed, but don't stop the filter chain
+            
             System.err.println("Could not set user authentication in security context: " + ex.getMessage());
         }
 
@@ -56,7 +56,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private String getJwtFromRequest(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
-        // Check for Bearer token format
+       
         if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
             return bearerToken.substring(7);
         }

@@ -8,9 +8,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
-/**
- * Adapter between your UsersService and Spring Security UserDetailsService
- */
+
 public class UsersServiceUserDetailsService implements UserDetailsService {
 
     private final UsersService usersService;
@@ -21,7 +19,7 @@ public class UsersServiceUserDetailsService implements UserDetailsService {
 
     @Override
 public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-    Users user = usersService.findByEmail(email) // <-- fetch user by email only
+    Users user = usersService.findByEmail(email) 
             .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
     if (user.getStatus() == EStatus.DELETED) {
@@ -30,7 +28,7 @@ public UserDetails loadUserByUsername(String email) throws UsernameNotFoundExcep
 
     return User.builder()
             .username(user.getEmail())
-            .password(user.getPassword()) // hashed password
+            .password(user.getPassword())
             .authorities(user.getRole().name())
             .accountLocked(user.getStatus() == EStatus.SUSPENDED)
             .disabled(user.getStatus() == EStatus.DELETED)

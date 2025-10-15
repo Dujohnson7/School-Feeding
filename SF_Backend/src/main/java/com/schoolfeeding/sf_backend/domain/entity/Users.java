@@ -16,7 +16,7 @@ import java.util.UUID;
 @Inheritance(strategy = InheritanceType.JOINED)
 public class Users extends AbstractBaseEntity {
 
-    // UUID as a generated unique field, not primary key
+    
     @Column(name = "uuid", unique = true, nullable = false, updatable = false)
     private UUID uuid;
 

@@ -11,15 +11,22 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf.disable()) // Disable CSRF for REST API
+            .csrf(csrf -> csrf.disable())
+            .sessionManagement(session -> session.disable())
+            .formLogin(form -> form.disable())
+            .logout(logout -> logout.disable())
+            .httpBasic(httpBasic -> httpBasic.disable())
             .authorizeHttpRequests(auth -> auth
-                // Allow login and user registration without authentication
-                .requestMatchers("/api/auth/login", "/api/users").permitAll()
-                // All other requests require authentication
+                .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/api/users/**").permitAll()
+                .requestMatchers("/api/districts/**").permitAll()
+                .requestMatchers("/api/schools/**").permitAll()
+                .requestMatchers("/api/budgets/**").permitAll()
+                .requestMatchers("/api/admin/dashboard").permitAll()
+                .requestMatchers("/api/gov/dashboard").permitAll()
                 .anyRequest().authenticated()
-            )
-            .httpBasic(); // Optional: simple HTTP basic auth if needed
+            );
 
-        return http.build();
+        return http.build(); // semicolon is required
     }
 }
