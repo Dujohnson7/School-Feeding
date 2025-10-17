@@ -16,13 +16,12 @@ import { toast } from "@/components/ui/use-toast"
 
 export function Profile() {
   const [profile, setProfile] = useState({
-    firstName: "Jean Baptiste",
-    lastName: "Uwimana",
-    email: "jean.uwimana@school.edu.rw",
-    phone: "+250 788 123 456",
+    name: "Johnson Duhimbazimana",
+    role: "Admin",
+    email: "johnson@school.edu.rw",
+    phone: "+250 792 104 882",
     school: "Kigali Primary School",
-    district: "Gasabo District",
-    bio: "Experienced school administrator with over 10 years in educational management.",
+    district: "Gasabo District", 
   })
 
   const [notifications, setNotifications] = useState({
@@ -48,13 +47,7 @@ export function Profile() {
     })
   }
 
-  const handleNotificationsSave = () => {
-    console.log("Saving notifications:", notifications)
-    toast({
-      title: "Notifications Updated",
-      description: "Your notification preferences have been saved.",
-    })
-  }
+ 
 
   const handlePasswordChange = () => {
     if (!security.currentPassword || !security.newPassword || !security.confirmPassword) {
@@ -144,9 +137,8 @@ export function Profile() {
             </div>
 
             <Tabs defaultValue="profile" className="space-y-6">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="profile">Profile</TabsTrigger>
-                <TabsTrigger value="notifications">Notifications</TabsTrigger>
+              <TabsList className="grid w-full grid-cols-60 md:grid-cols-2">
+                <TabsTrigger value="profile">Profile</TabsTrigger> 
                 <TabsTrigger value="security">Security</TabsTrigger>
               </TabsList>
 
@@ -159,7 +151,7 @@ export function Profile() {
                   <CardContent className="space-y-6">
                     <div className="flex items-center space-x-4">
                       <Avatar className="h-20 w-20">
-                        <AvatarImage src="/placeholder.svg" alt="Profile picture" />
+                        <AvatarImage src="/userIcon.png" alt="Profile picture" />
                         <AvatarFallback className="text-lg">JU</AvatarFallback>
                       </Avatar>
                       <div>
@@ -170,19 +162,20 @@ export function Profile() {
 
                     <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
-                        <Label htmlFor="firstName">First Name</Label>
+                        <Label htmlFor="name">Name</Label>
                         <Input
                           id="firstName"
-                          value={profile.firstName}
-                          onChange={(e) => setProfile({ ...profile, firstName: e.target.value })}
+                          value={profile.name}
+                          onChange={(e) => setProfile({ ...profile, name: e.target.value })}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="lastName">Last Name</Label>
+                        <Label htmlFor="role">Role</Label>
                         <Input
-                          id="lastName"
-                          value={profile.lastName}
-                          onChange={(e) => setProfile({ ...profile, lastName: e.target.value })}
+                          id="role"
+                          value={profile.role}
+                          onChange={(e) => setProfile({ ...profile, role: e.target.value })}
+                          readOnly
                         />
                       </div>
                     </div>
@@ -225,16 +218,7 @@ export function Profile() {
                         />
                       </div>
                     </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="bio">Bio</Label>
-                      <Textarea
-                        id="bio"
-                        value={profile.bio}
-                        onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
-                        rows={3}
-                      />
-                    </div>
+ 
 
                     <Button onClick={handleProfileSave}>
                       <Save className="mr-2 h-4 w-4" />
@@ -243,84 +227,7 @@ export function Profile() {
                   </CardContent>
                 </Card>
               </TabsContent>
-
-              <TabsContent value="notifications" className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Notification Preferences</CardTitle>
-                    <CardDescription>Choose how you want to be notified about system updates</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label>Email Notifications</Label>
-                          <p className="text-sm text-muted-foreground">Receive notifications via email</p>
-                        </div>
-                        <Switch
-                          checked={notifications.emailNotifications}
-                          onCheckedChange={(checked) =>
-                            setNotifications({ ...notifications, emailNotifications: checked })
-                          }
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label>SMS Notifications</Label>
-                          <p className="text-sm text-muted-foreground">Receive notifications via SMS</p>
-                        </div>
-                        <Switch
-                          checked={notifications.smsNotifications}
-                          onCheckedChange={(checked) =>
-                            setNotifications({ ...notifications, smsNotifications: checked })
-                          }
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label>Push Notifications</Label>
-                          <p className="text-sm text-muted-foreground">Receive push notifications in browser</p>
-                        </div>
-                        <Switch
-                          checked={notifications.pushNotifications}
-                          onCheckedChange={(checked) =>
-                            setNotifications({ ...notifications, pushNotifications: checked })
-                          }
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label>Weekly Reports</Label>
-                          <p className="text-sm text-muted-foreground">Receive weekly summary reports</p>
-                        </div>
-                        <Switch
-                          checked={notifications.weeklyReports}
-                          onCheckedChange={(checked) => setNotifications({ ...notifications, weeklyReports: checked })}
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label>System Alerts</Label>
-                          <p className="text-sm text-muted-foreground">Receive critical system alerts</p>
-                        </div>
-                        <Switch
-                          checked={notifications.systemAlerts}
-                          onCheckedChange={(checked) => setNotifications({ ...notifications, systemAlerts: checked })}
-                        />
-                      </div>
-                    </div>
-
-                    <Button onClick={handleNotificationsSave}>
-                      <Save className="mr-2 h-4 w-4" />
-                      Save Preferences
-                    </Button>
-                  </CardContent>
-                </Card>
-              </TabsContent>
+ 
 
               <TabsContent value="security" className="space-y-6">
                 <Card>
@@ -362,21 +269,7 @@ export function Profile() {
 
                       <Button onClick={handlePasswordChange}>Change Password</Button>
                     </div>
-
-                    <div className="border-t pt-6">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label>Two-Factor Authentication</Label>
-                          <p className="text-sm text-muted-foreground">
-                            Add an extra layer of security to your account
-                          </p>
-                        </div>
-                        <Switch
-                          checked={security.twoFactorEnabled}
-                          onCheckedChange={(checked) => setSecurity({ ...security, twoFactorEnabled: checked })}
-                        />
-                      </div>
-                    </div>
+ 
                   </CardContent>
                 </Card>
               </TabsContent>

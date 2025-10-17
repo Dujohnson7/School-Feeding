@@ -1,5 +1,5 @@
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { AlertTriangle, ArrowUpDown, Bell, Download, Filter, Package, Plus, Search, Settings, User, LogOut } from "lucide-react"
 
@@ -27,6 +27,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 
 interface InventoryItem {
   id: string
@@ -47,6 +48,8 @@ export function StockInventory() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null)
   const [adjustDialogOpen, setAdjustDialogOpen] = useState(false)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(5)
 
   // Sample data
   const inventoryItems: InventoryItem[] = [
@@ -148,6 +151,27 @@ export function StockInventory() {
 
     return matchesSearch && matchesCategory && matchesStatus
   })
+
+  useEffect(() => {
+    setPage(1)
+  }, [searchTerm, categoryFilter, statusFilter])
+
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize))
+  const startIndex = (page - 1) * pageSize
+  const paginatedItems = filteredItems.slice(startIndex, startIndex + pageSize)
+
+  const canPrev = page > 1
+  const canNext = page < totalPages
+
+  const getPageWindow = () => {
+    const maxButtons = 5
+    if (totalPages <= maxButtons) return Array.from({ length: totalPages }, (_, i) => i + 1)
+    const half = Math.floor(maxButtons / 2)
+    let start = Math.max(1, page - half)
+    let end = Math.min(totalPages, start + maxButtons - 1)
+    if (end - start + 1 < maxButtons) start = Math.max(1, end - maxButtons + 1)
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i)
+  }
 
   const handleAdjustStock = () => {
     // In a real app, this would update the inventory item quantity
@@ -335,7 +359,7 @@ export function StockInventory() {
                   </TableHeader>
                   <TableBody>
                     {filteredItems.length > 0 ? (
-                      filteredItems.map((item) => (
+                      paginatedItems.map((item) => (
                         <TableRow key={item.id}>
                           <TableCell className="font-medium">{item.id}</TableCell>
                           <TableCell>{item.name}</TableCell>
@@ -374,6 +398,56 @@ export function StockInventory() {
                     )}
                   </TableBody>
                 </Table>
+              </div>
+              <div className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span className="text-sm">
+                    Showing {filteredItems.length === 0 ? 0 : startIndex + 1}–
+                    {Math.min(startIndex + pageSize, filteredItems.length)} of {filteredItems.length}
+                  </span>
+                  <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1) }}>
+                    <SelectTrigger className="w-[110px]">
+                      <SelectValue placeholder="Rows" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">5</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        onClick={(e) => { e.preventDefault(); if (canPrev) setPage((p) => p - 1) }}
+                        className={!canPrev ? "pointer-events-none opacity-50" : ""}
+                        href="#"
+                      />
+                    </PaginationItem>
+
+                    {getPageWindow().map((p) => (
+                      <PaginationItem key={p}>
+                        <PaginationLink
+                          href="#"
+                          isActive={p === page}
+                          onClick={(e) => { e.preventDefault(); setPage(p) }}
+                        >
+                          {p}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ))}
+
+                    <PaginationItem>
+                      <PaginationNext
+                        onClick={(e) => { e.preventDefault(); if (canNext) setPage((p) => p + 1) }}
+                        className={!canNext ? "pointer-events-none opacity-50" : ""}
+                        href="#"
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
               </div>
             </CardContent>
           </Card>

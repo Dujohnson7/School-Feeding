@@ -12,6 +12,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useEffect } from "react"
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 
 interface User {
   id: string
@@ -27,15 +29,19 @@ interface User {
 export function AdminUserManagement() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedRole, setSelectedRole] = useState("all")
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(5)
   const [isAddUserOpen, setIsAddUserOpen] = useState(false)
   const [newUser, setNewUser] = useState({
     name: "",
     email: "",
     role: "",
+    district: "",
+    phone: "",
+    school: "",
     password: "",
   })
-
-  // Sample data
+ 
   const users: User[] = [
     {
       id: "1",
@@ -92,8 +98,7 @@ export function AdminUserManagement() {
       createdAt: "2024-01-12",
     },
   ]
-
-  // Filter users based on search term and filters
+ 
   const filteredUsers = users.filter((user) => {
     const matchesSearch =
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -104,11 +109,36 @@ export function AdminUserManagement() {
     return matchesSearch && matchesRole
   })
 
+  useEffect(() => {
+    setPage(1)
+  }, [searchTerm, selectedRole])
+
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize))
+  const startIndex = (page - 1) * pageSize
+  const paginatedUsers = filteredUsers.slice(startIndex, startIndex + pageSize)
+
+  const canPrev = page > 1
+  const canNext = page < totalPages
+
+  const getPageWindow = () => {
+    const maxButtons = 5
+    if (totalPages <= maxButtons) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1)
+    }
+    const half = Math.floor(maxButtons / 2)
+    let start = Math.max(1, page - half)
+    let end = Math.min(totalPages, start + maxButtons - 1)
+    if (end - start + 1 < maxButtons) {
+      start = Math.max(1, end - maxButtons + 1)
+    }
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i)
+  }
+
   const handleAddUser = () => {
     // In a real app, you would add the user to your backend
     console.log("Adding new user:", newUser)
     setIsAddUserOpen(false)
-    setNewUser({ name: "", email: "", role: "", password: "" })
+    setNewUser({ name: "", email: "", role: "", password: "", district: "", phone: "", school: "" })
   }
 
   const handleUserAction = (action: string, userId: string) => {
@@ -220,8 +250,7 @@ export function AdminUserManagement() {
                       <SelectItem value="District Coordinator">District Coordinator</SelectItem>
                       <SelectItem value="School Administrator">School Administrator</SelectItem>
                       <SelectItem value="Stock Manager">Stock Manager</SelectItem>
-                      <SelectItem value="Supplier">Supplier</SelectItem>
-                      <SelectItem value="Parent">Parent</SelectItem>
+                      <SelectItem value="Supplier">Supplier</SelectItem> 
                     </SelectContent>
                   </Select>
                   <Button onClick={() => setIsAddUserOpen(true)}>
@@ -245,7 +274,7 @@ export function AdminUserManagement() {
                   </TableHeader>
                   <TableBody>
                     {filteredUsers.length > 0 ? (
-                      filteredUsers.map((user) => (
+                      paginatedUsers.map((user) => (
                         <TableRow key={user.id}>
                           <TableCell>
                             <div className="flex items-center gap-3">
@@ -319,6 +348,58 @@ export function AdminUserManagement() {
                     )}
                   </TableBody>
                 </Table>
+                
+              </div>
+
+              <div className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span className="text-sm">
+                    Showing {filteredUsers.length === 0 ? 0 : startIndex + 1}–
+                    {Math.min(startIndex + pageSize, filteredUsers.length)} of {filteredUsers.length}
+                  </span>
+                  <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1) }}>
+                    <SelectTrigger className="w-[110px]">
+                      <SelectValue placeholder="Rows" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">5</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        onClick={(e) => { e.preventDefault(); if (canPrev) setPage((p) => p - 1) }}
+                        className={!canPrev ? "pointer-events-none opacity-50" : ""}
+                        href="#"
+                      />
+                    </PaginationItem>
+
+                    {getPageWindow().map((p) => (
+                      <PaginationItem key={p}>
+                        <PaginationLink
+                          href="#"
+                          isActive={p === page}
+                          onClick={(e) => { e.preventDefault(); setPage(p) }}
+                        >
+                          {p}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ))}
+
+                    <PaginationItem>
+                      <PaginationNext
+                        onClick={(e) => { e.preventDefault(); if (canNext) setPage((p) => p + 1) }}
+                        className={!canNext ? "pointer-events-none opacity-50" : ""}
+                        href="#"
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
               </div>
             </CardContent>
           </Card>
@@ -344,6 +425,16 @@ export function AdminUserManagement() {
               />
             </div>
             <div className="grid gap-2">
+              <Label htmlFor="phone">Phone</Label>
+              <Input
+                id="phone"
+                type="number"
+                value={newUser.phone}
+                onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })}
+                placeholder="Enter phone number"
+              />
+            </div>
+            <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
@@ -351,6 +442,16 @@ export function AdminUserManagement() {
                 value={newUser.email}
                 onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
                 placeholder="Enter email address"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                value={newUser.password}
+                onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                placeholder="Enter password"
               />
             </div>
             <div className="grid gap-2">
@@ -364,21 +465,47 @@ export function AdminUserManagement() {
                   <SelectItem value="District Coordinator">District Coordinator</SelectItem>
                   <SelectItem value="School Administrator">School Administrator</SelectItem>
                   <SelectItem value="Stock Manager">Stock Manager</SelectItem>
-                  <SelectItem value="Supplier">Supplier</SelectItem>
-                  <SelectItem value="Parent">Parent</SelectItem>
+                  <SelectItem value="Supplier">Supplier</SelectItem> 
                 </SelectContent>
               </Select>
             </div>
+
+            { newUser.role === "District Coordinator"  && (
             <div className="grid gap-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={newUser.password}
-                onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                placeholder="Enter password"
-              />
+              <Label htmlFor="district">District</Label>
+              <Select value={newUser.district} onValueChange={(value) => setNewUser({ ...newUser, district: value })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select District" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Kigali">Kigali</SelectItem>
+                  <SelectItem value="Musanze">Musanze</SelectItem>
+                  <SelectItem value="Huye">Huye</SelectItem>
+                  <SelectItem value="Rubavu">Rubavu</SelectItem>
+                  <SelectItem value="Nyabihu">Nyabihu</SelectItem> 
+                </SelectContent>
+              </Select>
             </div>
+            )}
+
+            { newUser.role === "School Administrator"  && (
+            <div className="grid gap-2">
+              <Label htmlFor="school">School</Label>
+              <Select value={newUser.school} onValueChange={(value) => setNewUser({ ...newUser, school: value })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select School" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Kigali">Kigali Secondary School</SelectItem>
+                  <SelectItem value="Musanze">Musanze Secondary School</SelectItem>
+                  <SelectItem value="Huye">Huye Secondary School</SelectItem>
+                  <SelectItem value="Rubavu">Rubavu Secondary School</SelectItem>
+                  <SelectItem value="Nyabihu">Nyabihu Secondary School</SelectItem> 
+                </SelectContent>
+              </Select>
+            </div>
+            )}
+
           </div>
 
           <DialogFooter>

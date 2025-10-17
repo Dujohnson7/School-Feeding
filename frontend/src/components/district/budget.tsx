@@ -1,5 +1,5 @@
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import {
   Bell,
@@ -36,11 +36,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 
 export function DistrictBudget() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedYear, setSelectedYear] = useState("2025")
   const [selectedSchool, setSelectedSchool] = useState("all")
+  const [pageSchools, setPageSchools] = useState(1)
+  const [pageSizeSchools, setPageSizeSchools] = useState(5)
+  const [pageHist, setPageHist] = useState(1)
+  const [pageSizeHist, setPageSizeHist] = useState(5)
 
   // Mock budget data for Nyarugenge District
   const districtBudget = {
@@ -110,6 +115,40 @@ export function DistrictBudget() {
       school.school.toLowerCase().includes(searchTerm.toLowerCase()) &&
       (selectedSchool === "all" || school.school === selectedSchool),
   )
+
+  useEffect(() => {
+    setPageSchools(1)
+  }, [searchTerm, selectedSchool])
+
+  const totalPagesSchools = Math.max(1, Math.ceil(filteredSchools.length / pageSizeSchools))
+  const startSchools = (pageSchools - 1) * pageSizeSchools
+  const paginatedSchools = filteredSchools.slice(startSchools, startSchools + pageSizeSchools)
+  const canPrevSchools = pageSchools > 1
+  const canNextSchools = pageSchools < totalPagesSchools
+  const getSchoolsPageWindow = () => {
+    const maxButtons = 5
+    if (totalPagesSchools <= maxButtons) return Array.from({ length: totalPagesSchools }, (_, i) => i + 1)
+    const half = Math.floor(maxButtons / 2)
+    let start = Math.max(1, pageSchools - half)
+    let end = Math.min(totalPagesSchools, start + maxButtons - 1)
+    if (end - start + 1 < maxButtons) start = Math.max(1, end - maxButtons + 1)
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i)
+  }
+
+  const totalPagesHist = Math.max(1, Math.ceil(budgetHistory.length / pageSizeHist))
+  const startHist = (pageHist - 1) * pageSizeHist
+  const paginatedHistory = budgetHistory.slice(startHist, startHist + pageSizeHist)
+  const canPrevHist = pageHist > 1
+  const canNextHist = pageHist < totalPagesHist
+  const getHistPageWindow = () => {
+    const maxButtons = 5
+    if (totalPagesHist <= maxButtons) return Array.from({ length: totalPagesHist }, (_, i) => i + 1)
+    const half = Math.floor(maxButtons / 2)
+    let start = Math.max(1, pageHist - half)
+    let end = Math.min(totalPagesHist, start + maxButtons - 1)
+    if (end - start + 1 < maxButtons) start = Math.max(1, end - maxButtons + 1)
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i)
+  }
 
   return (
     <div className="flex-1">
@@ -268,7 +307,7 @@ export function DistrictBudget() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {filteredSchools.map((school) => (
+                    {filteredSchools.length > 0 ? paginatedSchools.map((school) => (
                       <div key={school.id} className="flex items-center justify-between p-4 border rounded-lg">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
@@ -290,10 +329,62 @@ export function DistrictBudget() {
                           <Progress value={(school.spent / school.allocated) * 100} className="w-[100px]" />
                         </div>
                       </div>
-                    ))}
+                    )) : (
+                      <div className="text-center text-sm text-muted-foreground">No schools found.</div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
+              <div className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span className="text-sm">
+                    Showing {filteredSchools.length === 0 ? 0 : startSchools + 1}–
+                    {Math.min(startSchools + pageSizeSchools, filteredSchools.length)} of {filteredSchools.length}
+                  </span>
+                  <Select value={String(pageSizeSchools)} onValueChange={(v) => { setPageSizeSchools(Number(v)); setPageSchools(1) }}>
+                    <SelectTrigger className="w-[110px]">
+                      <SelectValue placeholder="Rows" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">5</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        onClick={(e) => { e.preventDefault(); if (canPrevSchools) setPageSchools((p) => p - 1) }}
+                        className={!canPrevSchools ? "pointer-events-none opacity-50" : ""}
+                        href="#"
+                      />
+                    </PaginationItem>
+
+                    {getSchoolsPageWindow().map((p) => (
+                      <PaginationItem key={p}>
+                        <PaginationLink
+                          href="#"
+                          isActive={p === pageSchools}
+                          onClick={(e) => { e.preventDefault(); setPageSchools(p) }}
+                        >
+                          {p}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ))}
+
+                    <PaginationItem>
+                      <PaginationNext
+                        onClick={(e) => { e.preventDefault(); if (canNextSchools) setPageSchools((p) => p + 1) }}
+                        className={!canNextSchools ? "pointer-events-none opacity-50" : ""}
+                        href="#"
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
             </TabsContent>
 
             <TabsContent value="spending" className="space-y-4">
@@ -334,7 +425,7 @@ export function DistrictBudget() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {budgetHistory.map((budget) => (
+                    {budgetHistory.length > 0 ? paginatedHistory.map((budget) => (
                       <div key={budget.id} className="flex items-center justify-between p-4 border rounded-lg">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
@@ -350,10 +441,62 @@ export function DistrictBudget() {
                           <div className="text-sm text-muted-foreground">Total Allocated</div>
                         </div>
                       </div>
-                    ))}
+                    )) : (
+                      <div className="text-center text-sm text-muted-foreground">No history found.</div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
+              <div className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span className="text-sm">
+                    Showing {budgetHistory.length === 0 ? 0 : startHist + 1}–
+                    {Math.min(startHist + pageSizeHist, budgetHistory.length)} of {budgetHistory.length}
+                  </span>
+                  <Select value={String(pageSizeHist)} onValueChange={(v) => { setPageSizeHist(Number(v)); setPageHist(1) }}>
+                    <SelectTrigger className="w-[110px]">
+                      <SelectValue placeholder="Rows" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">5</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        onClick={(e) => { e.preventDefault(); if (canPrevHist) setPageHist((p) => p - 1) }}
+                        className={!canPrevHist ? "pointer-events-none opacity-50" : ""}
+                        href="#"
+                      />
+                    </PaginationItem>
+
+                    {getHistPageWindow().map((p) => (
+                      <PaginationItem key={p}>
+                        <PaginationLink
+                          href="#"
+                          isActive={p === pageHist}
+                          onClick={(e) => { e.preventDefault(); setPageHist(p) }}
+                        >
+                          {p}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ))}
+
+                    <PaginationItem>
+                      <PaginationNext
+                        onClick={(e) => { e.preventDefault(); if (canNextHist) setPageHist((p) => p + 1) }}
+                        className={!canNextHist ? "pointer-events-none opacity-50" : ""}
+                        href="#"
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
             </TabsContent>
           </Tabs>
         </main>

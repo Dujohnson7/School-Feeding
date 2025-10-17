@@ -1,5 +1,5 @@
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import {
   Bell,
@@ -37,6 +37,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 import {
   Dialog,
   DialogContent,
@@ -55,6 +56,10 @@ export function GovBudget() {
   const [selectedDistrict, setSelectedDistrict] = useState("all")
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
   const [isAllocateDialogOpen, setIsAllocateDialogOpen] = useState(false)
+  const [pageAlloc, setPageAlloc] = useState(1)
+  const [pageSizeAlloc, setPageSizeAlloc] = useState(5)
+  const [pageHist, setPageHist] = useState(1)
+  const [pageSizeHist, setPageSizeHist] = useState(5)
 
   // Mock budget data
   const budgetOverview = {
@@ -133,6 +138,40 @@ export function GovBudget() {
       district.district.toLowerCase().includes(searchTerm.toLowerCase()) &&
       (selectedDistrict === "all" || district.district === selectedDistrict),
   )
+
+  useEffect(() => {
+    setPageAlloc(1)
+  }, [searchTerm, selectedDistrict])
+
+  const totalPagesAlloc = Math.max(1, Math.ceil(filteredDistricts.length / pageSizeAlloc))
+  const startAlloc = (pageAlloc - 1) * pageSizeAlloc
+  const paginatedDistricts = filteredDistricts.slice(startAlloc, startAlloc + pageSizeAlloc)
+  const canPrevAlloc = pageAlloc > 1
+  const canNextAlloc = pageAlloc < totalPagesAlloc
+  const getAllocPageWindow = () => {
+    const maxButtons = 5
+    if (totalPagesAlloc <= maxButtons) return Array.from({ length: totalPagesAlloc }, (_, i) => i + 1)
+    const half = Math.floor(maxButtons / 2)
+    let start = Math.max(1, pageAlloc - half)
+    let end = Math.min(totalPagesAlloc, start + maxButtons - 1)
+    if (end - start + 1 < maxButtons) start = Math.max(1, end - maxButtons + 1)
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i)
+  }
+
+  const totalPagesHist = Math.max(1, Math.ceil(budgetHistory.length / pageSizeHist))
+  const startHist = (pageHist - 1) * pageSizeHist
+  const paginatedHistory = budgetHistory.slice(startHist, startHist + pageSizeHist)
+  const canPrevHist = pageHist > 1
+  const canNextHist = pageHist < totalPagesHist
+  const getHistPageWindow = () => {
+    const maxButtons = 5
+    if (totalPagesHist <= maxButtons) return Array.from({ length: totalPagesHist }, (_, i) => i + 1)
+    const half = Math.floor(maxButtons / 2)
+    let start = Math.max(1, pageHist - half)
+    let end = Math.min(totalPagesHist, start + maxButtons - 1)
+    if (end - start + 1 < maxButtons) start = Math.max(1, end - maxButtons + 1)
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i)
+  }
 
   return (
     <div className="flex-1">
@@ -337,7 +376,7 @@ export function GovBudget() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {filteredDistricts.map((district) => (
+                    {filteredDistricts.length > 0 ? paginatedDistricts.map((district) => (
                       <div key={district.id} className="flex items-center justify-between p-4 border rounded-lg">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
@@ -359,10 +398,62 @@ export function GovBudget() {
                           <Progress value={(district.spent / district.allocated) * 100} className="w-[100px]" />
                         </div>
                       </div>
-                    ))}
+                    )) : (
+                      <div className="text-center text-sm text-muted-foreground">No districts found.</div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
+              <div className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span className="text-sm">
+                    Showing {filteredDistricts.length === 0 ? 0 : startAlloc + 1}–
+                    {Math.min(startAlloc + pageSizeAlloc, filteredDistricts.length)} of {filteredDistricts.length}
+                  </span>
+                  <Select value={String(pageSizeAlloc)} onValueChange={(v) => { setPageSizeAlloc(Number(v)); setPageAlloc(1) }}>
+                    <SelectTrigger className="w-[110px]">
+                      <SelectValue placeholder="Rows" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="3">3</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        onClick={(e) => { e.preventDefault(); if (canPrevAlloc) setPageAlloc((p) => p - 1) }}
+                        className={!canPrevAlloc ? "pointer-events-none opacity-50" : ""}
+                        href="#"
+                      />
+                    </PaginationItem>
+
+                    {getAllocPageWindow().map((p) => (
+                      <PaginationItem key={p}>
+                        <PaginationLink
+                          href="#"
+                          isActive={p === pageAlloc}
+                          onClick={(e) => { e.preventDefault(); setPageAlloc(p) }}
+                        >
+                          {p}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ))}
+
+                    <PaginationItem>
+                      <PaginationNext
+                        onClick={(e) => { e.preventDefault(); if (canNextAlloc) setPageAlloc((p) => p + 1) }}
+                        className={!canNextAlloc ? "pointer-events-none opacity-50" : ""}
+                        href="#"
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
             </TabsContent>
 
             <TabsContent value="history" className="space-y-4">
@@ -373,7 +464,7 @@ export function GovBudget() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {budgetHistory.map((budget) => (
+                    {budgetHistory.length > 0 ? paginatedHistory.map((budget) => (
                       <div key={budget.id} className="flex items-center justify-between p-4 border rounded-lg">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
@@ -391,10 +482,62 @@ export function GovBudget() {
                           <div className="text-sm text-muted-foreground">Total Budget</div>
                         </div>
                       </div>
-                    ))}
+                    )) : (
+                      <div className="text-center text-sm text-muted-foreground">No history found.</div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
+              <div className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span className="text-sm">
+                    Showing {budgetHistory.length === 0 ? 0 : startHist + 1}–
+                    {Math.min(startHist + pageSizeHist, budgetHistory.length)} of {budgetHistory.length}
+                  </span>
+                  <Select value={String(pageSizeHist)} onValueChange={(v) => { setPageSizeHist(Number(v)); setPageHist(1) }}>
+                    <SelectTrigger className="w-[110px]">
+                      <SelectValue placeholder="Rows" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">5</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        onClick={(e) => { e.preventDefault(); if (canPrevHist) setPageHist((p) => p - 1) }}
+                        className={!canPrevHist ? "pointer-events-none opacity-50" : ""}
+                        href="#"
+                      />
+                    </PaginationItem>
+
+                    {getHistPageWindow().map((p) => (
+                      <PaginationItem key={p}>
+                        <PaginationLink
+                          href="#"
+                          isActive={p === pageHist}
+                          onClick={(e) => { e.preventDefault(); setPageHist(p) }}
+                        >
+                          {p}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ))}
+
+                    <PaginationItem>
+                      <PaginationNext
+                        onClick={(e) => { e.preventDefault(); if (canNextHist) setPageHist((p) => p + 1) }}
+                        className={!canNextHist ? "pointer-events-none opacity-50" : ""}
+                        href="#"
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
             </TabsContent>
 
             <TabsContent value="import" className="space-y-4">

@@ -1,5 +1,5 @@
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Bell, Download, FileText, Home, LogOut, Search, Settings, Shield, Users } from "lucide-react"
 
@@ -20,6 +20,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DatePickerWithRange } from "@/components/ui/date-range-picker"
 import type { DateRange } from "react-day-picker"
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 
 interface AuditLog {
   id: string
@@ -28,8 +29,7 @@ interface AuditLog {
   userRole: string
   action: string
   resource: string
-  details: string
-  ipAddress: string
+  details: string 
   status: "success" | "failed" | "warning"
 }
 
@@ -38,6 +38,8 @@ export function AdminAuditLogs() {
   const [selectedAction, setSelectedAction] = useState("all")
   const [selectedStatus, setSelectedStatus] = useState("all")
   const [dateRange, setDateRange] = useState<DateRange | undefined>()
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(5)
 
   const [logs] = useState<AuditLog[]>([
     {
@@ -48,7 +50,6 @@ export function AdminAuditLogs() {
       action: "CREATE",
       resource: "Food Request",
       details: "Created food request for 500 students",
-      ipAddress: "192.168.1.100",
       status: "success",
     },
     {
@@ -59,7 +60,6 @@ export function AdminAuditLogs() {
       action: "APPROVE",
       resource: "Food Request",
       details: "Approved food request #FR-2024-001",
-      ipAddress: "192.168.1.101",
       status: "success",
     },
     {
@@ -70,7 +70,6 @@ export function AdminAuditLogs() {
       action: "UPDATE",
       resource: "User Account",
       details: "Updated user permissions for Sarah Yusuf",
-      ipAddress: "192.168.1.1",
       status: "success",
     },
     {
@@ -81,7 +80,6 @@ export function AdminAuditLogs() {
       action: "LOGIN",
       resource: "System",
       details: "User logged into the system",
-      ipAddress: "192.168.1.102",
       status: "success",
     },
     {
@@ -92,7 +90,6 @@ export function AdminAuditLogs() {
       action: "LOGIN",
       resource: "System",
       details: "Failed login attempt with invalid credentials",
-      ipAddress: "192.168.1.200",
       status: "failed",
     },
     {
@@ -103,7 +100,6 @@ export function AdminAuditLogs() {
       action: "UPDATE",
       resource: "Inventory",
       details: "Updated stock levels for rice inventory",
-      ipAddress: "192.168.1.103",
       status: "success",
     },
     {
@@ -114,7 +110,6 @@ export function AdminAuditLogs() {
       action: "CREATE",
       resource: "Delivery",
       details: "Created delivery record for order #ORD-2024-001",
-      ipAddress: "192.168.1.104",
       status: "success",
     },
     {
@@ -125,7 +120,6 @@ export function AdminAuditLogs() {
       action: "BACKUP",
       resource: "Database",
       details: "Automated database backup completed",
-      ipAddress: "127.0.0.1",
       status: "success",
     },
     {
@@ -136,7 +130,6 @@ export function AdminAuditLogs() {
       action: "PAYMENT",
       resource: "School Fees",
       details: "Payment failed due to insufficient funds",
-      ipAddress: "192.168.1.105",
       status: "failed",
     },
     {
@@ -147,7 +140,6 @@ export function AdminAuditLogs() {
       action: "DELETE",
       resource: "User Account",
       details: "Attempted to delete system administrator account",
-      ipAddress: "192.168.1.100",
       status: "warning",
     },
   ])
@@ -163,9 +155,33 @@ export function AdminAuditLogs() {
     return matchesSearch && matchesAction && matchesStatus
   })
 
+  useEffect(() => {
+    setPage(1)
+  }, [searchTerm, selectedAction, selectedStatus, dateRange])
+
+  const totalPages = Math.max(1, Math.ceil(filteredLogs.length / pageSize))
+  const startIndex = (page - 1) * pageSize
+  const paginatedLogs = filteredLogs.slice(startIndex, startIndex + pageSize)
+
+  const canPrev = page > 1
+  const canNext = page < totalPages
+
+  const getPageWindow = () => {
+    const maxButtons = 5
+    if (totalPages <= maxButtons) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1)
+    }
+    const half = Math.floor(maxButtons / 2)
+    let start = Math.max(1, page - half)
+    let end = Math.min(totalPages, start + maxButtons - 1)
+    if (end - start + 1 < maxButtons) {
+      start = Math.max(1, end - maxButtons + 1)
+    }
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i)
+  }
+
   const handleExportLogs = () => {
-    console.log("Exporting audit logs...")
-    // Implementation for exporting logs
+    console.log("Exporting audit logs...") 
   }
 
   const getStatusBadge = (status: string) => {
@@ -312,13 +328,12 @@ export function AdminAuditLogs() {
                       <TableHead>Action</TableHead>
                       <TableHead>Resource</TableHead>
                       <TableHead>Details</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>IP Address</TableHead>
+                      <TableHead>Status</TableHead> 
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredLogs.length > 0 ? (
-                      filteredLogs.map((log) => (
+                      paginatedLogs.map((log) => (
                         <TableRow key={log.id}>
                           <TableCell className="font-mono text-sm">{log.timestamp}</TableCell>
                           <TableCell>
@@ -330,8 +345,7 @@ export function AdminAuditLogs() {
                           <TableCell>{getActionBadge(log.action)}</TableCell>
                           <TableCell>{log.resource}</TableCell>
                           <TableCell className="max-w-xs truncate">{log.details}</TableCell>
-                          <TableCell>{getStatusBadge(log.status)}</TableCell>
-                          <TableCell className="font-mono text-sm">{log.ipAddress}</TableCell>
+                          <TableCell>{getStatusBadge(log.status)}</TableCell> 
                         </TableRow>
                       ))
                     ) : (
@@ -343,6 +357,57 @@ export function AdminAuditLogs() {
                     )}
                   </TableBody>
                 </Table>
+              </div>
+
+              <div className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span className="text-sm">
+                    Showing {filteredLogs.length === 0 ? 0 : startIndex + 1}–
+                    {Math.min(startIndex + pageSize, filteredLogs.length)} of {filteredLogs.length}
+                  </span>
+                  <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1) }}>
+                    <SelectTrigger className="w-[110px]">
+                      <SelectValue placeholder="Rows" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">5</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        onClick={(e) => { e.preventDefault(); if (canPrev) setPage((p) => p - 1) }}
+                        className={!canPrev ? "pointer-events-none opacity-50" : ""}
+                        href="#"
+                      />
+                    </PaginationItem>
+
+                    {getPageWindow().map((p) => (
+                      <PaginationItem key={p}>
+                        <PaginationLink
+                          href="#"
+                          isActive={p === page}
+                          onClick={(e) => { e.preventDefault(); setPage(p) }}
+                        >
+                          {p}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ))}
+
+                    <PaginationItem>
+                      <PaginationNext
+                        onClick={(e) => { e.preventDefault(); if (canNext) setPage((p) => p + 1) }}
+                        className={!canNext ? "pointer-events-none opacity-50" : ""}
+                        href="#"
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
               </div>
             </CardContent>
           </Card>

@@ -1,7 +1,7 @@
 
 import { useState } from "react"
 import { Link } from "react-router-dom"
-import { BarChart3, Bell, Download, FileText, Home, LogOut, PieChart, Settings, TrendingUp, User } from "lucide-react"
+import { BarChart3, Bell, Download, Home, LogOut, PieChart, Settings, TrendingUp, User } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,65 +16,34 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import {
-  Chart,
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  ChartLegend,
-  ChartLegendItem,
-  ChartTitle,
-  ChartDescription,
-  ChartGrid,
-  ChartXAxis,
-  ChartYAxis,
-  ChartBar,
-  ChartLine,
-  ChartPie,
-} from "@/components/ui/chart"
 import { Progress } from "@/components/ui/progress"
-import { Badge } from "@/components/ui/badge"
 
 export function GovAnalytics() {
   const [period, setPeriod] = useState("month")
   const [district, setDistrict] = useState("all")
 
-  // Sample data for charts
-  const schoolsCoveredData = [
-    { name: "Kigali", value: 45 },
-    { name: "Eastern", value: 38 },
-    { name: "Northern", value: 32 },
-    { name: "Western", value: 30 },
-    { name: "Southern", value: 35 },
+  // Overview progress data (matching the provided visuals)
+  const regionParticipation = [
+    { name: "Kigali Primary Schools", percent: 98 },
+    { name: "Eastern Province Schools", percent: 95 },
+    { name: "Northern Province Schools", percent: 92 },
+    { name: "Western Province Schools", percent: 89 },
+    { name: "Southern Province Schools", percent: 94 },
   ]
 
-  const deliveryDelaysData = [
-    { date: "Jan", onTime: 92, delayed: 8 },
-    { date: "Feb", onTime: 88, delayed: 12 },
-    { date: "Mar", onTime: 95, delayed: 5 },
-    { date: "Apr", onTime: 90, delayed: 10 },
-    { date: "May", onTime: 93, delayed: 7 },
-    { date: "Jun", onTime: 97, delayed: 3 },
+  const deliveryPerformance = [
+    { name: "Primary Schools", percent: 96 },
+    { name: "Secondary Schools", percent: 93 },
+    { name: "Technical Schools", percent: 89 },
   ]
 
-  const budgetAllocationData = [
-    { name: "Food Supplies", value: 65 },
-    { name: "Transportation", value: 15 },
-    { name: "Staff", value: 10 },
-    { name: "Infrastructure", value: 7 },
-    { name: "Other", value: 3 },
+  const nutritionComplianceReqs = [
+    { name: "Protein Requirements", percent: 96 },
+    { name: "Carbohydrate Balance", percent: 94 },
+    { name: "Vitamin Content", percent: 92 },
+    { name: "Mineral Content", percent: 89 },
+    { name: "Caloric Requirements", percent: 98 },
   ]
-
-  const nutritionComplianceData = [
-    { date: "Jan", actual: 85, target: 90 },
-    { date: "Feb", actual: 87, target: 90 },
-    { date: "Mar", actual: 92, target: 90 },
-    { date: "Apr", actual: 94, target: 90 },
-    { date: "May", actual: 95, target: 90 },
-    { date: "Jun", actual: 96, target: 90 },
-  ]
-
-  const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"]
 
   const handleExport = (format: string) => {
     // In a real app, this would generate and download a report
@@ -241,19 +210,17 @@ export function GovAnalytics() {
                     <CardDescription>Distribution of schools in the feeding program</CardDescription>
                   </CardHeader>
                   <CardContent className="h-80">
-                    <Chart>
-                      <ChartContainer>
-                        <ChartTitle>Schools by Region</ChartTitle>
-                        <ChartDescription>Number of schools in each region</ChartDescription>
-                        <ChartBar data={schoolsCoveredData} xAxis="name" yAxis="value" colorScheme="blue" />
-                        <ChartGrid />
-                        <ChartXAxis dataKey="name" />
-                        <ChartYAxis />
-                        <ChartTooltip>
-                          <ChartTooltipContent />
-                        </ChartTooltip>
-                      </ChartContainer>
-                    </Chart>
+                    <div className="space-y-4">
+                      {regionParticipation.map((r) => (
+                        <div key={r.name}>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm">{r.name}</span>
+                            <span className="text-sm font-medium">{r.percent}% participation</span>
+                          </div>
+                          <Progress value={r.percent} className="h-2" />
+                        </div>
+                      ))}
+                    </div>
                   </CardContent>
                 </Card>
 
@@ -263,93 +230,39 @@ export function GovAnalytics() {
                     <CardDescription>On-time vs delayed deliveries</CardDescription>
                   </CardHeader>
                   <CardContent className="h-80">
-                    <Chart>
-                      <ChartContainer>
-                        <ChartTitle>Delivery Performance</ChartTitle>
-                        <ChartDescription>Monthly delivery statistics</ChartDescription>
-                        <ChartLine
-                          data={deliveryDelaysData}
-                          xAxis="date"
-                          series={[
-                            { name: "On Time", valueKey: "onTime", color: "#10b981" },
-                            { name: "Delayed", valueKey: "delayed", color: "#ef4444" },
-                          ]}
-                        />
-                        <ChartGrid />
-                        <ChartXAxis dataKey="date" />
-                        <ChartYAxis />
-                        <ChartTooltip>
-                          <ChartTooltipContent />
-                        </ChartTooltip>
-                        <ChartLegend>
-                          <ChartLegendItem name="On Time" color="#10b981" />
-                          <ChartLegendItem name="Delayed" color="#ef4444" />
-                        </ChartLegend>
-                      </ChartContainer>
-                    </Chart>
+                    <div className="space-y-6">
+                      {deliveryPerformance.map((d) => (
+                        <div key={d.name}>
+                          <div className="flex justify-between text-xs">
+                            <span>{d.name}</span>
+                            <span>{d.percent}%</span>
+                          </div>
+                          <Progress value={d.percent} className="h-3" />
+                        </div>
+                      ))}
+                    </div>
                   </CardContent>
                 </Card>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Budget Allocation</CardTitle>
-                    <CardDescription>Distribution of program budget</CardDescription>
-                  </CardHeader>
-                  <CardContent className="h-80">
-                    <Chart>
-                      <ChartContainer>
-                        <ChartTitle>Budget Allocation</ChartTitle>
-                        <ChartDescription>Percentage of budget by category</ChartDescription>
-                        <ChartPie data={budgetAllocationData} category="name" value="value" colors={COLORS} />
-                        <ChartTooltip>
-                          <ChartTooltipContent />
-                        </ChartTooltip>
-                        <ChartLegend>
-                          {budgetAllocationData.map((entry, index) => (
-                            <ChartLegendItem
-                              key={`item-${index}`}
-                              name={entry.name}
-                              color={COLORS[index % COLORS.length]}
-                            />
-                          ))}
-                        </ChartLegend>
-                      </ChartContainer>
-                    </Chart>
-                  </CardContent>
-                </Card>
-
-                <Card>
+              <div className="grid gap-4">
+                <Card className="md:col-span-2">
                   <CardHeader>
                     <CardTitle>Nutrition Compliance</CardTitle>
-                    <CardDescription>Actual vs target nutrition standards</CardDescription>
+                    <CardDescription>Adherence to national nutrition guidelines</CardDescription>
                   </CardHeader>
                   <CardContent className="h-80">
-                    <Chart>
-                      <ChartContainer>
-                        <ChartTitle>Nutrition Compliance</ChartTitle>
-                        <ChartDescription>Monthly nutrition metrics</ChartDescription>
-                        <ChartLine
-                          data={nutritionComplianceData}
-                          xAxis="date"
-                          series={[
-                            { name: "Actual", valueKey: "actual", color: "#3b82f6" },
-                            { name: "Target", valueKey: "target", color: "#6b7280", strokeDasharray: "5 5" },
-                          ]}
-                        />
-                        <ChartGrid />
-                        <ChartXAxis dataKey="date" />
-                        <ChartYAxis />
-                        <ChartTooltip>
-                          <ChartTooltipContent />
-                        </ChartTooltip>
-                        <ChartLegend>
-                          <ChartLegendItem name="Actual" color="#3b82f6" />
-                          <ChartLegendItem name="Target" color="#6b7280" />
-                        </ChartLegend>
-                      </ChartContainer>
-                    </Chart>
+                    <div className="space-y-4">
+                      {nutritionComplianceReqs.map((n) => (
+                        <div key={n.name}>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm">{n.name}</span>
+                            <span className="text-sm">{n.percent}%</span>
+                          </div>
+                          <Progress value={n.percent} className="h-2" />
+                        </div>
+                      ))}
+                    </div>
                   </CardContent>
                 </Card>
               </div>

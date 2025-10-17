@@ -1,5 +1,5 @@
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Bell, Calendar, Download, FileText, Filter, LogOut, Search, Settings, User } from "lucide-react"
 
@@ -21,12 +21,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DatePickerWithRange } from "@/components/ui/date-range-picker"
 import type { DateRange } from "react-day-picker"
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 
 export function SupplierReports() {
   const [searchTerm, setSearchTerm] = useState("")
   const [reportType, setReportType] = useState("all")
   const [dateRange, setDateRange] = useState<DateRange | undefined>()
   const [statusFilter, setStatusFilter] = useState("all")
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(5)
 
   const reports = [
     {
@@ -92,6 +95,27 @@ export function SupplierReports() {
 
     return matchesSearch && matchesType && matchesStatus && matchesDate
   })
+
+  useEffect(() => {
+    setPage(1)
+  }, [searchTerm, reportType, statusFilter, dateRange])
+
+  const totalPages = Math.max(1, Math.ceil(filteredReports.length / pageSize))
+  const startIndex = (page - 1) * pageSize
+  const paginatedReports = filteredReports.slice(startIndex, startIndex + pageSize)
+
+  const canPrev = page > 1
+  const canNext = page < totalPages
+
+  const getPageWindow = () => {
+    const maxButtons = 5
+    if (totalPages <= maxButtons) return Array.from({ length: totalPages }, (_, i) => i + 1)
+    const half = Math.floor(maxButtons / 2)
+    let start = Math.max(1, page - half)
+    let end = Math.min(totalPages, start + maxButtons - 1)
+    if (end - start + 1 < maxButtons) start = Math.max(1, end - maxButtons + 1)
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i)
+  }
 
   const handleGenerateReport = (type: string, category: string) => {
     console.log(`Generating ${type} report for ${category}`)
@@ -311,7 +335,7 @@ export function SupplierReports() {
                       </TableHeader>
                       <TableBody>
                         {filteredReports.length > 0 ? (
-                          filteredReports.map((report) => (
+                          paginatedReports.map((report) => (
                             <TableRow key={report.id}>
                               <TableCell className="font-medium">{report.id}</TableCell>
                               <TableCell>{report.title}</TableCell>
@@ -348,6 +372,56 @@ export function SupplierReports() {
                         )}
                       </TableBody>
                     </Table>
+                  </div>
+                  <div className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <span className="text-sm">
+                        Showing {filteredReports.length === 0 ? 0 : startIndex + 1}–
+                        {Math.min(startIndex + pageSize, filteredReports.length)} of {filteredReports.length}
+                      </span>
+                      <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1) }}>
+                        <SelectTrigger className="w-[110px]">
+                          <SelectValue placeholder="Rows" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="5">5</SelectItem>
+                          <SelectItem value="50">50</SelectItem>
+                          <SelectItem value="100">100</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <Pagination>
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationPrevious
+                            onClick={(e) => { e.preventDefault(); if (canPrev) setPage((p) => p - 1) }}
+                            className={!canPrev ? "pointer-events-none opacity-50" : ""}
+                            href="#"
+                          />
+                        </PaginationItem>
+
+                        {getPageWindow().map((p) => (
+                          <PaginationItem key={p}>
+                            <PaginationLink
+                              href="#"
+                              isActive={p === page}
+                              onClick={(e) => { e.preventDefault(); setPage(p) }}
+                            >
+                              {p}
+                            </PaginationLink>
+                          </PaginationItem>
+                        ))}
+
+                        <PaginationItem>
+                          <PaginationNext
+                            onClick={(e) => { e.preventDefault(); if (canNext) setPage((p) => p + 1) }}
+                            className={!canNext ? "pointer-events-none opacity-50" : ""}
+                            href="#"
+                          />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
                   </div>
                 </CardContent>
               </Card>

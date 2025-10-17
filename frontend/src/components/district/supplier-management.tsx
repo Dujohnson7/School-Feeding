@@ -1,5 +1,5 @@
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Bell, Check, LogOut, Mail, MapPin, Package, Phone, Plus, Search, Settings, Truck, User } from "lucide-react"
 
@@ -27,6 +27,8 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 
 interface Supplier {
   id: string
@@ -43,6 +45,8 @@ export function SupplierManagement() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null)
   const [assignDialogOpen, setAssignDialogOpen] = useState(false)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(5)
 
   // Sample data
   const suppliers: Supplier[] = [
@@ -106,6 +110,25 @@ export function SupplierManagement() {
       supplier.specialties.some((s) => s.toLowerCase().includes(searchTerm.toLowerCase()))
     )
   })
+
+  useEffect(() => {
+    setPage(1)
+  }, [searchTerm])
+
+  const totalPages = Math.max(1, Math.ceil(filteredSuppliers.length / pageSize))
+  const startIndex = (page - 1) * pageSize
+  const paginatedSuppliers = filteredSuppliers.slice(startIndex, startIndex + pageSize)
+  const canPrev = page > 1
+  const canNext = page < totalPages
+  const getPageWindow = () => {
+    const maxButtons = 5
+    if (totalPages <= maxButtons) return Array.from({ length: totalPages }, (_, i) => i + 1)
+    const half = Math.floor(maxButtons / 2)
+    let start = Math.max(1, page - half)
+    let end = Math.min(totalPages, start + maxButtons - 1)
+    if (end - start + 1 < maxButtons) start = Math.max(1, end - maxButtons + 1)
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i)
+  }
 
   const handleAssignOrder = (supplier: Supplier) => {
     setSelectedSupplier(supplier)
@@ -230,71 +253,106 @@ export function SupplierManagement() {
             </Button>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {filteredSuppliers.length > 0 ? (
-              filteredSuppliers.map((supplier) => (
-                <Card key={supplier.id} className={supplier.status === "inactive" ? "opacity-60" : ""}>
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">{supplier.name}</CardTitle>
-                      {supplier.status === "active" ? (
-                        <Badge className="bg-green-600 hover:bg-green-700">Active</Badge>
-                      ) : (
-                        <Badge variant="outline" className="bg-gray-100 text-gray-800 hover:bg-gray-100">
-                          Inactive
-                        </Badge>
-                      )}
-                    </div>
-                    <CardDescription>ID: {supplier.id}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="pb-2">
-                    <div className="space-y-3">
-                      <div className="flex items-start gap-2">
-                        <Phone className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                        <span>{supplier.contact}</span>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <Mail className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                        <span>{supplier.email}</span>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <MapPin className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                        <span>{supplier.address}</span>
-                      </div>
-                      <div>
-                        <p className="mb-1 text-sm font-medium text-muted-foreground">Specialties</p>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Specialties</TableHead>
+                  <TableHead>Contact</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Address</TableHead>
+                  <TableHead>Rating</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredSuppliers.length > 0 ? (
+                  paginatedSuppliers.map((supplier) => (
+                    <TableRow key={supplier.id} className={supplier.status === "inactive" ? "opacity-60" : ""}>
+                      <TableCell className="font-medium">{supplier.id}</TableCell>
+                      <TableCell>{supplier.name}</TableCell>
+                      <TableCell>
                         <div className="flex flex-wrap gap-1">
-                          {supplier.specialties.map((specialty) => (
-                            <Badge key={specialty} variant="outline">
-                              {specialty}
-                            </Badge>
+                          {supplier.specialties.map((s) => (
+                            <Badge key={s} variant="outline">{s}</Badge>
                           ))}
                         </div>
-                      </div>
-                      <div>
-                        <p className="mb-1 text-sm font-medium text-muted-foreground">Rating</p>
-                        {getRatingStars(supplier.rating)}
-                      </div>
-                    </div>
-                  </CardContent>
-                  <CardFooter>
-                    <Button
-                      className="w-full"
-                      disabled={supplier.status === "inactive"}
-                      onClick={() => handleAssignOrder(supplier)}
-                    >
-                      Assign Order
-                    </Button>
-                  </CardFooter>
-                </Card>
-              ))
-            ) : (
-              <div className="col-span-full flex h-40 items-center justify-center rounded-lg border border-dashed">
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground">No suppliers found matching your search.</p>
-                </div>
-              </div>
-            )}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">{supplier.contact}</TableCell>
+                      <TableCell className="whitespace-nowrap">{supplier.email}</TableCell>
+                      <TableCell className="whitespace-nowrap">{supplier.address}</TableCell>
+                      <TableCell>{getRatingStars(supplier.rating)}</TableCell>
+                      <TableCell>
+                        {supplier.status === "active" ? (
+                          <Badge className="bg-green-600 hover:bg-green-700">Active</Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-gray-100 text-gray-800 hover:bg-gray-100">Inactive</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button size="sm" disabled={supplier.status === "inactive"} onClick={() => handleAssignOrder(supplier)}>
+                          Assign
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={9} className="h-24 text-center">No suppliers found matching your search.</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          <div className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span className="text-sm">
+                Showing {filteredSuppliers.length === 0 ? 0 : startIndex + 1}–
+                {Math.min(startIndex + pageSize, filteredSuppliers.length)} of {filteredSuppliers.length}
+              </span>
+              <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1) }}>
+                <SelectTrigger className="w-[110px]">
+                  <SelectValue placeholder="Rows" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">5</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    onClick={(e) => { e.preventDefault(); if (canPrev) setPage((p) => p - 1) }}
+                    className={!canPrev ? "pointer-events-none opacity-50" : ""}
+                    href="#"
+                  />
+                </PaginationItem>
+
+                {getPageWindow().map((p) => (
+                  <PaginationItem key={p}>
+                    <PaginationLink href="#" isActive={p === page} onClick={(e) => { e.preventDefault(); setPage(p) }}>
+                      {p}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))}
+
+                <PaginationItem>
+                  <PaginationNext
+                    onClick={(e) => { e.preventDefault(); if (canNext) setPage((p) => p + 1) }}
+                    className={!canNext ? "pointer-events-none opacity-50" : ""}
+                    href="#"
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
           </div>
         </main>
       </div>

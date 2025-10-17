@@ -33,6 +33,7 @@ export const roleMenus: Record<RoleKey, { title: string; url: string; icon: any 
     { title: "School Approvals", url: "/district-approvals", icon: ClipboardList },
     { title: "Add Supplier", url: "/add-supplier", icon: Building2 },
     { title: "Manage Suppliers", url: "/manage-suppliers", icon: Truck },
+    { title: "Budget", url: "/district-budget", icon: FileText },
     { title: "Reports", url: "/district-reports", icon: FileText },
     { title: "Profile", url: "/district-profile", icon: Settings },
   ],

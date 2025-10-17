@@ -24,14 +24,12 @@ import { toast } from "@/components/ui/use-toast"
 
 export function AdminSettings() {
   const [generalSettings, setGeneralSettings] = useState({
-    systemName: "Digital School Feeding System",
-    systemDescription: "Comprehensive school feeding management system for Rwanda",
-    timezone: "Africa/Kigali",
-    language: "en",
+    systemName: "School Feeding System",
+    systemDescription: "School feeding management system for Rwanda", 
+    systemEmail: "dujohnson123@gmail.com",
     maintenanceMode: false,
-    allowRegistration: true,
-    requireEmailVerification: true,
-    enableTwoFactor: false,
+    allowRegistration: false,
+    requireEmailVerification: true, 
   })
 
   const [emailSettings, setEmailSettings] = useState({
@@ -85,13 +83,7 @@ export function AdminSettings() {
     })
   }
 
-  const handleBackupNow = () => {
-    console.log("Starting manual backup...")
-    toast({
-      title: "Backup Started",
-      description: "Manual backup has been initiated. You will be notified when complete.",
-    })
-  }
+  
 
   return (
     <div className="flex-1">
@@ -154,13 +146,7 @@ export function AdminSettings() {
               <p className="text-muted-foreground">Configure system-wide settings and preferences</p>
             </div>
 
-            <Tabs defaultValue="general" className="space-y-6">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="general">General</TabsTrigger>
-                <TabsTrigger value="email">Email</TabsTrigger>
-                <TabsTrigger value="backup">Backup</TabsTrigger>
-              </TabsList>
-
+            <Tabs defaultValue="general" className="space-y-6"> 
               <TabsContent value="general" className="space-y-6">
                 <Card>
                   <CardHeader>
@@ -178,20 +164,12 @@ export function AdminSettings() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="timezone">Timezone</Label>
-                        <Select
-                          value={generalSettings.timezone}
-                          onValueChange={(value) => setGeneralSettings({ ...generalSettings, timezone: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Africa/Kigali">Africa/Kigali (GMT+2)</SelectItem>
-                            <SelectItem value="UTC">UTC (GMT+0)</SelectItem>
-                            <SelectItem value="Africa/Nairobi">Africa/Nairobi (GMT+3)</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <Label htmlFor="timezone">System Email</Label> 
+                        <Input
+                          id="systemEmail"
+                          value={generalSettings.systemEmail}
+                          onChange={(e) => setGeneralSettings({ ...generalSettings, systemEmail: e.target.value })}
+                        />
                       </div>
                     </div>
 
@@ -246,19 +224,7 @@ export function AdminSettings() {
                           }
                         />
                       </div>
-
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label>Enable Two-Factor Authentication</Label>
-                          <p className="text-sm text-muted-foreground">Require 2FA for all user accounts</p>
-                        </div>
-                        <Switch
-                          checked={generalSettings.enableTwoFactor}
-                          onCheckedChange={(checked) =>
-                            setGeneralSettings({ ...generalSettings, enableTwoFactor: checked })
-                          }
-                        />
-                      </div>
+ 
                     </div>
 
                     <Button onClick={handleGeneralSave}>
@@ -268,199 +234,8 @@ export function AdminSettings() {
                   </CardContent>
                 </Card>
               </TabsContent>
-
-              <TabsContent value="email" className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Email Configuration</CardTitle>
-                    <CardDescription>Configure SMTP settings for system emails</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="smtpHost">SMTP Host</Label>
-                        <Input
-                          id="smtpHost"
-                          value={emailSettings.smtpHost}
-                          onChange={(e) => setEmailSettings({ ...emailSettings, smtpHost: e.target.value })}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="smtpPort">SMTP Port</Label>
-                        <Input
-                          id="smtpPort"
-                          value={emailSettings.smtpPort}
-                          onChange={(e) => setEmailSettings({ ...emailSettings, smtpPort: e.target.value })}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="smtpUsername">SMTP Username</Label>
-                        <Input
-                          id="smtpUsername"
-                          value={emailSettings.smtpUsername}
-                          onChange={(e) => setEmailSettings({ ...emailSettings, smtpUsername: e.target.value })}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="smtpPassword">SMTP Password</Label>
-                        <Input
-                          id="smtpPassword"
-                          type="password"
-                          value={emailSettings.smtpPassword}
-                          onChange={(e) => setEmailSettings({ ...emailSettings, smtpPassword: e.target.value })}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="fromEmail">From Email</Label>
-                        <Input
-                          id="fromEmail"
-                          type="email"
-                          value={emailSettings.fromEmail}
-                          onChange={(e) => setEmailSettings({ ...emailSettings, fromEmail: e.target.value })}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="fromName">From Name</Label>
-                        <Input
-                          id="fromName"
-                          value={emailSettings.fromName}
-                          onChange={(e) => setEmailSettings({ ...emailSettings, fromName: e.target.value })}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label>Enable SSL/TLS</Label>
-                        <p className="text-sm text-muted-foreground">Use secure connection for SMTP</p>
-                      </div>
-                      <Switch
-                        checked={emailSettings.enableSsl}
-                        onCheckedChange={(checked) => setEmailSettings({ ...emailSettings, enableSsl: checked })}
-                      />
-                    </div>
-
-                    <div className="flex gap-4">
-                      <Button onClick={handleEmailSave}>
-                        <Save className="mr-2 h-4 w-4" />
-                        Save Email Settings
-                      </Button>
-                      <Button variant="outline" onClick={handleTestEmail}>
-                        Test Email Configuration
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="backup" className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Backup Configuration</CardTitle>
-                    <CardDescription>Configure automated backup settings</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label>Enable Automatic Backup</Label>
-                        <p className="text-sm text-muted-foreground">Automatically backup system data</p>
-                      </div>
-                      <Switch
-                        checked={backupSettings.enableAutoBackup}
-                        onCheckedChange={(checked) =>
-                          setBackupSettings({ ...backupSettings, enableAutoBackup: checked })
-                        }
-                      />
-                    </div>
-
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="backupFrequency">Backup Frequency</Label>
-                        <Select
-                          value={backupSettings.backupFrequency}
-                          onValueChange={(value) => setBackupSettings({ ...backupSettings, backupFrequency: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="hourly">Hourly</SelectItem>
-                            <SelectItem value="daily">Daily</SelectItem>
-                            <SelectItem value="weekly">Weekly</SelectItem>
-                            <SelectItem value="monthly">Monthly</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="backupTime">Backup Time</Label>
-                        <Input
-                          id="backupTime"
-                          type="time"
-                          value={backupSettings.backupTime}
-                          onChange={(e) => setBackupSettings({ ...backupSettings, backupTime: e.target.value })}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="retentionDays">Retention Period (Days)</Label>
-                        <Input
-                          id="retentionDays"
-                          type="number"
-                          value={backupSettings.retentionDays}
-                          onChange={(e) => setBackupSettings({ ...backupSettings, retentionDays: e.target.value })}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="backupLocation">Backup Location</Label>
-                        <Select
-                          value={backupSettings.backupLocation}
-                          onValueChange={(value) => setBackupSettings({ ...backupSettings, backupLocation: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="local">Local Storage</SelectItem>
-                            <SelectItem value="cloud">Cloud Storage</SelectItem>
-                            <SelectItem value="both">Both</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label>Backup Notifications</Label>
-                        <p className="text-sm text-muted-foreground">Receive notifications about backup status</p>
-                      </div>
-                      <Switch
-                        checked={backupSettings.enableNotifications}
-                        onCheckedChange={(checked) =>
-                          setBackupSettings({ ...backupSettings, enableNotifications: checked })
-                        }
-                      />
-                    </div>
-
-                    <div className="flex gap-4">
-                      <Button onClick={handleBackupSave}>
-                        <Save className="mr-2 h-4 w-4" />
-                        Save Backup Settings
-                      </Button>
-                      <Button variant="outline" onClick={handleBackupNow}>
-                        Backup Now
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
+ 
+ 
             </Tabs>
           </div>
         </main>
