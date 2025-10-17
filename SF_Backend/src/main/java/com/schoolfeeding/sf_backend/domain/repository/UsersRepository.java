@@ -9,9 +9,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface UsersRepository extends JpaRepository<Users, UUID> {
+public interface UsersRepository extends JpaRepository<Users, UUID> { 
 
-    Optional<Users> findByUuidAndStatusNot(UUID uuid, EStatus status);
+    Optional<Users> findByIdAndStatusNot(UUID id, EStatus status); // ✅ fixed
 
     Optional<Users> findByEmail(String email);
 

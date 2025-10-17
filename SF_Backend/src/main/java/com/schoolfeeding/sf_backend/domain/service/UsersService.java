@@ -36,18 +36,18 @@ public class UsersService {
         this.auditLogService = auditLogService;
     }
 
-    private Users findActiveUserByUuid(UUID uuid) {
-        return usersRepository.findByUuidAndStatusNot(uuid, EStatus.DELETED)
-                .orElseThrow(() -> new RuntimeException("User not found with UUID: " + uuid));
+    // ✅ Updated to use id instead of uuid
+    private Users findActiveUserById(UUID id) {
+        return usersRepository.findByIdAndStatusNot(id, EStatus.DELETED)
+                .orElseThrow(() -> new RuntimeException("User not found with ID: " + id));
     }
-
 
     public Users createUser(UserCreationDTO dto, String createdByActor) {
         Users user = new Users();
         user.setNames(dto.getNames());
         user.setPhone(dto.getPhone());
         user.setEmail(dto.getEmail());
-        user.setPassword(dto.getPassword()); 
+        user.setPassword(dto.getPassword());
         user.setRole(dto.getRole());
         user.setStatus(EStatus.ACTIVE);
 
@@ -69,7 +69,6 @@ public class UsersService {
         return savedUser;
     }
 
-  
     public Page<Users> listUsers(String search, ERole role, EStatus status, Pageable pageable) {
         if (search != null && !search.isEmpty()) {
             return usersRepository.findByStatusNotAndNamesContainingIgnoreCaseOrStatusNotAndPhoneContainingIgnoreCase(
@@ -80,14 +79,14 @@ public class UsersService {
         return usersRepository.findByStatusNot(EStatus.DELETED, pageable);
     }
 
-    
-    public Users getUserByUuid(UUID uuid) {
-        return findActiveUserByUuid(uuid);
+    // ✅ Updated to use id
+    public Users getUserById(UUID id) {
+        return findActiveUserById(id);
     }
 
-
-    public Users updateUser(UUID uuid, UserUpdateDTO dto, String updatedByActor) {
-        Users user = findActiveUserByUuid(uuid);
+    // ✅ Updated to use id
+    public Users updateUser(UUID id, UserUpdateDTO dto, String updatedByActor) {
+        Users user = findActiveUserById(id);
 
         if (dto.getNames() != null) user.setNames(dto.getNames());
         if (dto.getPhone() != null) user.setPhone(dto.getPhone());
@@ -112,18 +111,18 @@ public class UsersService {
         return updatedUser;
     }
 
-
-    public void deleteUserSoftly(UUID uuid, String deletedByActor) {
-        Users user = findActiveUserByUuid(uuid);
+    // ✅ Updated to use id
+    public void deleteUserSoftly(UUID id, String deletedByActor) {
+        Users user = findActiveUserById(id);
         user.setStatus(EStatus.DELETED);
         usersRepository.save(user);
         auditLogService.createLog("USER_DELETED_SOFT", deletedByActor, "WARN",
                 "User soft-deleted: " + user.getEmail());
     }
 
-   
-    public Users suspendUser(UUID uuid, String suspendedByActor) {
-        Users user = findActiveUserByUuid(uuid);
+    // ✅ Updated to use id
+    public Users suspendUser(UUID id, String suspendedByActor) {
+        Users user = findActiveUserById(id);
         user.setStatus(EStatus.SUSPENDED);
         Users suspendedUser = usersRepository.save(user);
         auditLogService.createLog("USER_SUSPENDED", suspendedByActor, "WARN",
@@ -131,9 +130,9 @@ public class UsersService {
         return suspendedUser;
     }
 
-  
-    public Users resetPassword(UUID uuid, String newPassword, String resetByActor) {
-        Users user = findActiveUserByUuid(uuid);
+    // ✅ Updated to use id
+    public Users resetPassword(UUID id, String newPassword, String resetByActor) {
+        Users user = findActiveUserById(id);
         user.setPassword(newPassword);
         Users updatedUser = usersRepository.save(user);
         auditLogService.createLog("PASSWORD_RESET", resetByActor, "INFO",
@@ -141,7 +140,6 @@ public class UsersService {
         return updatedUser;
     }
 
-  
     public Users authenticateUser(String email, String password) {
         Users user = usersRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Invalid credentials"));
@@ -161,7 +159,6 @@ public class UsersService {
         return user;
     }
 
-  
     public Optional<Users> findByEmail(String email) {
         return usersRepository.findByEmail(email);
     }

@@ -8,17 +8,12 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Entity
 @Getter
 @Setter
 @Inheritance(strategy = InheritanceType.JOINED)
 public class Users extends AbstractBaseEntity {
-
-    
-    @Column(name = "uuid", unique = true, nullable = false, updatable = false)
-    private UUID uuid;
 
     @Column(name = "profile")
     private String profile;
@@ -35,13 +30,10 @@ public class Users extends AbstractBaseEntity {
     @Column(name = "password", nullable = false)
     private String password;
 
-    
-
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false)
     private ERole role;
 
-    // ✅ Added status field (the missing part)
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private EStatus status = EStatus.ACTIVE;
@@ -51,17 +43,9 @@ public class Users extends AbstractBaseEntity {
     private District district;
 
     @ManyToOne
-    @JoinColumn(name = "school_id") // Fixed JoinColumn
+    @JoinColumn(name = "school_id")
     private School school;
 
     @Column(name = "lastLogin", nullable = true)
     private LocalDateTime lastLogin;
-
-    // Generate UUID automatically before persisting
-    @PrePersist
-    public void prePersist() {
-        if (uuid == null) {
-            uuid = UUID.randomUUID();
-        }
-    }
 }

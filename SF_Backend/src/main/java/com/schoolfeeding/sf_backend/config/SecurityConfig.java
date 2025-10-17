@@ -24,6 +24,9 @@ public class SecurityConfig {
                 .requestMatchers("/api/budgets/**").permitAll()
                 .requestMatchers("/api/admin/dashboard").permitAll()
                 .requestMatchers("/api/gov/dashboard").permitAll()
+                .requestMatchers("/api/v1/items/**").permitAll()
+                .requestMatchers("/api/v1/request-items/**").permitAll()
+                .requestMatchers("/api/v1/suppliers/**").permitAll()
                 .anyRequest().authenticated()
             );
 
