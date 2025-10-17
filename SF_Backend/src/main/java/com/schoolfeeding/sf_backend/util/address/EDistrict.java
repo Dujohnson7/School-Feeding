@@ -1,56 +1,53 @@
 package com.schoolfeeding.sf_backend.util.address;
 
 public enum EDistrict {
-        // Kigali City
-        GASABO(EProvince.KIGALI),
-        KICUKIRO(EProvince.KIGALI),
-        NYARUGENGE(EProvince.KIGALI),
+    // Kigali City
+    GASABO(EProvince.KIGALI_CITY),
+    KICUKIRO(EProvince.KIGALI_CITY),
+    NYARUGENGE(EProvince.KIGALI_CITY),
 
-        // Northern Province
-        GICUMBI(EProvince.NORTHERN),
-        MUSANZE(EProvince.NORTHERN),
-        GAKENKE(EProvince.NORTHERN),
-        RULINDO(EProvince.NORTHERN),
-        BURERA(EProvince.NORTHERN),
+    // Northern Province
+    GICUMBI(EProvince.NORTHERN),
+    MUSANZE(EProvince.NORTHERN),
+    GAKENKE(EProvince.NORTHERN),
+    RULINDO(EProvince.NORTHERN),
+    BURERA(EProvince.NORTHERN),
 
-        // Southern Province
-        HUYE(EProvince.SOUTHERN),
-        GISAGARA(EProvince.SOUTHERN),
-        NYANZA(EProvince.SOUTHERN),
-        NYAMAGABE(EProvince.SOUTHERN),
-        MUHANGA(EProvince.SOUTHERN),
-        NYARUGURU(EProvince.SOUTHERN),
-        KAMONYI(EProvince.SOUTHERN),
-        RUHANGO(EProvince.SOUTHERN),
+    // Southern Province
+    HUYE(EProvince.SOUTHERN),
+    GISAGARA(EProvince.SOUTHERN),
+    NYANZA(EProvince.SOUTHERN),
+    NYAMAGABE(EProvince.SOUTHERN),
+    MUHANGA(EProvince.SOUTHERN),
+    NYARUGURU(EProvince.SOUTHERN),
+    KAMONYI(EProvince.SOUTHERN),
+    RUHANGO(EProvince.SOUTHERN),
 
-        // Eastern Province
-        RWAMAGANA(EProvince.EASTERN),
-        KAYONZA(EProvince.EASTERN),
-        BUGESERA(EProvince.EASTERN),
-        GATSIBO(EProvince.EASTERN),
-        NGOMA(EProvince.EASTERN),
-        KIREHE(EProvince.EASTERN),
-        NYAGATARE(EProvince.EASTERN),
+    // Eastern Province
+    RWAMAGANA(EProvince.EASTERN),
+    KAYONZA(EProvince.EASTERN),
+    BUGESERA(EProvince.EASTERN),
+    GATSIBO(EProvince.EASTERN),
+    NGOMA(EProvince.EASTERN),
+    KIREHE(EProvince.EASTERN),
+    NYAGATARE(EProvince.EASTERN),
 
-        // Western Province
-        RUBAVU(EProvince.WESTERN),
-        RUSIZI(EProvince.WESTERN),
-        KARONGI(EProvince.WESTERN),
-        RUTSIRO(EProvince.WESTERN),
-        NGORORERO(EProvince.WESTERN),
-        NYAMASHEKE(EProvince.WESTERN),
-        NYABIHU(EProvince.WESTERN);
+    // Western Province
+    RUBAVU(EProvince.WESTERN),
+    RUSIZI(EProvince.WESTERN),
+    KARONGI(EProvince.WESTERN),
+    RUTSIRO(EProvince.WESTERN),
+    NGORORERO(EProvince.WESTERN),
+    NYAMASHEKE(EProvince.WESTERN),
+    NYABIHU(EProvince.WESTERN); // <-- Semicolon added here
 
+    private final EProvince province;
 
-
-        private final EProvince province;
-
-        EDistrict(EProvince province) {
-            this.province = province;
-        }
-
-        public EProvince getProvince() {
-            return province;
-        }
-
+    EDistrict(EProvince province) {
+        this.province = province;
     }
+
+    public EProvince getProvince() {
+        return province;
+    }
+}

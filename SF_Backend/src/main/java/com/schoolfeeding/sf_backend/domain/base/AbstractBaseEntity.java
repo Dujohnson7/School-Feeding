@@ -11,7 +11,7 @@ import java.util.UUID;
 @Setter
 @MappedSuperclass
 
-public class AbstractBaseEntity extends AbstractAuditEntity{
+public class AbstractBaseEntity{
     @Id
     @GeneratedValue(generator = "UUID")
     @GenericGenerator(

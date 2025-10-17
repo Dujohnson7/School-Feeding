@@ -2,6 +2,7 @@ package com.schoolfeeding.sf_backend.domain.entity;
 
 import com.schoolfeeding.sf_backend.domain.base.AbstractBaseEntity;
 import com.schoolfeeding.sf_backend.util.role.ERole;
+import com.schoolfeeding.sf_backend.util.status.EStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -12,7 +13,7 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @Inheritance(strategy = InheritanceType.JOINED)
-public class Users  extends AbstractBaseEntity {
+public class Users extends AbstractBaseEntity {
 
     @Column(name = "profile")
     private String profile;
@@ -33,15 +34,18 @@ public class Users  extends AbstractBaseEntity {
     @Column(name = "role", nullable = false)
     private ERole role;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private EStatus status = EStatus.ACTIVE;
+
     @ManyToOne
     @JoinColumn(name = "district_id")
     private District district;
 
     @ManyToOne
-    @JoinTable(name = "school_id")
+    @JoinColumn(name = "school_id")
     private School school;
 
     @Column(name = "lastLogin", nullable = true)
     private LocalDateTime lastLogin;
-
 }

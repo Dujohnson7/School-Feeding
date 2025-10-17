@@ -1,26 +1,31 @@
 package com.schoolfeeding.sf_backend.domain.entity;
 
-import com.schoolfeeding.sf_backend.domain.base.AbstractBaseEntity;
 import com.schoolfeeding.sf_backend.util.address.EDistrict;
 import com.schoolfeeding.sf_backend.util.address.EProvince;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.GenericGenerator;
+
+import java.util.UUID;
 
 @Entity
 @Getter
 @Setter
+public class District {
 
-public class District extends AbstractBaseEntity {
+    @Id
+    @GeneratedValue(generator = "UUID")
+    @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
+    @Column(updatable = false, nullable = false)
+    private UUID id;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "Province", nullable = false)
     private EProvince province;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "District", nullable = false, unique = true)
     private EDistrict district;
+
+    private boolean active = true;
+    private boolean isDeleted = false;
 }
