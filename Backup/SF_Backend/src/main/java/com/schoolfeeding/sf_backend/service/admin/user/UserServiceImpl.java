@@ -1,8 +1,13 @@
 package com.schoolfeeding.sf_backend.service.admin.user;
 
+import com.schoolfeeding.sf_backend.domain.entity.Audit;
 import com.schoolfeeding.sf_backend.domain.entity.Users;
+import com.schoolfeeding.sf_backend.repository.admin.IAuditRepository;
 import com.schoolfeeding.sf_backend.repository.admin.IUsersRepository;
+import com.schoolfeeding.sf_backend.service.admin.audit.IAuditService;
+import com.schoolfeeding.sf_backend.util.audit.Auditable;
 import com.schoolfeeding.sf_backend.util.audit.EAction;
+import com.schoolfeeding.sf_backend.util.audit.EResource;
 import com.schoolfeeding.sf_backend.util.role.ERole;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.ObjectNotFoundException;
@@ -16,17 +21,22 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements IUsersService {
-    private  final IUsersRepository usersRepository;
+
+    private final IUsersRepository usersRepository;
     private final PasswordEncoder passwordEncoder;
 
+
     @Override
+    @Auditable(action = EAction.CREATE, resource = EResource.ADMIN)
     public Users save(Users theUser) {
         theUser.setPassword(passwordEncoder.encode(theUser.getPassword()));
         return usersRepository.save(theUser);
     }
 
     @Override
+    @Auditable(action = EAction.UPDATE, resource = EResource.ADMIN)
     public Users update(Users theUser) {
+
         Users foundUser = findByIdAndActive(theUser.getId());
         if (Objects.nonNull(foundUser)) {
             foundUser.setNames(theUser.getNames());
@@ -35,9 +45,6 @@ public class UserServiceImpl implements IUsersService {
             foundUser.setEmail(theUser.getEmail());
             foundUser.setPhone(theUser.getPhone());
             foundUser.setProfile(theUser.getProfile());
-            foundUser.setActionStatus(theUser.getActionStatus());
-            foundUser.setAction(EAction.UPDATE);
-            foundUser.setDetails(theUser.getDetails());
 
             if (theUser.getPassword() != null &&  !theUser.getPassword().isEmpty()) {
                 foundUser.setPassword(passwordEncoder.encode(theUser.getPassword()));
@@ -51,12 +58,18 @@ public class UserServiceImpl implements IUsersService {
                 foundUser.setSchool(theUser.getSchool());
             }
 
-             return usersRepository.save(foundUser);
+            if (theUser.getProfile() != null)  {
+                foundUser.setProfile(theUser.getProfile());
+            }
+
+            return usersRepository.save(foundUser);
         }
         throw new ObjectNotFoundException(Users.class, "USER NOT FOUND");
     }
 
+
     @Override
+    @Auditable(action = EAction.DELETE, resource = EResource.ADMIN)
     public Users delete(Users theUser) {
         return null;
     }
@@ -94,7 +107,8 @@ public class UserServiceImpl implements IUsersService {
     }
 
     @Override
-    public List<Users> findUsersByActive(Boolean state) {
+    @Auditable(action = EAction.FETCH, resource = EResource.ADMIN)
+    public List<Users> findUsersByState(Boolean state) {
         return usersRepository.findAllByActive(Boolean.TRUE);
     }
 }

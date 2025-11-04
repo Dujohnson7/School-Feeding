@@ -40,4 +40,7 @@ public class School extends AbstractBaseEntity {
 
     @Column(name = "Bank_Account", nullable = false)
     private String BankAccount;
+
+    @Column(name = "status")
+    private Boolean status = Boolean.TRUE;
 }

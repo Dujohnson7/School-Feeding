@@ -15,6 +15,6 @@ public interface IUsersService {
     List<Users> findAllByDistrictId(UUID districtId);
     List<Users> findUsersBySchoolId(UUID schoolId);
     List<Users> findUsersByRole(ERole role);
-    List<Users> findUsersByActive(Boolean state);
+    List<Users> findUsersByState(Boolean state);
 
 }

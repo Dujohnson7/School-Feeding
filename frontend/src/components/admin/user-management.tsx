@@ -27,6 +27,7 @@ interface User {
 }
 
 export function AdminUserManagement() {
+  const API_URL = "http://localhost:8070/api/users";
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedRole, setSelectedRole] = useState("all")
   const [page, setPage] = useState(1)
@@ -34,7 +35,7 @@ export function AdminUserManagement() {
   const [isAddUserOpen, setIsAddUserOpen] = useState(false)
   const [newUser, setNewUser] = useState({
     name: "",
-    email: "",
+    email: "",    
     role: "",
     district: "",
     phone: "",
@@ -42,7 +43,7 @@ export function AdminUserManagement() {
     password: "",
   })
  
-  const users: User[] = [
+  const usersList: User[] = [
     {
       id: "1",
       name: "Jean Baptiste Uwimana",
@@ -51,55 +52,11 @@ export function AdminUserManagement() {
       status: "active",
       lastLogin: "2 hours ago",
       createdAt: "2024-01-15",
-    },
-    {
-      id: "2",
-      name: "Marie Claire Mukamana",
-      email: "marie.mukamana@district.rw",
-      role: "District Coordinator",
-      status: "active",
-      lastLogin: "1 day ago",
-      createdAt: "2024-01-10",
-    },
-    {
-      id: "3",
-      name: "Robert Niyonzima",
-      email: "robert.niyonzima@mineduc.gov.rw",
-      role: "Government Official",
-      status: "active",
-      lastLogin: "3 hours ago",
-      createdAt: "2024-01-05",
-    },
-    {
-      id: "4",
-      name: "Sarah Yusuf",
-      email: "sarah.yusuf@freshfoods.rw",
-      role: "Supplier",
-      status: "inactive",
-      lastLogin: "1 week ago",
-      createdAt: "2024-01-20",
-    },
-    {
-      id: "5",
-      name: "David Mugisha",
-      email: "david.mugisha@school.edu.rw",
-      role: "Stock Manager",
-      status: "active",
-      lastLogin: "30 minutes ago",
-      createdAt: "2024-01-25",
-    },
-    {
-      id: "6",
-      name: "Grace Uwimana",
-      email: "grace.uwimana@gmail.com",
-      role: "Parent",
-      status: "suspended",
-      lastLogin: "2 weeks ago",
-      createdAt: "2024-01-12",
-    },
+    }, 
   ]
  
-  const filteredUsers = users.filter((user) => {
+  
+  const filteredUsers = usersList.filter((user) => {
     const matchesSearch =
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase())
@@ -134,15 +91,13 @@ export function AdminUserManagement() {
     return Array.from({ length: end - start + 1 }, (_, i) => start + i)
   }
 
-  const handleAddUser = () => {
-    // In a real app, you would add the user to your backend
+  const handleAddUser = () => { 
     console.log("Adding new user:", newUser)
     setIsAddUserOpen(false)
     setNewUser({ name: "", email: "", role: "", password: "", district: "", phone: "", school: "" })
   }
 
-  const handleUserAction = (action: string, userId: string) => {
-    // In a real app, you would perform the action in your backend
+  const handleUserAction = (action: string, userId: string) => { 
     console.log(`${action} user:`, userId)
   }
 
@@ -247,9 +202,9 @@ export function AdminUserManagement() {
                     <SelectContent>
                       <SelectItem value="all">All Roles</SelectItem>
                       <SelectItem value="Government Official">Government Official</SelectItem>
-                      <SelectItem value="District Coordinator">District Coordinator</SelectItem>
-                      <SelectItem value="School Administrator">School Administrator</SelectItem>
-                      <SelectItem value="Stock Manager">Stock Manager</SelectItem>
+                      <SelectItem value="District">District Coordinator</SelectItem>
+                      <SelectItem value="School">School Administrator</SelectItem>
+                      <SelectItem value="Stock">Stock Manager</SelectItem>
                       <SelectItem value="Supplier">Supplier</SelectItem> 
                     </SelectContent>
                   </Select>

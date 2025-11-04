@@ -35,15 +35,5 @@ public class AbstractAuditEntity {
 
     @LastModifiedDate
     private LocalDateTime updated;
-
-    @Enumerated(EnumType.STRING)
-    private EAction action;
-
-    @Enumerated(EnumType.STRING)
-    private EResource resource;
-
-    @Enumerated(EnumType.STRING)
-    private EActionStatus actionStatus;
-
-    private String details;
+ 
 }

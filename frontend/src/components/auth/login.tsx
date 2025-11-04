@@ -24,15 +24,13 @@ export function Login() {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
     console.log("Login attempt:", loginData)
-
-    // Simulate login logic
+ 
     if (loginData.email && loginData.password) {
       toast({
         title: "Login Successful",
         description: `Welcome back! `,
       })
-
-      // Redirect based on role
+ 
       setTimeout(() => {
         switch (loginData.email) {
           case "admin@sf.rw":

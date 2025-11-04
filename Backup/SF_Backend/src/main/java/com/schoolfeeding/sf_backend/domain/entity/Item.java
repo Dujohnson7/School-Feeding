@@ -12,12 +12,12 @@ import lombok.Setter;
 
 public class Item extends AbstractBaseEntity {
     @Column(name = "item_name", unique = true, nullable = false)
-    private String Name;
+    private String name;
 
     @Column(name = "gram_Per_Student", nullable = false)
-    private Double PerStudent;
+    private Double perStudent;
 
     @Column(name = "description")
-    private String Description;
+    private String description;
 
 }

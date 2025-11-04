@@ -13,15 +13,15 @@ import lombok.Setter;
 public class Budget_Gov extends AbstractBaseEntity {
 
     @Column(name = "fiscalYear", nullable = false)
-    private String FiscalYear;
+    private String fiscalYear;
 
     @Column(name = "budget", nullable = false)
-    private double Budget;
+    private double budget;
 
     @Column(name = "description" )
-    private String Description;
+    private String description;
 
     @Column(name = "status" )
-    private Boolean Status = Boolean.FALSE;
+    private Boolean status = Boolean.FALSE;
 
 }

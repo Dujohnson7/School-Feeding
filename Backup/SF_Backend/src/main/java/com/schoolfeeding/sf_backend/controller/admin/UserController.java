@@ -2,9 +2,6 @@ package com.schoolfeeding.sf_backend.controller.admin;
 
 import com.schoolfeeding.sf_backend.domain.entity.Users;
 import com.schoolfeeding.sf_backend.service.admin.user.IUsersService;
-import com.schoolfeeding.sf_backend.util.audit.EAction;
-import com.schoolfeeding.sf_backend.util.audit.EActionStatus;
-import com.schoolfeeding.sf_backend.util.audit.EResource;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,7 +21,7 @@ public class UserController {
     public ResponseEntity<List<Users>> getAllUsers() {
         try {
 
-            List<Users> usersList = usersService.findUsersByActive(true);
+            List<Users> usersList = usersService.findUsersByState(Boolean.TRUE);
             return ResponseEntity.ok(usersList);
 
         } catch (Exception ex) {
@@ -32,14 +29,10 @@ public class UserController {
         }
     }
 
-    @GetMapping("/register")
+    @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody Users theUser) {
         try {
             if (theUser != null) {
-                theUser.setAction(EAction.CREATE);
-                theUser.setResource(EResource.ADMIN);
-                theUser.setActionStatus(EActionStatus.SUCCESS);
-                theUser.setDetails(theUser.getNames() + " Has Create User");
                 Users users = usersService.save(theUser);
                 return ResponseEntity.ok(users);
             }else {
@@ -49,6 +42,7 @@ public class UserController {
             return ResponseEntity.badRequest().body("Error User Registration: " + ex.getMessage());
         }
     }
+
 
     @PutMapping("/update/{id}")
     public ResponseEntity<?> updateUsers(@RequestBody Users theUsers, @PathVariable String id) {
