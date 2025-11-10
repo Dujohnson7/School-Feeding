@@ -9,12 +9,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.stream.Collector;
-import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @RestController
@@ -63,7 +60,7 @@ public class DistrictController {
         }
     }
 
-    @DeleteMapping("/delet/{id}")
+    @DeleteMapping("/delete/{id}")
     public ResponseEntity<?> deleteDistrict(@PathVariable String id) {
         try {
             if (!Objects.isNull(id)) {

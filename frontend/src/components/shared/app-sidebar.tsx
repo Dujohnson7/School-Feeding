@@ -61,12 +61,7 @@ const menuItems = {
       title: "Manage Suppliers",
       url: "/manage-suppliers",
       icon: Truck,
-    },
-    {
-      title: "Add Supplier",
-      url: "/add-supplier",
-      icon: Building2,
-    },
+    }, 
     {
       title: "Reports",
       url: "/district-reports",

@@ -10,7 +10,9 @@ public interface IRequestItemService {
     RequestItem saveRequestItem(RequestItem theRequestItem);
     RequestItem updateRequestItem(RequestItem theRequestItem);
     RequestItem deleteRequestItem(RequestItem theRequestItem);
+    RequestItem repondRequest(RequestItem theRequestItem);
     RequestItem findByIdAndState(UUID requestItemId, Boolean state);
+    RequestItem findRequestItemBySchool_IdAndRequestStatusAndActiveOrderByCreatedByDesc(UUID schoolId, Boolean active);
     List<RequestItem> findAllRequestItemsByState(Boolean state);
     List<RequestItem> findAllRequestItemsBySchoolIdAndState(UUID schoolId, Boolean state);
     List<RequestItem> findAllRequestItemsByDistrictIdAndState(UUID districtId, Boolean state);

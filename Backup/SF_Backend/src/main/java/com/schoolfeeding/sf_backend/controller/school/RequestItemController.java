@@ -1,4 +1,4 @@
-package com.schoolfeeding.sf_backend.controller.school.requestItem;
+package com.schoolfeeding.sf_backend.controller.school;
 
 import com.schoolfeeding.sf_backend.domain.entity.RequestItem;
 import com.schoolfeeding.sf_backend.service.school.requestItem.IRequestItemService;
@@ -94,21 +94,6 @@ public class RequestItemController {
     }
 
 
-    @GetMapping("/districtRequest/{dId}")
-    public ResponseEntity<List<RequestItem>> getAllRequestItemsByDistrict(@PathVariable String dId) {
-        try {
-            List<RequestItem> requestItemList = requestItemService.findAllRequestItemsByDistrictIdAndState(UUID.fromString(dId), Boolean.TRUE);
-            if (requestItemList != null && !requestItemList.isEmpty()) {
-                return ResponseEntity.ok(requestItemList);
-            } else {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Collections.emptyList());
-            }
-        } catch (Exception ex) {
-            return ResponseEntity.badRequest().body(Collections.emptyList());
-        }
-    }
-
-
     @GetMapping("/schoolRequest/{sId}")
     public ResponseEntity<List<RequestItem>> getAllRequestItemsBySchool(@PathVariable String sId) {
         try {
@@ -123,20 +108,6 @@ public class RequestItemController {
         }
     }
 
-
-    @GetMapping("/districtRequestByRequestStatus")
-    public ResponseEntity<List<RequestItem>> getAllRequestItemsByDistrictByERequest(@RequestParam String dId, @RequestParam String requestStatus) {
-        try {
-            List<RequestItem> requestItemList = requestItemService.findRequestItemsByDistrictIdAndRequestStatusAndState(UUID.fromString(dId), ERequest.valueOf(requestStatus) ,Boolean.TRUE);
-            if (requestItemList != null && !requestItemList.isEmpty()) {
-                return ResponseEntity.ok(requestItemList);
-            } else {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Collections.emptyList());
-            }
-        } catch (Exception ex) {
-            return ResponseEntity.badRequest().body(Collections.emptyList());
-        }
-    }
 
 
     @GetMapping("/schoolRequestByRequestStatus")

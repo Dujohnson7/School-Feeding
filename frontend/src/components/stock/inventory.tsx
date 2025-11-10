@@ -269,26 +269,7 @@ export function StockInventory() {
                 <div>
                   <CardTitle>Inventory Items</CardTitle>
                   <CardDescription>Manage and track your food inventory</CardDescription>
-                </div>
-                <div className="flex gap-2">
-                  <Button>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Item
-                  </Button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline">
-                        <Download className="mr-2 h-4 w-4" />
-                        Export
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleExport("csv")}>Export as CSV</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleExport("pdf")}>Export as PDF</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleExport("excel")}>Export as Excel</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
+                </div> 
               </div>
             </CardHeader>
             <CardContent>
@@ -335,6 +316,19 @@ export function StockInventory() {
                       <SelectItem value="expired">Expired</SelectItem>
                     </SelectContent>
                   </Select>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline">
+                        <Download className="mr-2 h-4 w-4" />
+                        Export
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleExport("csv")}>Export as CSV</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleExport("pdf")}>Export as PDF</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleExport("excel")}>Export as Excel</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
 

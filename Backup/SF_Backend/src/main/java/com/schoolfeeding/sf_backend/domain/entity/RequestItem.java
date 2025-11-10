@@ -22,16 +22,8 @@ public class RequestItem extends AbstractBaseEntity {
     @JoinColumn(name = "school_id")
     private School school;
 
-    @ManyToMany
-    @JoinTable(
-            name = "request_items",
-            joinColumns = @JoinColumn(name = "request_id"),
-            inverseJoinColumns = @JoinColumn(name = "item_id")
-    )
-    private List<Item> items;
-
-    @Column(name = "quantity", nullable = false)
-    private double quantity;
+    @OneToMany(mappedBy = "requestItem", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<RequestItemDetail> requestItemDetails;
 
     @Column(name = "description")
     private String description;

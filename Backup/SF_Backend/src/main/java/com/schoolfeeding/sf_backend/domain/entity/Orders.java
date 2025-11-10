@@ -36,4 +36,7 @@ public class Orders extends AbstractBaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "orderPayState", nullable = false)
     private EOrderPay orderPayState;
+
+    @Column(name = "rating")
+    private int rating;
 }

@@ -8,6 +8,7 @@ import { Bell, Check, Home, LogOut, Package, Plus, Settings, Truck, User } from 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useNavigate } from "react-router-dom"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -71,6 +72,7 @@ export function AddSupplier() {
     }))
   }
 
+  const navigate = useNavigate()
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     console.log("Supplier data:", formData)
@@ -303,6 +305,9 @@ export function AddSupplier() {
                   <div className="flex gap-4 pt-6">
                     <Button type="submit" className="flex-1">
                       Register Supplier
+                    </Button> 
+                    <Button variant="destructive" className="flex-1" onClick={() => navigate("/manage-suppliers")} >
+                      Cancel
                     </Button> 
                   </div>
                 </form>

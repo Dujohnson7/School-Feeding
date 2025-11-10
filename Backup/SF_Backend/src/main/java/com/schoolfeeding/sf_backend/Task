@@ -7,7 +7,7 @@ Admin
 3. Auth *
 4. School *
 5. Admin Dashboard
-6. Profile
+6. Profile *
 
 
 Gov
@@ -23,16 +23,16 @@ District
 *********
 1. Dashboard
 2. Budget
-3. Supplier
-4. Approval Request -
+3. Supplier *
+4. Approval Request *
 5. Report
 
 
 School
 *********
 1. Dashboard
-2. Stock Manager
-3. Track Delivery
+2. Stock Manager *
+3. Track Delivery *
 4. Request *
 5. Report
 
@@ -40,19 +40,18 @@ School
 Stock Manager
 *************
 1. Dashboard
-2. Inventory
-3. Receive
-4. Distribution
+2. Inventory *
+3. Receive *
+4. Distribution *
 5. Report
 
 
 Supplier
 *********
 1. Dashboard
-2. Order
-3. Delivery
-4. Distribution
-5. Report
+2. Order *
+3. Delivery *
+4. Report
 
 
 

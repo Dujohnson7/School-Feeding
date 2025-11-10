@@ -29,6 +29,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
+import { useNavigate } from "react-router-dom"
 
 interface Supplier {
   id: string
@@ -47,6 +48,7 @@ export function SupplierManagement() {
   const [assignDialogOpen, setAssignDialogOpen] = useState(false)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(5)
+   const navigate = useNavigate()
 
   // Sample data
   const suppliers: Supplier[] = [
@@ -57,7 +59,7 @@ export function SupplierManagement() {
       email: "info@kigalifoods.rw",
       address: "Kigali, Rwanda",
       specialties: ["Rice", "Beans", "Vegetables"],
-      rating: 4.8,
+      rating: 3.9,
       status: "active",
     },
     {
@@ -234,127 +236,170 @@ export function SupplierManagement() {
 
         {/* Main Content */}
         <main className="flex-1 overflow-auto p-4 md:p-6">
-          <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Search suppliers by name, ID, or specialty..."
-                  className="w-full pl-8"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
+          <Card>
+            <CardHeader>
+              <CardTitle>Suppliers</CardTitle>
+              <CardDescription>Manage and assign orders to active suppliers</CardDescription>
+            </CardHeader>
+
+            <CardContent>
+              <div className="mb-6 flex flex-col gap-4 md:flex-row">
+                <div className="flex-1">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="search"
+                      placeholder="Search suppliers by name, ID, or specialty..."
+                      className="w-full pl-8"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button  onClick={() => navigate("/add-supplier")}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add New Supplier
+                  </Button>
+                </div>
               </div>
-            </div>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Add New Supplier
-            </Button>
-          </div>
 
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>ID</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Specialties</TableHead>
-                  <TableHead>Contact</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Address</TableHead>
-                  <TableHead>Rating</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredSuppliers.length > 0 ? (
-                  paginatedSuppliers.map((supplier) => (
-                    <TableRow key={supplier.id} className={supplier.status === "inactive" ? "opacity-60" : ""}>
-                      <TableCell className="font-medium">{supplier.id}</TableCell>
-                      <TableCell>{supplier.name}</TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {supplier.specialties.map((s) => (
-                            <Badge key={s} variant="outline">{s}</Badge>
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">{supplier.contact}</TableCell>
-                      <TableCell className="whitespace-nowrap">{supplier.email}</TableCell>
-                      <TableCell className="whitespace-nowrap">{supplier.address}</TableCell>
-                      <TableCell>{getRatingStars(supplier.rating)}</TableCell>
-                      <TableCell>
-                        {supplier.status === "active" ? (
-                          <Badge className="bg-green-600 hover:bg-green-700">Active</Badge>
-                        ) : (
-                          <Badge variant="outline" className="bg-gray-100 text-gray-800 hover:bg-gray-100">Inactive</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button size="sm" disabled={supplier.status === "inactive"} onClick={() => handleAssignOrder(supplier)}>
-                          Assign
-                        </Button>
-                      </TableCell>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>ID</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Specialties</TableHead>
+                      <TableHead>Contact</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Address</TableHead>
+                      <TableHead>Rating</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={9} className="h-24 text-center">No suppliers found matching your search.</TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  </TableHeader>
 
-          <div className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span className="text-sm">
-                Showing {filteredSuppliers.length === 0 ? 0 : startIndex + 1}–
-                {Math.min(startIndex + pageSize, filteredSuppliers.length)} of {filteredSuppliers.length}
-              </span>
-              <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1) }}>
-                <SelectTrigger className="w-[110px]">
-                  <SelectValue placeholder="Rows" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="5">5</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
-                  <SelectItem value="100">100</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+                  <TableBody>
+                    {filteredSuppliers.length > 0 ? (
+                      paginatedSuppliers.map((supplier) => (
+                        <TableRow
+                          key={supplier.id}
+                          className={supplier.status === "inactive" ? "opacity-60" : ""}
+                        >
+                          <TableCell className="font-medium">{supplier.id}</TableCell>
+                          <TableCell>{supplier.name}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-1">
+                              {supplier.specialties.map((s) => (
+                                <Badge key={s} variant="outline">{s}</Badge>
+                              ))}
+                            </div>
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">{supplier.contact}</TableCell>
+                          <TableCell className="whitespace-nowrap">{supplier.email}</TableCell>
+                          <TableCell className="whitespace-nowrap">{supplier.address}</TableCell>
+                          <TableCell>{getRatingStars(supplier.rating)}</TableCell>
+                          <TableCell>
+                            {supplier.status === "active" ? (
+                              <Badge className="bg-green-600 hover:bg-green-700">Active</Badge>
+                            ) : (
+                              <Badge variant="outline" className="bg-gray-100 text-gray-800 hover:bg-gray-100">
+                                Inactive
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              size="sm"
+                              disabled={supplier.status === "inactive"}
+                              onClick={() => handleAssignOrder(supplier)}
+                            >
+                              Assign
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={9} className="h-24 text-center">
+                          No suppliers found matching your search.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
 
-            <Pagination>
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious
-                    onClick={(e) => { e.preventDefault(); if (canPrev) setPage((p) => p - 1) }}
-                    className={!canPrev ? "pointer-events-none opacity-50" : ""}
-                    href="#"
-                  />
-                </PaginationItem>
+              <div className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span className="text-sm">
+                    Showing {filteredSuppliers.length === 0 ? 0 : startIndex + 1}–
+                    {Math.min(startIndex + pageSize, filteredSuppliers.length)} of {filteredSuppliers.length}
+                  </span>
+                  <Select
+                    value={String(pageSize)}
+                    onValueChange={(v) => {
+                      setPageSize(Number(v))
+                      setPage(1)
+                    }}
+                  >
+                    <SelectTrigger className="w-[110px]">
+                      <SelectValue placeholder="Rows" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">5</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                {getPageWindow().map((p) => (
-                  <PaginationItem key={p}>
-                    <PaginationLink href="#" isActive={p === page} onClick={(e) => { e.preventDefault(); setPage(p) }}>
-                      {p}
-                    </PaginationLink>
-                  </PaginationItem>
-                ))}
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        onClick={(e) => {
+                          e.preventDefault()
+                          if (canPrev) setPage((p) => p - 1)
+                        }}
+                        className={!canPrev ? "pointer-events-none opacity-50" : ""}
+                        href="#"
+                      />
+                    </PaginationItem>
 
-                <PaginationItem>
-                  <PaginationNext
-                    onClick={(e) => { e.preventDefault(); if (canNext) setPage((p) => p + 1) }}
-                    className={!canNext ? "pointer-events-none opacity-50" : ""}
-                    href="#"
-                  />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
-          </div>
+                    {getPageWindow().map((p) => (
+                      <PaginationItem key={p}>
+                        <PaginationLink
+                          href="#"
+                          isActive={p === page}
+                          onClick={(e) => {
+                            e.preventDefault()
+                            setPage(p)
+                          }}
+                        >
+                          {p}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ))}
+
+                    <PaginationItem>
+                      <PaginationNext
+                        onClick={(e) => {
+                          e.preventDefault()
+                          if (canNext) setPage((p) => p + 1)
+                        }}
+                        className={!canNext ? "pointer-events-none opacity-50" : ""}
+                        href="#"
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
+            </CardContent>
+          </Card>
         </main>
+
       </div>
 
       {/* Assign Order Dialog */}

@@ -41,7 +41,7 @@ interface DeliveryItem {
   notes: string
 }
 
-export function StockReceiving() {
+export function StockReceivingTemp() {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [selectedDelivery, setSelectedDelivery] = useState<DeliveryItem | null>(null)
@@ -234,7 +234,11 @@ export function StockReceiving() {
                 <div>
                   <CardTitle>Incoming Deliveries</CardTitle>
                   <CardDescription>Manage and receive incoming food deliveries</CardDescription>
-                </div> 
+                </div>
+                <Button onClick={() => setNewDeliveryOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  New Delivery
+                </Button>
               </div>
             </CardHeader>
             <CardContent>

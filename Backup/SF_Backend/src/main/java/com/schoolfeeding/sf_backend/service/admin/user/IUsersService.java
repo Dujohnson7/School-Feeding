@@ -11,10 +11,13 @@ public interface IUsersService {
     Users update(Users theUser);
     Users delete(Users theUser);
     Users findByIdAndActive(UUID theId);
+    Users findUserWithPassword(UUID theId, String thePassword);
+    Users changePassword(Users theUsers);
     Users findUserByEmailAndActive(String email, Boolean state);
     List<Users> findAllByDistrictId(UUID districtId);
     List<Users> findUsersBySchoolId(UUID schoolId);
     List<Users> findUsersByRole(ERole role);
     List<Users> findUsersByState(Boolean state);
+    List<Users> findUsersBySchoolAndRoleAndState(UUID schoolId, ERole role, Boolean state);
 
 }

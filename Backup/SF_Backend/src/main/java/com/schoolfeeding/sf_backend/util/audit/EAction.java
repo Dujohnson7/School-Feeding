@@ -7,5 +7,6 @@ public enum EAction {
     DELETE,
     LOGIN,
     LOGOUT,
-    APPROVE
+    APPROVE,
+    REJECT
 }

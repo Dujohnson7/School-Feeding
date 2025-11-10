@@ -1,10 +1,7 @@
 package com.schoolfeeding.sf_backend.service.admin.user;
 
-import com.schoolfeeding.sf_backend.domain.entity.Audit;
 import com.schoolfeeding.sf_backend.domain.entity.Users;
-import com.schoolfeeding.sf_backend.repository.admin.IAuditRepository;
 import com.schoolfeeding.sf_backend.repository.admin.IUsersRepository;
-import com.schoolfeeding.sf_backend.service.admin.audit.IAuditService;
 import com.schoolfeeding.sf_backend.util.audit.Auditable;
 import com.schoolfeeding.sf_backend.util.audit.EAction;
 import com.schoolfeeding.sf_backend.util.audit.EResource;
@@ -54,7 +51,7 @@ public class UserServiceImpl implements IUsersService {
                 foundUser.setDistrict(theUser.getDistrict());
             }
 
-            if (theUser.getSchool() != null && !theUser.getSchool().getId().equals(theUser.getSchool().getId()))  {
+            if (theUser.getSchool() != null && (foundUser.getSchool() == null || !theUser.getSchool().getId().equals(foundUser.getSchool().getId()))) {
                 foundUser.setSchool(theUser.getSchool());
             }
 
@@ -71,7 +68,12 @@ public class UserServiceImpl implements IUsersService {
     @Override
     @Auditable(action = EAction.DELETE, resource = EResource.ADMIN)
     public Users delete(Users theUser) {
-        return null;
+        Users foundUser = findByIdAndActive(theUser.getId());
+        if (Objects.nonNull(foundUser)) {
+            foundUser.setActive(Boolean.FALSE);
+            return usersRepository.save(foundUser);
+        }
+        throw new ObjectNotFoundException(Users.class, "USER NOT FOUND");
     }
 
     @Override
@@ -81,6 +83,26 @@ public class UserServiceImpl implements IUsersService {
         );
         return theUser;
     }
+
+
+    @Override
+    public Users findUserWithPassword(UUID theId, String thePassword) {
+        return  usersRepository.findUsersByIdAndPasswordAndActive (theId,thePassword, Boolean.TRUE).orElseThrow(
+                () -> new ObjectNotFoundException(Users.class, "NOT FOUND")
+        );
+    }
+
+    @Override
+    public Users changePassword(Users theUsers) {
+
+        Users foundUser = findUserWithPassword(theUsers.getId(), theUsers.getPassword());
+        if (Objects.nonNull(foundUser)) {
+            foundUser.setPassword(passwordEncoder.encode(theUsers.getPassword()));
+            return usersRepository.save(foundUser);
+        }
+        throw new ObjectNotFoundException(Users.class, "USER NOT FOUND");
+    }
+
 
     @Override
     public Users findUserByEmailAndActive(String email, Boolean state) {
@@ -110,5 +132,10 @@ public class UserServiceImpl implements IUsersService {
     @Auditable(action = EAction.FETCH, resource = EResource.ADMIN)
     public List<Users> findUsersByState(Boolean state) {
         return usersRepository.findAllByActive(Boolean.TRUE);
+    }
+
+    @Override
+    public List<Users> findUsersBySchoolAndRoleAndState(UUID schoolId, ERole role, Boolean state) {
+        return usersRepository.findUsersBySchool_IdAndRoleAndActive(schoolId, role, Boolean.TRUE);
     }
 }
