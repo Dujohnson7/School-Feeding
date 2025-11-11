@@ -49,8 +49,8 @@ public class DistrictController {
         try {
             District existDistrict = districtService.findDistrictByIdAndState(UUID.fromString(id), Boolean.TRUE);
             if (existDistrict != null) {
-                existDistrict.setId(UUID.fromString(id));
-                District district = districtService.updateDistrict(existDistrict);
+                theDistrict.setId(UUID.fromString(id));
+                District district = districtService.updateDistrict(theDistrict);
                 return ResponseEntity.ok(district);
             }else  {
                 return ResponseEntity.badRequest().body("Invalid district Id");

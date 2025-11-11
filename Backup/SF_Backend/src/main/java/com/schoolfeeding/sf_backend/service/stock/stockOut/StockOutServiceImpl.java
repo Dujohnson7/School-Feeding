@@ -1,15 +1,14 @@
 package com.schoolfeeding.sf_backend.service.stock.stockOut;
 
-import com.schoolfeeding.sf_backend.domain.entity.Stock;
-import com.schoolfeeding.sf_backend.domain.entity.StockOut;
+import com.schoolfeeding.sf_backend.domain.entity.*;
 import com.schoolfeeding.sf_backend.repository.stock.IStockOutRepository;
 import com.schoolfeeding.sf_backend.service.stock.stock.IStockService;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -18,58 +17,96 @@ public class StockOutServiceImpl implements IStockOutService {
 
     private final IStockOutRepository stockOutRepository;
     private final IStockService  stockService;
+    private final EntityManager entityManager;
 
     @Override
     public StockOut saveStockOut(StockOut theStockOut) {
-        Stock foundStock = stockService.findByItemIdAndSchoolId(theStockOut.getItem().getId(), theStockOut.getSchool().getId());
+        var school = entityManager.find(School.class, theStockOut.getSchool().getId());
+        theStockOut.setSchool(school);
 
-        if (Objects.nonNull(foundStock)) {
+        for (StockOutItemDetail detail : theStockOut.getStockOutItemDetails() ) {
+            var item = entityManager.find(Item.class, detail.getItem().getId());
+            detail.setItem(item);
+            detail.setStockOut(theStockOut);
+            Stock foundStock = stockService.findByItemIdAndSchoolId(item.getId(), school.getId());
 
-            if (theStockOut.getQuantity() > foundStock.getQuantity()) {
-                foundStock.setQuantity(theStockOut.getQuantity());
+            if (foundStock == null) {
+                throw new ObjectNotFoundException(Stock.class, "STOCK NOT FOUND for item: " + item.getName());
+            }
+
+            if (detail.getQuantity() <= foundStock.getQuantity()) {
+                foundStock.setQuantity(foundStock.getQuantity() - detail.getQuantity());
                 stockService.updateStock(foundStock);
-                return stockOutRepository.save(theStockOut);
-            }else{
-                throw new ObjectNotFoundException(Stock.class,"Quantity ARE NOT IN STOCK");
+            } else {
+                throw new IllegalArgumentException(
+                        "Not enough stock for item: " + item.getName() + ". Available: " + foundStock.getQuantity()
+                );
             }
         }
-        throw new ObjectNotFoundException(Stock.class,"STOCK IN NOT FOUND");
+
+        return stockOutRepository.save(theStockOut);
     }
+
 
     @Override
     public StockOut updateStockOut(StockOut theStockOut) {
-        StockOut foundStock = findStockOutById(theStockOut.getId());
-        if (Objects.nonNull(foundStock)) {
-            if (theStockOut.getQuantity() > foundStock.getQuantity()) {
-                double tempQuantity = foundStock.getQuantity() - theStockOut.getQuantity();
-                Stock theStock = new Stock();
-                theStock.setQuantity(tempQuantity);
-                stockService.updateStock(theStock);
-                foundStock.setQuantity(theStockOut.getQuantity());
-                return stockOutRepository.save(foundStock);
-            }else {
-                throw new ObjectNotFoundException(Stock.class,"Quantity ARE NOT IN STOCK");
+        StockOut existing = stockOutRepository.findByIdAndActive(theStockOut.getId(), true)
+                .orElseThrow(() -> new ObjectNotFoundException(StockOut.class, "STOCKOUT NOT FOUND"));
+
+        UUID schoolId = existing.getSchool().getId();
+
+        for (StockOutItemDetail oldDetail : existing.getStockOutItemDetails()) {
+            Stock stock = stockService.findByItemIdAndSchoolId(oldDetail.getItem().getId(), schoolId);
+            if (stock != null) {
+                stock.setQuantity(stock.getQuantity() + oldDetail.getQuantity());
+                stockService.updateStock(stock);
             }
         }
-        throw new ObjectNotFoundException(Stock.class,"STOCKOUT NOT FOUND");
+
+        existing.getStockOutItemDetails().clear();
+
+        for (StockOutItemDetail detail : theStockOut.getStockOutItemDetails()) {
+            Item item = entityManager.find(Item.class, detail.getItem().getId());
+            if (item == null) throw new ObjectNotFoundException(Item.class, "ITEM NOT FOUND");
+
+            Stock stock = stockService.findByItemIdAndSchoolId(item.getId(), schoolId);
+            if (stock == null) throw new ObjectNotFoundException(Stock.class, "STOCK NOT FOUND for item: " + item.getName());
+            if (detail.getQuantity() > stock.getQuantity())
+                throw new IllegalArgumentException("Not enough stock for item: " + item.getName() + ". Available: " + stock.getQuantity());
+
+            stock.setQuantity(stock.getQuantity() - detail.getQuantity());
+            stockService.updateStock(stock);
+
+            detail.setItem(item);
+            detail.setStockOut(existing);
+            existing.getStockOutItemDetails().add(detail);
+        }
+
+        return stockOutRepository.save(existing);
     }
+
 
     @Override
     public StockOut deleteStockOut(StockOut theStockOut) {
-        StockOut foundStock = findStockOutById(theStockOut.getId());
-        if (Objects.nonNull(foundStock)) {
-            if (theStockOut.getQuantity() > foundStock.getQuantity()) {
-                double tempQuantity = foundStock.getQuantity() - theStockOut.getQuantity();
-                Stock theStock = new Stock();
-                theStock.setQuantity(tempQuantity);
-                stockService.updateStock(theStock);
-                foundStock.setActive(Boolean.FALSE);
-                return stockOutRepository.save(foundStock);
-            }else {
-                throw new ObjectNotFoundException(Stock.class,"Quantity ARE NOT IN STOCK");
+        StockOut existingStockOut = findStockOutById(theStockOut.getId());
+
+        if (existingStockOut == null) {
+            throw new ObjectNotFoundException(StockOut.class, "STOCKOUT NOT FOUND");
+        }
+
+        var school = entityManager.find(School.class, existingStockOut.getSchool().getId());
+
+        for (StockOutItemDetail detail : existingStockOut.getStockOutItemDetails()) {
+            var item = detail.getItem();
+            Stock stock = stockService.findByItemIdAndSchoolId(item.getId(), school.getId());
+            if (stock != null) {
+                stock.setQuantity(stock.getQuantity() + detail.getQuantity());
+                stockService.updateStock(stock);
             }
         }
-        throw new ObjectNotFoundException(Stock.class,"STOCKOUT NOT FOUND");
+
+        existingStockOut.setActive(Boolean.FALSE);
+        return stockOutRepository.save(existingStockOut);
     }
 
     @Override

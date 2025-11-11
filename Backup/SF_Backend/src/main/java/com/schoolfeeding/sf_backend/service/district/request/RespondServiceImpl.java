@@ -74,6 +74,7 @@ public class RespondServiceImpl implements IRespondService {
             List<RequestItemDetail> details = theOrders.getRequestItem().getRequestItemDetails();
             for (RequestItemDetail detail : details) {
                 StockIn theStockIn = new StockIn();
+                theStockIn.setOrders(theOrders);
                 theStockIn.setItem(detail.getItem());
                 theStockIn.setQuantity(detail.getQuantity());
                 theStockIn.setSchool(theOrders.getRequestItem().getSchool());

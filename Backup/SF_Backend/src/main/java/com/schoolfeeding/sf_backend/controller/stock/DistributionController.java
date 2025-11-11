@@ -1,10 +1,8 @@
 package com.schoolfeeding.sf_backend.controller.stock;
 
-import com.schoolfeeding.sf_backend.domain.entity.Orders;
+import com.schoolfeeding.sf_backend.domain.entity.District;
 import com.schoolfeeding.sf_backend.domain.entity.StockOut;
-import com.schoolfeeding.sf_backend.domain.entity.Users;
 import com.schoolfeeding.sf_backend.service.stock.stockOut.IStockOutService;
-import com.schoolfeeding.sf_backend.util.role.ERole;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -48,6 +46,53 @@ public class DistributionController {
             }
         }catch (Exception ex){
             return ResponseEntity.badRequest().body("Error STOCKOUT Registration: " + ex.getMessage());
+        }
+    }
+
+
+    @PutMapping("/update/{id}")
+    public ResponseEntity<?> updateStockOut(@RequestBody StockOut theStockOut, @PathVariable String id) {
+        try {
+            StockOut existStockOut = stockOutService.findStockOutById(UUID.fromString(id));
+            if (existStockOut != null) {
+                theStockOut.setId(UUID.fromString(id));
+                StockOut stockoutSave = stockOutService.updateStockOut(theStockOut);
+                return ResponseEntity.ok(stockoutSave);
+            }else  {
+                return ResponseEntity.badRequest().body("Invalid StockOut Id");
+            }
+        }catch (Exception ex){
+            return ResponseEntity.badRequest().body("Error " + ex.getMessage());
+        }
+    }
+
+    @DeleteMapping("/delete/{id}")
+    public ResponseEntity<?> deleteStockOut(@PathVariable String id) {
+        try {
+            if (!Objects.isNull(id)) {
+                StockOut stockout = new StockOut();
+                stockout.setId(UUID.fromString(id));
+                stockOutService.deleteStockOut(stockout);
+                return ResponseEntity.ok().body("Delete Success");
+            }else {
+                return ResponseEntity.badRequest().body("Invalid stockout Id");
+            }
+        }catch (Exception ex){
+            return ResponseEntity.badRequest().body("Error " + ex.getMessage());
+        }
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getStockOutById(@PathVariable String id) {
+        try {
+            StockOut theStockOut = stockOutService.findStockOutById(UUID.fromString(id));
+            if (theStockOut != null) {
+                return ResponseEntity.ok(theStockOut);
+            } else {
+                return ResponseEntity.notFound().build();
+            }
+        } catch (Exception ex) {
+            return ResponseEntity.badRequest().body("Error: "+ ex.getMessage());
         }
     }
 
