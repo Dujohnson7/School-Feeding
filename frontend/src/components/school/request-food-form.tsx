@@ -203,54 +203,8 @@ export function RequestFoodForm() {
                       </div>
                     )}
                   </div>
-
-                  <div className="space-y-2">
-                    <Label>Urgency Level</Label>
-                    <RadioGroup
-                      value={formState.urgency}
-                      onValueChange={(value) => setFormState({ ...formState, urgency: value })}
-                      className="flex"
-                    >
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="low" id="low" />
-                        <Label htmlFor="low" className="cursor-pointer">
-                          Low
-                        </Label>
-                      </div>
-                      <div className="flex items-center space-x-2 mx-4">
-                        <RadioGroupItem value="medium" id="medium" />
-                        <Label htmlFor="medium" className="cursor-pointer">
-                          Medium
-                        </Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="high" id="high" />
-                        <Label htmlFor="high" className="cursor-pointer">
-                          High
-                        </Label>
-                      </div>
-                    </RadioGroup>
-                  </div>
-
-                  {formState.urgency === "high" && (
-                    <Alert variant="destructive">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertTitle>High Urgency</AlertTitle>
-                      <AlertDescription>
-                        High urgency requests will be prioritized but require additional approval.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
-                  <div className="space-y-2">
-                    <Label htmlFor="delivery-date">Preferred Delivery Date</Label>
-                    <Input
-                      id="delivery-date"
-                      type="date"
-                      value={formState.deliveryDate}
-                      onChange={(e) => setFormState({ ...formState, deliveryDate: e.target.value })}
-                    />
-                  </div>
+ 
+ 
 
                   <div className="space-y-2">
                     <Label htmlFor="notes">Additional Notes</Label>

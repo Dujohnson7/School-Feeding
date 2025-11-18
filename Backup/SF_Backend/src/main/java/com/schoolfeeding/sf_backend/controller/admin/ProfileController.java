@@ -6,7 +6,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -33,21 +35,45 @@ public class ProfileController {
     }
 
 
-    @PutMapping("/update/{id}")
-    public ResponseEntity<?> updateUsers(@RequestBody Users theUsers, @PathVariable String id) {
+    @PutMapping(value = "/update/{id}", consumes = "multipart/form-data")
+    public ResponseEntity<?> updateUsers(
+            @PathVariable String id,
+            @RequestParam("names") String names,
+            @RequestParam("phone") String phone,
+            @RequestParam("email") String email,
+            @RequestParam(value = "userProfile", required = false) MultipartFile userProfile) {
+
         try {
             Users existUsers = usersService.findByIdAndActive(UUID.fromString(id));
-            if (!Objects.isNull(existUsers)) {
-                theUsers.setId(UUID.fromString(id));
-                Users updatedUsers = usersService.update(theUsers);
+
+            if (existUsers != null) {
+
+                existUsers.setNames(names);
+                existUsers.setPhone(phone);
+                existUsers.setEmail(email);
+
+                String uploadDir = System.getProperty("user.dir") + "/uploads/";
+                File dir = new File(uploadDir);
+                if (!dir.exists()) dir.mkdirs();
+
+                if (userProfile != null && !userProfile.isEmpty()) {
+                    String fileName = UUID.randomUUID() + "_" + userProfile.getOriginalFilename();
+                    userProfile.transferTo(new File(uploadDir + fileName));
+                    existUsers.setProfile(fileName);
+                }
+
+                Users updatedUsers = usersService.update(existUsers);
                 return ResponseEntity.ok(updatedUsers);
+
             } else {
-                return ResponseEntity.badRequest().body("Invalid Users ID");
+                return ResponseEntity.badRequest().body("Invalid User ID");
             }
+
         } catch (Exception ex) {
             return ResponseEntity.badRequest().body("Error Users Update: " + ex.getMessage());
         }
     }
+
 
 
 
@@ -68,19 +94,21 @@ public class ProfileController {
     }
 
 
-
-
-    @GetMapping("/checkPassword/{id}/{password}")
-    public ResponseEntity<?> checkPassword( @PathVariable String id, @PathVariable String password) {
+    @PostMapping("/checkPassword")
+    public ResponseEntity<?> checkPassword(
+            @RequestParam String id,
+            @RequestParam String password) {
         try {
-            Users checkPassword = usersService.findUserWithPassword(UUID.fromString(id), password);
-            if (!Objects.isNull(checkPassword)) {
-                return ResponseEntity.ok(checkPassword);
+            Users user = usersService.findUserWithPassword(UUID.fromString(id), password);
+
+            if (user != null) {
+                return ResponseEntity.ok("Password is correct");
             } else {
                 return ResponseEntity.badRequest().body("Password does not match");
             }
+
         } catch (Exception ex) {
-            return ResponseEntity.badRequest().body("Error Users: " + ex.getMessage());
+            return ResponseEntity.badRequest().body("Error: " + ex.getMessage());
         }
     }
 

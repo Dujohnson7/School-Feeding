@@ -56,7 +56,6 @@ public class SchoolController {
                 UserDto errorResponse = new UserDto();
                 errorResponse.setMessage("Fail registered School");
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
-                //return ResponseEntity.badRequest().body("Invalid School Data");
             }
         }catch (Exception ex){
             return ResponseEntity.badRequest().body("Error School Registration: " + ex.getMessage());

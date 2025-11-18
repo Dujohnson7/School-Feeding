@@ -27,6 +27,7 @@ public class UserServiceImpl implements IUsersService {
     @Auditable(action = EAction.CREATE, resource = EResource.ADMIN)
     public Users save(Users theUser) {
         theUser.setPassword(passwordEncoder.encode(theUser.getPassword()));
+        theUser.setProfile("userIcon.png");
         return usersRepository.save(theUser);
     }
 
@@ -77,6 +78,16 @@ public class UserServiceImpl implements IUsersService {
     }
 
     @Override
+    public Users suspend(Users theUser) {
+        Users foundUser = findByIdAndActive(theUser.getId());
+        if (Objects.nonNull(foundUser)) {
+            foundUser.setUserStatus(Boolean.FALSE);
+            return usersRepository.save(foundUser);
+        }
+        throw new ObjectNotFoundException(Users.class, "USER NOT FOUND");
+    }
+
+    @Override
     public Users findByIdAndActive(UUID theId) {
         Users  theUser = usersRepository.findUsersByIdAndActive(theId, Boolean.TRUE).orElseThrow(
                 () -> new ObjectNotFoundException(Users.class, "USER NOT FOUND")
@@ -87,15 +98,20 @@ public class UserServiceImpl implements IUsersService {
 
     @Override
     public Users findUserWithPassword(UUID theId, String thePassword) {
-        return  usersRepository.findUsersByIdAndPasswordAndActive (theId,thePassword, Boolean.TRUE).orElseThrow(
-                () -> new ObjectNotFoundException(Users.class, "NOT FOUND")
-        );
+        Users user = findByIdAndActive(theId);
+
+        if (user != null && passwordEncoder.matches(thePassword, user.getPassword())) {
+            return user;
+        }
+
+        return null;
     }
+
 
     @Override
     public Users changePassword(Users theUsers) {
 
-        Users foundUser = findUserWithPassword(theUsers.getId(), theUsers.getPassword());
+        Users foundUser = findByIdAndActive(theUsers.getId());
         if (Objects.nonNull(foundUser)) {
             foundUser.setPassword(passwordEncoder.encode(theUsers.getPassword()));
             return usersRepository.save(foundUser);
@@ -106,7 +122,7 @@ public class UserServiceImpl implements IUsersService {
 
     @Override
     public Users findUserByEmailAndActive(String email, Boolean state) {
-        Users  theUser = usersRepository.findUsersByEmailAndActive(email, Boolean.TRUE).orElseThrow(
+        Users  theUser = usersRepository.findUsersByEmailAndActiveAndUserStatus(email, Boolean.TRUE, Boolean.TRUE).orElseThrow(
                 () -> new ObjectNotFoundException(Users.class, "USER NOT FOUND")
         );
         return theUser;

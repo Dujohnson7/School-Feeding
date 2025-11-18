@@ -44,4 +44,8 @@ public class Users  extends AbstractBaseEntity {
     @Column(name = "lastLogin", nullable = true)
     private LocalDateTime lastLogin;
 
+
+    @Column( name = "user_status", nullable = false )
+    private Boolean userStatus =Boolean.TRUE;
+
 }

@@ -23,7 +23,7 @@ public class UserDetailServiceImpl implements UserDetailsService {
     @Override
     @Auditable(action = EAction.LOGIN, resource = EResource.SYSTEM)
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        Users user = usersRepository.findUsersByEmailAndActive(email, Boolean.TRUE)
+        Users user = usersRepository.findUsersByEmailAndActiveAndUserStatus(email, Boolean.TRUE, Boolean.TRUE)
                 .orElseThrow(() -> new UsernameNotFoundException("USER NOT FOUND " + email));
 
         SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + user.getRole().name());

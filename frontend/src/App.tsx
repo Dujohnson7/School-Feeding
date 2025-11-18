@@ -1,11 +1,15 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { ThemeProvider } from '@/components/theme-provider'
 import RoleLayout from '@/components/shared/role-layout'
+import { ProtectedRoute } from '@/components/auth/protected-route'
+import { Toaster } from '@/components/ui/sonner'
 
 // Import pages
 import LandingPage from '@/components/landing/landing-page'
 import Login from '@/pages/login/page'
 import ForgotPassword from '@/pages/forgot-password/page'
+import ResetPassword from '@/pages/reset-password/page'
+import OTPPage from '@/pages/otp/page'
 import Profile from '@/pages/profile/page'
 
 // Admin pages
@@ -32,6 +36,7 @@ import GovReports from '@/pages/gov-reports/page'
 import SchoolDashboard from '@/components/school/dashboard'
 import SchoolReports from '@/pages/school-reports/page'
 import RequestFood from '@/pages/request-food/page'
+import RequestFoodList from '@/pages/request-food-list/page'
 import TrackDelivery from '@/pages/track-delivery/page'
 import ManageStockManagers from '@/pages/manage-stock-managers/page'
 
@@ -51,59 +56,63 @@ import SupplierReports from '@/pages/supplier-reports/page'
 function App() {
   return (
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
+      <Toaster position="top-right" richColors />
       <Router>
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/profile" element={<Profile />} />
+          <Route path="/otp" element={<OTPPage />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           
           {/* Admin Routes */}
-          <Route path="/admin-dashboard" element={<RoleLayout role="admin"><AdminDashboard /></RoleLayout>} />
-          <Route path="/admin-profile" element={<RoleLayout role="admin"><Profile /></RoleLayout>} />
-          <Route path="/admin-users" element={<RoleLayout role="admin"><AdminUsers /></RoleLayout>} />
-          <Route path="/admin-logs" element={<RoleLayout role="admin"><AdminLogs /></RoleLayout>} />
-          <Route path="/admin-settings" element={<RoleLayout role="admin"><AdminSettings /></RoleLayout>} />
+          <Route path="/admin-dashboard" element={<ProtectedRoute><RoleLayout role="admin"><AdminDashboard /></RoleLayout></ProtectedRoute>} />
+          <Route path="/admin-profile" element={<ProtectedRoute><RoleLayout role="admin"><Profile /></RoleLayout></ProtectedRoute>} />
+          <Route path="/admin-users" element={<ProtectedRoute><RoleLayout role="admin"><AdminUsers /></RoleLayout></ProtectedRoute>} />
+          <Route path="/admin-logs" element={<ProtectedRoute><RoleLayout role="admin"><AdminLogs /></RoleLayout></ProtectedRoute>} />
+          <Route path="/admin-settings" element={<ProtectedRoute><RoleLayout role="admin"><AdminSettings /></RoleLayout></ProtectedRoute>} />
           
           {/* District Routes */}
-          <Route path="/district-dashboard" element={<RoleLayout role="district"><DistrictDashboard /></RoleLayout>} />
-          <Route path="/district-profile" element={<RoleLayout role="district"><Profile /></RoleLayout>} />
-          <Route path="/district-approvals" element={<RoleLayout role="district"><DistrictApprovals /></RoleLayout>} />
-          <Route path="/district-budget" element={<RoleLayout role="district"><DistrictBudget /></RoleLayout>} />
-          <Route path="/district-reports" element={<RoleLayout role="district"><DistrictReports /></RoleLayout>} />
-          <Route path="/add-supplier" element={<RoleLayout role="district"><AddSupplier /></RoleLayout>} />
-          <Route path="/manage-suppliers" element={<RoleLayout role="district"><ManageSuppliers /></RoleLayout>} />
+          <Route path="/district-dashboard" element={<ProtectedRoute><RoleLayout role="district"><DistrictDashboard /></RoleLayout></ProtectedRoute>} />
+          <Route path="/district-profile" element={<ProtectedRoute><RoleLayout role="district"><Profile /></RoleLayout></ProtectedRoute>} />
+          <Route path="/district-approvals" element={<ProtectedRoute><RoleLayout role="district"><DistrictApprovals /></RoleLayout></ProtectedRoute>} />
+          <Route path="/district-budget" element={<ProtectedRoute><RoleLayout role="district"><DistrictBudget /></RoleLayout></ProtectedRoute>} />
+          <Route path="/district-reports" element={<ProtectedRoute><RoleLayout role="district"><DistrictReports /></RoleLayout></ProtectedRoute>} />
+          <Route path="/add-supplier" element={<ProtectedRoute><RoleLayout role="district"><AddSupplier /></RoleLayout></ProtectedRoute>} />
+          <Route path="/manage-suppliers" element={<ProtectedRoute><RoleLayout role="district"><ManageSuppliers /></RoleLayout></ProtectedRoute>} />
           
           {/* Government Routes */}
-          <Route path="/gov-dashboard" element={<RoleLayout role="government"><GovDashboard /></RoleLayout>} />
-          <Route path="/gov-profile" element={<RoleLayout role="government"><Profile /></RoleLayout>} />
-          <Route path="/gov-analytics" element={<RoleLayout role="government"><GovAnalytics /></RoleLayout>} />
-          <Route path="/gov-budget" element={<RoleLayout role="government"><GovBudget /></RoleLayout>} />
-          <Route path="/gov-reports" element={<RoleLayout role="government"><GovReports /></RoleLayout>} />
+          <Route path="/gov-dashboard" element={<ProtectedRoute><RoleLayout role="government"><GovDashboard /></RoleLayout></ProtectedRoute>} />
+          <Route path="/gov-profile" element={<ProtectedRoute><RoleLayout role="government"><Profile /></RoleLayout></ProtectedRoute>} />
+          <Route path="/gov-analytics" element={<ProtectedRoute><RoleLayout role="government"><GovAnalytics /></RoleLayout></ProtectedRoute>} />
+          <Route path="/gov-budget" element={<ProtectedRoute><RoleLayout role="government"><GovBudget /></RoleLayout></ProtectedRoute>} />
+          <Route path="/gov-reports" element={<ProtectedRoute><RoleLayout role="government"><GovReports /></RoleLayout></ProtectedRoute>} />
            
           
           {/* School Routes */}
-          <Route path="/school-dashboard" element={<RoleLayout role="school"><SchoolDashboard /></RoleLayout>} />
-          <Route path="/school-profile" element={<RoleLayout role="school"><Profile /></RoleLayout>} />
-          <Route path="/school-reports" element={<RoleLayout role="school"><SchoolReports /></RoleLayout>} />
-          <Route path="/request-food" element={<RoleLayout role="school"><RequestFood /></RoleLayout>} />
-          <Route path="/track-delivery" element={<RoleLayout role="school"><TrackDelivery /></RoleLayout>} />
-          <Route path="/manage-stock-managers" element={<RoleLayout role="school"><ManageStockManagers /></RoleLayout>} />
+          <Route path="/school-dashboard" element={<ProtectedRoute><RoleLayout role="school"><SchoolDashboard /></RoleLayout></ProtectedRoute>} />
+          <Route path="/school-profile" element={<ProtectedRoute><RoleLayout role="school"><Profile /></RoleLayout></ProtectedRoute>} />
+          <Route path="/school-reports" element={<ProtectedRoute><RoleLayout role="school"><SchoolReports /></RoleLayout></ProtectedRoute>} />
+          <Route path="/request-food" element={<ProtectedRoute><RoleLayout role="school"><RequestFood /></RoleLayout></ProtectedRoute>} />
+          <Route path="/request-food-list" element={<ProtectedRoute><RoleLayout role="school"><RequestFoodList /></RoleLayout></ProtectedRoute>} />
+          <Route path="/track-delivery" element={<ProtectedRoute><RoleLayout role="school"><TrackDelivery /></RoleLayout></ProtectedRoute>} />
+          <Route path="/manage-stock-managers" element={<ProtectedRoute><RoleLayout role="school"><ManageStockManagers /></RoleLayout></ProtectedRoute>} />
           
           {/* Stock Routes */}
-          <Route path="/stock-dashboard" element={<RoleLayout role="stock"><StockDashboard /></RoleLayout>} />
-          <Route path="/stock-profile" element={<RoleLayout role="stock"><Profile /></RoleLayout>} />
-          <Route path="/stock-distribution" element={<RoleLayout role="stock"><StockDistribution /></RoleLayout>} />
-          <Route path="/stock-inventory" element={<RoleLayout role="stock"><StockInventory /></RoleLayout>} />
-          <Route path="/stock-receiving" element={<RoleLayout role="stock"><StockReceiving /></RoleLayout>} />
-          <Route path="/stock-reports" element={<RoleLayout role="stock"><StockReports /></RoleLayout>} />
+          <Route path="/stock-dashboard" element={<ProtectedRoute><RoleLayout role="stock"><StockDashboard /></RoleLayout></ProtectedRoute>} />
+          <Route path="/stock-profile" element={<ProtectedRoute><RoleLayout role="stock"><Profile /></RoleLayout></ProtectedRoute>} />
+          <Route path="/stock-distribution" element={<ProtectedRoute><RoleLayout role="stock"><StockDistribution /></RoleLayout></ProtectedRoute>} />
+          <Route path="/stock-inventory" element={<ProtectedRoute><RoleLayout role="stock"><StockInventory /></RoleLayout></ProtectedRoute>} />
+          <Route path="/stock-receiving" element={<ProtectedRoute><RoleLayout role="stock"><StockReceiving /></RoleLayout></ProtectedRoute>} />
+          <Route path="/stock-reports" element={<ProtectedRoute><RoleLayout role="stock"><StockReports /></RoleLayout></ProtectedRoute>} />
           
           {/* Supplier Routes */}
-          <Route path="/supplier-dashboard" element={<RoleLayout role="supplier"><SupplierDashboard /></RoleLayout>} />
-          <Route path="/supplier-profile" element={<RoleLayout role="supplier"><Profile /></RoleLayout>} />
-          <Route path="/supplier-deliveries" element={<RoleLayout role="supplier"><SupplierDeliveries /></RoleLayout>} />
-          <Route path="/supplier-orders" element={<RoleLayout role="supplier"><SupplierOrders /></RoleLayout>} />
-          <Route path="/supplier-reports" element={<RoleLayout role="supplier"><SupplierReports /></RoleLayout>} />
+          <Route path="/supplier-dashboard" element={<ProtectedRoute><RoleLayout role="supplier"><SupplierDashboard /></RoleLayout></ProtectedRoute>} />
+          <Route path="/supplier-profile" element={<ProtectedRoute><RoleLayout role="supplier"><Profile /></RoleLayout></ProtectedRoute>} />
+          <Route path="/supplier-deliveries" element={<ProtectedRoute><RoleLayout role="supplier"><SupplierDeliveries /></RoleLayout></ProtectedRoute>} />
+          <Route path="/supplier-orders" element={<ProtectedRoute><RoleLayout role="supplier"><SupplierOrders /></RoleLayout></ProtectedRoute>} />
+          <Route path="/supplier-reports" element={<ProtectedRoute><RoleLayout role="supplier"><SupplierReports /></RoleLayout></ProtectedRoute>} />
         </Routes>
       </Router>
     </ThemeProvider>

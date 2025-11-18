@@ -15,6 +15,9 @@ public class Supplier extends Users {
     @Column(name = "tin_number", nullable = false)
     private int tinNumber;
 
+    @Column(name = "companyName")
+    private String companyName;
+
     @Column(name = "address", nullable = false)
     private String address;
 

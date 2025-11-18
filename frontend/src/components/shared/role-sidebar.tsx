@@ -1,11 +1,11 @@
 import { Link, useLocation } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { LogOut } from "lucide-react"
-import { RoleKey, roleMenus } from "./role-menus"
+import { RoleKey, roleMenus } from "../shared/role-menus"
 
 interface RoleSidebarProps {
   role: RoleKey
-  onNavigate?: () => void // useful to close mobile sheet after click
+  onNavigate?: () => void  
 }
 
 export default function RoleSidebar({ role, onNavigate }: RoleSidebarProps) {

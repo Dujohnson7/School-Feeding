@@ -45,7 +45,7 @@ export const roleMenus: Record<RoleKey, { title: string; url: string; icon: any 
   ],
   school: [
     { title: "Dashboard", url: "/school-dashboard", icon: Home },
-    { title: "Request Food", url: "/request-food", icon: Package },
+    { title: "Request Food", url: "/request-food-list", icon: Package },
     { title: "Track Delivery", url: "/track-delivery", icon: Truck },
     { title: "Stock Managers", url: "/manage-stock-managers", icon: Users },
     { title: "Reports", url: "/school-reports", icon: FileText },

@@ -12,9 +12,8 @@ import java.util.UUID;
 @Repository
 public interface IUsersRepository extends JpaRepository<Users, UUID> {
 
-    Optional<Users> findUsersByEmailAndActive(String email,Boolean state);
+    Optional<Users> findUsersByEmailAndActiveAndUserStatus(String email, Boolean active, Boolean userStatus);
     Optional<Users>  findUsersByIdAndActive(UUID theId, Boolean state);
-    Optional<Users> findUsersByIdAndPasswordAndActive(UUID theId, String thePassword, Boolean state);
     List<Users> findAllBySchoolIdAndActive(UUID schoolId, Boolean active);
     List<Users> findAllByDistrictIdAndActive(UUID districtId, Boolean active);
     List<Users> findAllByRoleAndActive(ERole role, Boolean state);

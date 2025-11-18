@@ -24,9 +24,9 @@ import { toast } from "@/components/ui/use-toast"
 
 export function AdminSettings() {
   const [generalSettings, setGeneralSettings] = useState({
-    systemName: "School Feeding System",
+    systemName: "School Feeding",
     systemDescription: "School feeding management system for Rwanda", 
-    systemEmail: "dujohnson123@gmail.com",
+    systemEmail: "schoolfeeding.info@gmail.com",
     maintenanceMode: false,
     allowRegistration: false,
     requireEmailVerification: true, 
@@ -35,10 +35,10 @@ export function AdminSettings() {
   const [emailSettings, setEmailSettings] = useState({
     smtpHost: "smtp.gmail.com",
     smtpPort: "587",
-    smtpUsername: "system@schoolfeeding.rw",
-    smtpPassword: "",
-    fromEmail: "noreply@schoolfeeding.rw",
-    fromName: "School Feeding System",
+    smtpUsername: "schoolfeeding.info@gmail.com",
+    smtpPassword: "vghk tmff cbpd meiy",
+    fromEmail: "schoolfeeding.info@gmail.com",
+    fromName: "School Feeding",
     enableSsl: true,
   })
 

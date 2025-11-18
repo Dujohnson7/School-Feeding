@@ -47,8 +47,8 @@ public class AuthController {
                     )
             );
 
-            Users user = usersRepository.findUsersByEmailAndActive(
-                    loginRequest.getEmail(), Boolean.TRUE
+            Users user = usersRepository.findUsersByEmailAndActiveAndUserStatus(
+                    loginRequest.getEmail(), Boolean.TRUE, Boolean.TRUE
             ).orElseThrow(() -> new RuntimeException("User not found"));
 
 
@@ -63,6 +63,8 @@ public class AuthController {
             response.setRole(user.getRole());
             response.setNames(user.getNames());
             response.setPhone(user.getPhone());
+            response.setDistrict(user.getDistrict());
+            response.setSchool(user.getSchool());
             response.setToken(token);
             response.setMessage("Login successful");
             response.setProfile(user.getProfile());
@@ -72,10 +74,11 @@ public class AuthController {
         } catch (Exception ex) {
             UserDto errorResponse = new UserDto();
             errorResponse.setEmail(loginRequest.getEmail());
-            errorResponse.setMessage("Invalid credentials: " + ex.getMessage());
+            errorResponse.setMessage("Invalid Credentials");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
         }
     }
+
 
     @PostMapping("/logout")
     @Auditable(action = EAction.LOGOUT, resource = EResource.SYSTEM)
@@ -89,7 +92,7 @@ public class AuthController {
 
     @PostMapping("/forgot-password")
     public ResponseEntity<UserDto> forgotPassword(@RequestBody UserDto userDto) {
-        Optional<Users> userOpt = usersRepository.findUsersByEmailAndActive(userDto.getEmail(), Boolean.TRUE);
+        Optional<Users> userOpt = usersRepository.findUsersByEmailAndActiveAndUserStatus(userDto.getEmail(), Boolean.TRUE, Boolean.TRUE);
         if (userOpt.isEmpty()) {
             UserDto response = new UserDto();
             response.setEmail(userDto.getEmail());
@@ -129,7 +132,7 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
         }
 
-        Users user = usersRepository.findUsersByEmailAndActive(email, Boolean.TRUE)
+        Users user = usersRepository.findUsersByEmailAndActiveAndUserStatus(email, Boolean.TRUE, Boolean.TRUE)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         user.setPassword(passwordEncoder.encode(newPassword));

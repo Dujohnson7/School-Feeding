@@ -14,7 +14,7 @@ import java.util.UUID;
 public interface ISchoolRepository extends JpaRepository<School, UUID> {
     List<School> findAllByActive(Boolean active);
     Optional<School>findSchoolByIdAndActive(UUID id, Boolean active);
-    List<School> findAllByDistrict_DistrictAndActive(EDistrict district, Boolean active);
+    List<School> findAllByDistrict_DistrictAndActive(EDistrict districtDistrict, Boolean active);
     List<School> findAllByDistrict_ProvinceAndActive(EProvince province, Boolean active);
 
 }

@@ -91,40 +91,6 @@ export function RequestFoodDialog({ open, onOpenChange }: RequestFoodDialogProps
                   placeholder="Enter quantity in kg"
                 />
               </div>
-
-              <div className="grid gap-2">
-                <Label>Urgency Level</Label>
-                <RadioGroup value={urgency} onValueChange={setUrgency} className="flex">
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="low" id="low" />
-                    <Label htmlFor="low" className="cursor-pointer">
-                      Low
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2 mx-4">
-                    <RadioGroupItem value="medium" id="medium" />
-                    <Label htmlFor="medium" className="cursor-pointer">
-                      Medium
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="high" id="high" />
-                    <Label htmlFor="high" className="cursor-pointer">
-                      High
-                    </Label>
-                  </div>
-                </RadioGroup>
-              </div>
-
-              {urgency === "high" && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertTitle>High Urgency</AlertTitle>
-                  <AlertDescription>
-                    High urgency requests will be prioritized but require additional approval.
-                  </AlertDescription>
-                </Alert>
-              )}
             </div>
 
             <DialogFooter>

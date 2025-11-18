@@ -10,6 +10,7 @@ public interface IUsersService {
     Users save(Users theUser);
     Users update(Users theUser);
     Users delete(Users theUser);
+    Users suspend(Users theUser);
     Users findByIdAndActive(UUID theId);
     Users findUserWithPassword(UUID theId, String thePassword);
     Users changePassword(Users theUsers);

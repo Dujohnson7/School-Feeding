@@ -1,0 +1,77 @@
+
+@PostMapping("/login")
+@Auditable(action = EAction.LOGIN, resource = EResource.SYSTEM)
+public ResponseEntity<UserDto> login(@Valid @RequestBody UserDto loginRequest) {
+    try {
+        boolean isOtpStep = loginRequest.getOtp() != null && !loginRequest.getOtp().isEmpty();
+
+        if (!isOtpStep) {
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            loginRequest.getEmail(), loginRequest.getPassword()
+                    )
+            );
+
+            Users user = usersRepository.findUsersByEmailAndActive(
+                    loginRequest.getEmail(), Boolean.TRUE
+            ).orElseThrow(() -> new RuntimeException("User not found"));
+
+            String otp = String.format("%06d", new Random().nextInt(999999));
+            otpStorage.put(loginRequest.getEmail(), otp);
+
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setTo(loginRequest.getEmail());
+            message.setSubject("Your OTP for Login");
+            message.setText("Your OTP is: " + otp + "\nIt will expire in 10 minutes.");
+            mailSender.send(message);
+
+            UserDto response = new UserDto();
+            response.setEmail(loginRequest.getEmail());
+            response.setMessage("OTP sent to your email. Please verify to complete login.");
+            return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+        }
+
+        String storedOtp = otpStorage.get(loginRequest.getEmail());
+        if (storedOtp == null || !storedOtp.equals(loginRequest.getOtp())) {
+            UserDto response = new UserDto();
+            response.setEmail(loginRequest.getEmail());
+            response.setMessage("Invalid or expired OTP");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+        }
+
+        Users user = usersRepository.findUsersByEmailAndActive(
+                loginRequest.getEmail(), Boolean.TRUE
+        ).orElseThrow(() -> new RuntimeException("User not found"));
+
+        Authentication authentication = new UsernamePasswordAuthenticationToken(
+                user.getEmail(), user.getPassword()
+        );
+
+        String token = jwtProvider.generateToken(authentication);
+
+        user.setLastLogin(LocalDateTime.now());
+        usersRepository.save(user);
+
+        otpStorage.remove(loginRequest.getEmail());
+
+        UserDto response = new UserDto();
+        response.setId(user.getId());
+        response.setEmail(user.getEmail());
+        response.setRole(user.getRole());
+        response.setNames(user.getNames());
+        response.setPhone(user.getPhone());
+        response.setDistrict(user.getDistrict());
+        response.setSchool(user.getSchool());
+        response.setProfile(user.getProfile());
+        response.setToken(token);
+        response.setMessage("Login successful");
+
+        return ResponseEntity.ok(response);
+
+    } catch (Exception ex) {
+        UserDto errorResponse = new UserDto();
+        errorResponse.setEmail(loginRequest.getEmail());
+        errorResponse.setMessage("Invalid credentials");
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorResponse);
+    }
+}
