@@ -14,8 +14,8 @@ import java.util.UUID;
 @Setter
 public class RequestItemDetail extends AbstractBaseEntity {
 
-/*
     @ManyToOne
+    @JsonIgnore
     @JoinColumn(name = "request_id", nullable = false)
     private RequestItem requestItem;
 
@@ -25,22 +25,6 @@ public class RequestItemDetail extends AbstractBaseEntity {
 
     @Column(name = "quantity", nullable = false)
     private double quantity;
-
-*/
-
-    @ManyToOne
-    @JsonIgnore
-    @JoinColumn(name = "request_id", nullable = false)
-    private RequestItem requestItem;
-
-    @ManyToOne
-    @JsonIgnore
-    @JoinColumn(name = "item_id", nullable = false)
-    private Item item;
-
-    @Column(name = "quantity", nullable = false)
-    private double quantity;
-
 
     @JsonProperty("requestItem")
     public MinimalId getMinimalRequestItem() {
@@ -53,5 +37,4 @@ public class RequestItemDetail extends AbstractBaseEntity {
     }
 
     public record MinimalId(UUID id) {}
-
 }

@@ -1,7 +1,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
 import { AlertCircle, ArrowLeft, Check } from "lucide-react"
 
@@ -9,21 +9,62 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Textarea } from "@/components/ui/textarea"
+import { toast } from "@/components/ui/use-toast"
+
+interface Item {
+  id: string
+  name: string
+  category?: string
+  unit?: string
+}
 
 export function RequestFoodForm() {
   const [formState, setFormState] = useState({
     foodItems: [] as string[],
-    quantities: {} as Record<string, string>,
-    urgency: "medium",
-    notes: "",
-    deliveryDate: "",
+    quantities: {} as Record<string, string>, 
+    notes: "", 
   })
 
   const [submitted, setSubmitted] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [items, setItems] = useState<Item[]>([])
+  const [loadingItems, setLoadingItems] = useState(true)
+ 
+  useEffect(() => {
+    const fetchItems = async () => {
+      try {
+        const response = await fetch("http://localhost:8070/api/item/all")
+        if (!response.ok) {
+          throw new Error("Failed to fetch items")
+        }
+        const data = await response.json()
+        setItems(data)
+      } catch (err) {
+        console.error("Error fetching items:", err)
+        toast({
+          title: "Error",
+          description: "Failed to load food items. Please refresh the page.",
+          variant: "destructive",
+        })
+      } finally {
+        setLoadingItems(false)
+      }
+    }
+
+    fetchItems()
+  }, [])
+ 
+  const getItemIdByName = (name: string): string | null => {
+    const normalizedName = name.toLowerCase().trim()
+    const item = items.find(
+      (i) => i.name.toLowerCase().trim() === normalizedName
+    )
+    return item?.id || null
+  }
 
   const handleAddFoodItem = (item: string) => {
     if (item && !formState.foodItems.includes(item)) {
@@ -54,26 +95,106 @@ export function RequestFoodForm() {
     })
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Here you would normally submit the form data to your backend
-    console.log(formState)
-    setSubmitted(true)
+    setError(null)
+ 
+    const missingQuantities = formState.foodItems.filter(
+      (item) => !formState.quantities[item] || formState.quantities[item].trim() === ""
+    )
 
-    // Reset form after submission would happen here in a real app
+    if (missingQuantities.length > 0) {
+      setError("Please enter quantities for all selected items.")
+      return
+    }
+ 
+    const invalidQuantities = formState.foodItems.filter((item) => {
+      const qty = parseFloat(formState.quantities[item])
+      return isNaN(qty) || qty <= 0
+    })
+
+    if (invalidQuantities.length > 0) {
+      setError("Please enter valid positive quantities for all items.")
+      return
+    }
+ 
+    const districtId = localStorage.getItem("districtId")
+    const schoolId = localStorage.getItem("schoolId")
+    const token = localStorage.getItem("token")
+
+    if (!districtId || !schoolId) {
+      setError("District or school information is missing. Please log in again.")
+      return
+    }
+
+    if (!token) {
+      setError("Authentication required. Please log in again.")
+      return
+    }
+ 
+    const requestItemDetails = formState.foodItems
+      .map((itemName) => {
+        const itemId = getItemIdByName(itemName)
+        if (!itemId) {
+          return null
+        }
+        return {
+          item: { id: itemId },
+          quantity: parseFloat(formState.quantities[itemName]),
+        }
+      })
+      .filter((detail): detail is { item: { id: string }; quantity: number } => detail !== null)
+
+    if (requestItemDetails.length === 0) {
+      setError("Could not find item IDs for the selected items. Please try again.")
+      return
+    }
+ 
+    const requestPayload = {
+      district: { id: districtId },
+      school: { id: schoolId },
+      requestItemDetails,
+      description: formState.notes || "Food request from school",
+    }
+
+    setLoading(true)
+
+    try {
+      const response = await fetch("http://localhost:8070/api/requestRequestItem/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(requestPayload),
+      })
+
+      const data = await response.json().catch(() => null)
+
+      if (!response.ok) {
+        const errorMessage =
+          data?.message || data?.error || response.statusText || "Failed to submit request"
+        throw new Error(errorMessage)
+      }
+
+      toast({
+        title: "Success",
+        description: "Your food request has been submitted successfully.",
+      })
+
+      setSubmitted(true)
+    } catch (err: any) {
+      const errorMessage = err?.message || "Failed to submit request. Please try again."
+      setError(errorMessage)
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
   }
-
-  const foodItemOptions = [
-    { value: "rice", label: "Rice" },
-    { value: "beans", label: "Beans" },
-    { value: "maize", label: "Maize" },
-    { value: "vegetables", label: "Vegetables" },
-    { value: "fruits", label: "Fruits" },
-    { value: "oil", label: "Cooking Oil" },
-    { value: "salt", label: "Salt" },
-    { value: "sugar", label: "Sugar" },
-    { value: "milk", label: "Milk" },
-  ]
 
   return (
     <div className="flex-1">
@@ -109,22 +230,21 @@ export function RequestFoodForm() {
                   <div className="space-y-2">
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <span className="text-muted-foreground">Items:</span>
-                      <span>{formState.foodItems.join(", ")}</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <span className="text-muted-foreground">Urgency:</span>
-                      <span className="capitalize">{formState.urgency}</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <span className="text-muted-foreground">Requested Delivery:</span>
-                      <span>{formState.deliveryDate || "Standard delivery time"}</span>
-                    </div>
+                      <span>
+                        {formState.foodItems
+                          .map(
+                            (item) =>
+                              `${item} (${formState.quantities[item]} kg)`
+                          )
+                          .join(", ")}
+                      </span>
+                    </div>  
                   </div>
                 </div>
               </CardContent>
               <CardFooter>
                 <Button asChild className="w-full">
-                  <Link to="/school-dashboard">Return to Dashboard</Link>
+                  <Link to="/request-food-list">Okay, got it!</Link>
                 </Button>
               </CardFooter>
             </Card>
@@ -138,24 +258,42 @@ export function RequestFoodForm() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
+                  {error && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertTitle>Error</AlertTitle>
+                      <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                  )}
+
                   <div className="space-y-4">
                     <Label>Food Items</Label>
 
                     <div className="flex gap-2">
-                      <Select onValueChange={handleAddFoodItem}>
+                      <Select onValueChange={handleAddFoodItem} disabled={loadingItems}>
                         <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select food item" />
+                          <SelectValue placeholder={loadingItems ? "Loading items..." : "Select food item"} />
                         </SelectTrigger>
                         <SelectContent>
-                          {foodItemOptions.map((option) => (
-                            <SelectItem
-                              key={option.value}
-                              value={option.value}
-                              disabled={formState.foodItems.includes(option.value)}
-                            >
-                              {option.label}
+                          {loadingItems ? (
+                            <SelectItem value="loading" disabled>
+                              Loading items...
                             </SelectItem>
-                          ))}
+                          ) : items.length > 0 ? (
+                            items.map((item) => (
+                              <SelectItem
+                                key={item.id}
+                                value={item.name}
+                                disabled={formState.foodItems.includes(item.name)}
+                              >
+                                {item.name}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="no-items" disabled>
+                              No items available
+                            </SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
@@ -165,11 +303,10 @@ export function RequestFoodForm() {
                         <h3 className="mb-2 text-sm font-medium">Selected Items</h3>
                         <div className="space-y-3">
                           {formState.foodItems.map((item) => {
-                            const label = foodItemOptions.find((o) => o.value === item)?.label || item
                             return (
                               <div key={item} className="flex items-center gap-2">
                                 <div className="w-1/3">
-                                  <span className="text-sm">{label}</span>
+                                  <span className="text-sm">{item}</span>
                                 </div>
                                 <div className="flex-1">
                                   <div className="flex items-center gap-2">
@@ -179,12 +316,16 @@ export function RequestFoodForm() {
                                       value={formState.quantities[item]}
                                       onChange={(e) => handleQuantityChange(item, e.target.value)}
                                       className="w-full"
+                                      min="0"
+                                      step="0.01"
+                                      required
                                     />
                                     <Button
                                       type="button"
                                       variant="outline"
                                       size="sm"
                                       onClick={() => handleRemoveFoodItem(item)}
+                                      disabled={loading}
                                     >
                                       Remove
                                     </Button>
@@ -217,11 +358,11 @@ export function RequestFoodForm() {
                   </div>
                 </CardContent>
                 <CardFooter className="flex justify-between">
-                  <Button variant="outline" type="button" asChild>
+                  <Button variant="outline" type="button" asChild disabled={loading}>
                     <Link to="/school-dashboard">Cancel</Link>
                   </Button>
-                  <Button type="submit" disabled={formState.foodItems.length === 0}>
-                    Submit Request
+                  <Button type="submit" disabled={formState.foodItems.length === 0 || loading || loadingItems}>
+                    {loading ? "Submitting..." : "Submit Request"}
                   </Button>
                 </CardFooter>
               </Card>

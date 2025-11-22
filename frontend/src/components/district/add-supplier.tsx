@@ -1,9 +1,11 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
 import { Bell, Check, Home, LogOut, Package, Plus, Settings, Truck, User } from "lucide-react"
+import axios from "axios"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -22,7 +24,14 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { toast } from "@/components/ui/use-toast"
+
+interface Item {
+  id: string
+  name: string
+  category?: string
+}
+
+const API_BASE_URL = "http://localhost:8070/api"
 
 export function AddSupplier() {
   const [formData, setFormData] = useState({
@@ -34,66 +43,106 @@ export function AddSupplier() {
     tinNumber: "",
     bankAccount: "",
     bankName: "",
-    supplierType: "",
     description: "",
-    certifications: [] as string[],
+    items: [] as string[],
   })
 
-  const supplierTypes = [
-    "Food Supplier",
-    "Dairy Products",
-    "Meat & Poultry",
-    "Vegetables & Fruits",
-    "Grains & Cereals",
-    "Beverages",
-    "Packaged Foods",
-  ]
+  const [items, setItems] = useState<Item[]>([])
+  const [loading, setLoading] = useState(false)
+  const [loadingItems, setLoadingItems] = useState(true)
+  const navigate = useNavigate()
 
-  const certificationOptions = [
-    "ISO 22000 (Food Safety)",
-    "HACCP Certification",
-    "Organic Certification",
-    "Halal Certification",
-    "Fair Trade Certification",
-    "Local Business License",
-    "Tax Compliance Certificate",
-  ]
+  useEffect(() => {
+    const fetchItems = async () => {
+      try {
+        setLoadingItems(true)
+        const response = await axios.get(`${API_BASE_URL}/items/all`)
+        setItems(response.data || [])
+      } catch (err: any) {
+        console.error("Error fetching items:", err)
+        toast.error("Failed to load items")
+      } finally {
+        setLoadingItems(false)
+      }
+    }
+
+    fetchItems()
+  }, [])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleCertificationChange = (certification: string, checked: boolean) => {
+  const handleItemChange = (itemId: string, checked: boolean) => {
     setFormData((prev) => ({
       ...prev,
-      certifications: checked
-        ? [...prev.certifications, certification]
-        : prev.certifications.filter((c) => c !== certification),
+      items: checked
+        ? [...prev.items, itemId]
+        : prev.items.filter((id) => id !== itemId),
     }))
   }
 
-  const navigate = useNavigate()
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("Supplier data:", formData)
-    toast({
-      title: "Supplier Added Successfully",
-      description: "The new supplier has been registered and is pending approval.",
-    })
-    // Reset form
-    setFormData({
-      companyName: "",
-      contactPerson: "",
-      email: "",
-      phone: "",
-      address: "",
-      tinNumber: "",
-      bankAccount: "",
-      bankName: "",
-      supplierType: "",
-      description: "",
-      certifications: [],
-    })
+    
+    // Validation
+    if (!formData.companyName || !formData.email || !formData.phone || !formData.address || 
+        !formData.tinNumber || !formData.bankName || !formData.bankAccount) {
+      toast.error("Please fill in all required fields")
+      return
+    }
+
+    if (formData.items.length === 0) {
+      toast.error("Please select at least one item")
+      return
+    }
+
+    try {
+      setLoading(true)
+      const districtId = localStorage.getItem("districtId")
+      
+      const supplierPayload = {
+        companyName: formData.companyName,
+        tinNumber: formData.tinNumber,
+        address: formData.address,
+        bankName: formData.bankName,
+        bankAccount: formData.bankAccount,
+        district: districtId ? { id: districtId } : null,
+        items: formData.items.map(itemId => ({ id: itemId })),
+        // Additional fields if needed by backend
+        email: formData.email,
+        phone: formData.phone,
+        contactPerson: formData.contactPerson,
+        description: formData.description,
+      }
+
+      const response = await axios.post(`${API_BASE_URL}/supplier/register`, supplierPayload)
+      
+      toast.success("Supplier registered successfully")
+      
+      // Reset form
+      setFormData({
+        companyName: "",
+        contactPerson: "",
+        email: "",
+        phone: "",
+        address: "",
+        tinNumber: "",
+        bankAccount: "",
+        bankName: "",
+        description: "",
+        items: [],
+      })
+      
+      // Navigate back to supplier management
+      navigate("/manage-suppliers")
+    } catch (err: any) {
+      console.error("Error registering supplier:", err)
+      const errorMessage = err.response?.data || "Failed to register supplier"
+      toast.error(typeof errorMessage === 'string' ? errorMessage : "Failed to register supplier")
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -174,24 +223,6 @@ export function AddSupplier() {
                           placeholder="Enter company name"
                           required
                         />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="supplierType">Supplier Type *</Label>
-                        <Select
-                          value={formData.supplierType}
-                          onValueChange={(value) => handleInputChange("supplierType", value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select supplier type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {supplierTypes.map((type) => (
-                              <SelectItem key={type} value={type}>
-                                {type}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="tinNumber">TIN Number *</Label>
@@ -299,14 +330,54 @@ export function AddSupplier() {
                       </div>
                     </div>
                   </div>
- 
+
+                  {/* Items Selection */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium">Items *</h3>
+                    <div className="border rounded-md p-4 max-h-60 overflow-y-auto">
+                      {loadingItems ? (
+                        <p className="text-sm text-muted-foreground">Loading items...</p>
+                      ) : items.length > 0 ? (
+                        <div className="space-y-2">
+                          {items.map((item) => (
+                            <div key={item.id} className="flex items-center space-x-2">
+                              <Checkbox
+                                id={`item-${item.id}`}
+                                checked={formData.items.includes(item.id)}
+                                onCheckedChange={(checked) => handleItemChange(item.id, checked === true)}
+                              />
+                              <label
+                                htmlFor={`item-${item.id}`}
+                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                              >
+                                {item.name} {item.category && `(${item.category})`}
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No items available</p>
+                      )}
+                    </div>
+                    {formData.items.length > 0 && (
+                      <p className="text-sm text-muted-foreground">
+                        {formData.items.length} item(s) selected
+                      </p>
+                    )}
+                  </div>
 
                   {/* Submit Buttons */}
                   <div className="flex gap-4 pt-6">
-                    <Button type="submit" className="flex-1">
-                      Register Supplier
+                    <Button type="submit" className="flex-1" disabled={loading}>
+                      {loading ? "Registering..." : "Register Supplier"}
                     </Button> 
-                    <Button variant="destructive" className="flex-1" onClick={() => navigate("/manage-suppliers")} >
+                    <Button 
+                      type="button"
+                      variant="outline" 
+                      className="flex-1" 
+                      onClick={() => navigate("/manage-suppliers")}
+                      disabled={loading}
+                    >
                       Cancel
                     </Button> 
                   </div>

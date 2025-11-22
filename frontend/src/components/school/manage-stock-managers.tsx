@@ -4,18 +4,16 @@ import { Link } from "react-router-dom"
 import {
   Bell,
   Edit,
-  FileText,
-  Home,
   LogOut,
-  Package,
   Plus,
   Search,
   Settings,
   Trash2,
-  Truck,
   User,
   Users,
 } from "lucide-react"
+import axios from "axios"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -42,76 +40,105 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { toast } from "@/components/ui/use-toast"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
+
+interface StockManager {
+  id: string
+  names?: string
+  name?: string
+  email: string
+  phone?: string
+  role?: string
+  userStatus?: boolean | string
+  school?: { id: string; name?: string }
+  created?: string
+  lastActive?: string
+}
+
+const API_BASE_URL = "http://localhost:8070/api/stockManager"
+
+const stockManagerService = {
+  getAllStockManagers: async (schoolId: string) => {
+    const response = await axios.get(`${API_BASE_URL}/all/${schoolId}`)
+    return response.data
+  },
+
+  getStockManager: async (id: string) => {
+    const response = await axios.get(`${API_BASE_URL}/${id}`)
+    return response.data
+  },
+
+  registerStockManager: async (stockManagerData: any) => {
+    const response = await axios.post(`${API_BASE_URL}/register`, stockManagerData)
+    return response.data
+  },
+
+  updateStockManager: async (id: string, stockManagerData: any) => {
+    const response = await axios.put(`${API_BASE_URL}/update/${id}`, stockManagerData)
+    return response.data
+  },
+
+  deleteStockManager: async (id: string) => {
+    const response = await axios.delete(`${API_BASE_URL}/delete/${id}`)
+    return response.data
+  },
+}
 
 export function ManageStockManagers() {
   const [searchTerm, setSearchTerm] = useState("")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [selectedManager, setSelectedManager] = useState<any>(null)
+  const [selectedManager, setSelectedManager] = useState<StockManager | null>(null)
+  const [stockManagers, setStockManagers] = useState<StockManager[]>([])
+  const [loading, setLoading] = useState(true)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [newManager, setNewManager] = useState({
     name: "",
     email: "",
     phone: "",
-    role: "stock-keeper",
+    password: "",
     department: "",
   })
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(7)
 
-  const stockManagers = [
-    {
-      id: "SM-001",
-      name: "Jean Baptiste Uwimana",
-      email: "jean.uwimana@school.edu.rw",
-      phone: "+250 788 123 456",
-      role: "Senior Stock Keeper",
-      department: "Kitchen Management",
-      status: "active",
-      joinDate: "2024-01-15",
-      lastActive: "2025-04-13 14:30",
-    },
-    {
-      id: "SM-002",
-      name: "Marie Claire Mukamana",
-      email: "marie.mukamana@school.edu.rw",
-      phone: "+250 788 654 321",
-      role: "Stock Keeper",
-      department: "Inventory Management",
-      status: "active",
-      joinDate: "2024-03-20",
-      lastActive: "2025-04-13 16:45",
-    },
-    {
-      id: "SM-003",
-      name: "Paul Kagame Nzeyimana",
-      email: "paul.nzeyimana@school.edu.rw",
-      phone: "+250 788 987 654",
-      role: "Assistant Stock Keeper",
-      department: "Receiving & Distribution",
-      status: "inactive",
-      joinDate: "2024-06-10",
-      lastActive: "2025-04-10 09:15",
-    },
-    {
-      id: "SM-004",
-      name: "Agnes Uwimana Gasana",
-      email: "agnes.gasana@school.edu.rw",
-      phone: "+250 788 111 222",
-      role: "Stock Keeper",
-      department: "Quality Control",
-      status: "active",
-      joinDate: "2024-08-05",
-      lastActive: "2025-04-13 11:20",
-    },
-  ]
+  useEffect(() => {
+    const fetchStockManagers = async () => {
+      try {
+        setLoading(true)
+        const schoolId = localStorage.getItem("schoolId")
+        if (!schoolId) {
+          setError("School ID not found")
+          return
+        }
+        const data = await stockManagerService.getAllStockManagers(schoolId)
+        setStockManagers(data || [])
+      } catch (err: any) {
+        console.error("Error fetching stock managers:", err)
+        setError(err.response?.data || "Failed to fetch stock managers")
+        if (err.response?.status !== 404) {
+          toast.error("Failed to load stock managers")
+        }
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchStockManagers()
+  }, [])
 
   const filteredManagers = stockManagers.filter(
-    (manager) =>
-      manager.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      manager.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      manager.role.toLowerCase().includes(searchTerm.toLowerCase()),
+    (manager) => {
+      const name = manager.names || manager.name || ""
+      const email = manager.email || ""
+      const role = manager.role || ""
+      return (
+        name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        role.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
   )
 
   useEffect(() => {
@@ -135,50 +162,227 @@ export function ManageStockManagers() {
     return Array.from({ length: end - start + 1 }, (_, i) => start + i)
   }
 
-  const handleAddManager = () => {
-    console.log("Adding new manager:", newManager)
-    toast({
-      title: "Stock Manager Added",
-      description: "New stock manager has been successfully added to the system.",
-    })
-    setIsAddDialogOpen(false)
-    setNewManager({
-      name: "",
-      email: "",
-      phone: "",
-      role: "stock-keeper",
-      department: "",
-    })
+  const handleAddManager = async () => {
+    if (!newManager.name || !newManager.email || !newManager.phone || !newManager.password) {
+      toast.error("Please fill in all required fields")
+      return
+    }
+
+    try {
+      setIsProcessing(true)
+      const schoolId = localStorage.getItem("schoolId")
+      if (!schoolId) {
+        toast.error("School ID not found")
+        return
+      }
+
+      const stockManagerPayload = {
+        names: newManager.name,
+        email: newManager.email,
+        phone: newManager.phone,
+        password: newManager.password,
+        role: "STOCK_KEEPER",
+        school: { id: schoolId },
+        userStatus: true,
+      }
+
+      const createdManager = await stockManagerService.registerStockManager(stockManagerPayload)
+      
+      // Map backend response to frontend format
+      const mappedManager: StockManager = {
+        id: createdManager.id,
+        names: createdManager.names,
+        email: createdManager.email,
+        phone: createdManager.phone,
+        role: createdManager.role,
+        userStatus: createdManager.userStatus,
+        school: createdManager.school,
+        created: createdManager.created,
+      }
+
+      setStockManagers([...stockManagers, mappedManager])
+      toast.success("Stock manager added successfully")
+      setIsAddDialogOpen(false)
+      setNewManager({
+        name: "",
+        email: "",
+        phone: "",
+        password: "",
+        department: "",
+      })
+    } catch (err: any) {
+      console.error("Error adding stock manager:", err)
+      const errorMessage = err.response?.data || "Failed to add stock manager"
+      toast.error(typeof errorMessage === 'string' ? errorMessage : "Failed to add stock manager")
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
-  const handleEditManager = (manager: any) => {
+  const handleEditManager = (manager: StockManager) => {
     setSelectedManager(manager)
+    setNewManager({
+      name: manager.names || manager.name || "",
+      email: manager.email || "",
+      phone: manager.phone || "",
+      password: "",
+      department: "",
+    })
     setIsEditDialogOpen(true)
   }
 
-  const handleDeleteManager = (managerId: string) => {
-    console.log("Deleting manager:", managerId)
-    toast({
-      title: "Stock Manager Removed",
-      description: "Stock manager has been removed from the system.",
-      variant: "destructive",
-    })
+  const handleUpdateManager = async () => {
+    if (!selectedManager || !newManager.name || !newManager.email || !newManager.phone) {
+      toast.error("Please fill in all required fields")
+      return
+    }
+
+    try {
+      setIsProcessing(true)
+      const schoolId = localStorage.getItem("schoolId")
+      if (!schoolId) {
+        toast.error("School ID not found")
+        return
+      }
+
+      const stockManagerPayload: any = {
+        names: newManager.name,
+        email: newManager.email,
+        phone: newManager.phone,
+        role: "STOCK_KEEPER",
+        school: { id: schoolId },
+        userStatus: selectedManager.userStatus !== false,
+      }
+
+      // Only include password if it's provided
+      if (newManager.password) {
+        stockManagerPayload.password = newManager.password
+      }
+
+      const updatedManager = await stockManagerService.updateStockManager(selectedManager.id, stockManagerPayload)
+      
+      // Map backend response to frontend format
+      const mappedManager: StockManager = {
+        id: updatedManager.id,
+        names: updatedManager.names,
+        email: updatedManager.email,
+        phone: updatedManager.phone,
+        role: updatedManager.role,
+        userStatus: updatedManager.userStatus,
+        school: updatedManager.school,
+        created: updatedManager.created,
+      }
+
+      setStockManagers(stockManagers.map(m => m.id === selectedManager.id ? mappedManager : m))
+      toast.success("Stock manager updated successfully")
+      setIsEditDialogOpen(false)
+      setSelectedManager(null)
+      setNewManager({
+        name: "",
+        email: "",
+        phone: "",
+        password: "",
+        department: "",
+      })
+    } catch (err: any) {
+      console.error("Error updating stock manager:", err)
+      const errorMessage = err.response?.data || "Failed to update stock manager"
+      toast.error(typeof errorMessage === 'string' ? errorMessage : "Failed to update stock manager")
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
-  const handleToggleStatus = (managerId: string, currentStatus: string) => {
-    const newStatus = currentStatus === "active" ? "inactive" : "active"
-    console.log(`Changing manager ${managerId} status to ${newStatus}`)
-    toast({
-      title: "Status Updated",
-      description: `Stock manager status changed to ${newStatus}.`,
-    })
+  const handleDeleteManager = async (managerId: string) => {
+    if (!window.confirm("Are you sure you want to delete this stock manager?")) {
+      return
+    }
+
+    try {
+      setIsProcessing(true)
+      await stockManagerService.deleteStockManager(managerId)
+      setStockManagers(stockManagers.filter(m => m.id !== managerId))
+      toast.success("Stock manager deleted successfully")
+    } catch (err: any) {
+      console.error("Error deleting stock manager:", err)
+      const errorMessage = err.response?.data || "Failed to delete stock manager"
+      toast.error(typeof errorMessage === 'string' ? errorMessage : "Failed to delete stock manager")
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
-  const getStatusBadge = (status: string) => {
-    return status === "active" ? (
+  const handleToggleStatus = async (manager: StockManager) => {
+    try {
+      setIsProcessing(true)
+      const schoolId = localStorage.getItem("schoolId")
+      if (!schoolId) {
+        toast.error("School ID not found")
+        return
+      }
+
+      const newStatus = manager.userStatus !== false
+      const stockManagerPayload = {
+        names: manager.names || manager.name || "",
+        email: manager.email,
+        phone: manager.phone || "",
+        role: "STOCK_KEEPER",
+        school: { id: schoolId },
+        userStatus: !newStatus,
+      }
+
+      const updatedManager = await stockManagerService.updateStockManager(manager.id, stockManagerPayload)
+      
+      const mappedManager: StockManager = {
+        id: updatedManager.id,
+        names: updatedManager.names,
+        email: updatedManager.email,
+        phone: updatedManager.phone,
+        role: updatedManager.role,
+        userStatus: updatedManager.userStatus,
+        school: updatedManager.school,
+        created: updatedManager.created,
+      }
+
+      setStockManagers(stockManagers.map(m => m.id === manager.id ? mappedManager : m))
+      toast.success(`Stock manager ${!newStatus ? 'activated' : 'deactivated'} successfully`)
+    } catch (err: any) {
+      console.error("Error toggling status:", err)
+      const errorMessage = err.response?.data || "Failed to update status"
+      toast.error(typeof errorMessage === 'string' ? errorMessage : "Failed to update status")
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const getStatusBadge = (status: boolean | string | undefined) => {
+    const isActive = status === true || status === "active" || status === "ACTIVE"
+    return isActive ? (
       <Badge className="bg-green-600 hover:bg-green-700">Active</Badge>
     ) : (
       <Badge variant="outline">Inactive</Badge>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    )
+  }
+
+  if (error && stockManagers.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-destructive">Error loading stock managers</h2>
+          <p className="text-muted-foreground mt-2">{error}</p>
+          <Button onClick={() => window.location.reload()} className="mt-4">
+            Retry
+          </Button>
+        </div>
+      </div>
     )
   }
 
@@ -305,46 +509,43 @@ export function ManageStockManagers() {
                       />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="role" className="text-right">
-                        Role
+                      <Label htmlFor="password" className="text-right">
+                        Password *
                       </Label>
-                      <Select
-                        value={newManager.role}
-                        onValueChange={(value) => setNewManager({ ...newManager, role: value })}
-                      >
-                        <SelectTrigger className="col-span-3">
-                          <SelectValue placeholder="Select role" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="senior-stock-keeper">Senior Stock Keeper</SelectItem>
-                          <SelectItem value="stock-keeper">Stock Keeper</SelectItem>
-                          <SelectItem value="assistant-stock-keeper">Assistant Stock Keeper</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="department" className="text-right">
-                        Department
-                      </Label>
-                      <Select
-                        value={newManager.department}
-                        onValueChange={(value) => setNewManager({ ...newManager, department: value })}
-                      >
-                        <SelectTrigger className="col-span-3">
-                          <SelectValue placeholder="Select department" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="kitchen-management">Kitchen Management</SelectItem>
-                          <SelectItem value="inventory-management">Inventory Management</SelectItem>
-                          <SelectItem value="receiving-distribution">Receiving & Distribution</SelectItem>
-                          <SelectItem value="quality-control">Quality Control</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Input
+                        id="password"
+                        type="password"
+                        value={newManager.password}
+                        onChange={(e) => setNewManager({ ...newManager, password: e.target.value })}
+                        className="col-span-3"
+                        placeholder="Enter password (min 6 characters)"
+                        required
+                      />
                     </div>
                   </div>
                   <DialogFooter>
-                    <Button type="submit" onClick={handleAddManager}>
-                      Add Manager
+                    <Button 
+                      variant="outline" 
+                      onClick={() => {
+                        setIsAddDialogOpen(false)
+                        setNewManager({
+                          name: "",
+                          email: "",
+                          phone: "",
+                          password: "",
+                          department: "",
+                        })
+                      }}
+                      disabled={isProcessing}
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      type="submit" 
+                      onClick={handleAddManager}
+                      disabled={isProcessing || !newManager.name || !newManager.email || !newManager.phone || !newManager.password}
+                    >
+                      {isProcessing ? "Adding..." : "Add Manager"}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
@@ -379,41 +580,55 @@ export function ManageStockManagers() {
                             <TableCell>
                               <div className="flex items-center space-x-3">
                                 <Avatar className="h-8 w-8">
-                                  <AvatarImage src="/placeholder.svg" alt={manager.name} />
+                                  <AvatarImage src="/placeholder.svg" alt={manager.names || manager.name || ""} />
                                   <AvatarFallback>
-                                    {manager.name
+                                    {(manager.names || manager.name || "")
                                       .split(" ")
                                       .map((n) => n[0])
-                                      .join("")}
+                                      .join("")
+                                      .toUpperCase()}
                                   </AvatarFallback>
                                 </Avatar>
                                 <div>
-                                  <p className="font-medium">{manager.name}</p>
+                                  <p className="font-medium">{manager.names || manager.name || "N/A"}</p>
                                   <p className="text-sm text-muted-foreground">{manager.email}</p>
                                 </div>
                               </div>
                             </TableCell>
-                            <TableCell>{manager.role}</TableCell>
-                            <TableCell>{manager.department}</TableCell>
-                            <TableCell>{getStatusBadge(manager.status)}</TableCell>
+                            <TableCell>{manager.role || "STOCK_KEEPER"}</TableCell>
+                            <TableCell>{manager.school?.name || "N/A"}</TableCell>
+                            <TableCell>{getStatusBadge(manager.userStatus)}</TableCell>
                             <TableCell>
                               <div className="text-sm">
-                                <p>{manager.lastActive}</p>
+                                <p>{manager.created ? new Date(manager.created).toLocaleDateString() : "N/A"}</p>
                               </div>
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-2">
-                                <Button variant="outline" size="sm" onClick={() => handleEditManager(manager)}>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={() => handleEditManager(manager)}
+                                  disabled={isProcessing}
+                                  title="Edit Manager"
+                                >
                                   <Edit className="h-4 w-4" />
                                 </Button>
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => handleToggleStatus(manager.id, manager.status)}
+                                  onClick={() => handleToggleStatus(manager)}
+                                  disabled={isProcessing}
                                 >
-                                  {manager.status === "active" ? "Deactivate" : "Activate"}
+                                  {manager.userStatus !== false ? "Deactivate" : "Activate"}
                                 </Button>
-                                <Button variant="outline" size="sm" onClick={() => handleDeleteManager(manager.id)}>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={() => handleDeleteManager(manager.id)}
+                                  disabled={isProcessing}
+                                  title="Delete Manager"
+                                >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
                               </div>
@@ -485,6 +700,98 @@ export function ManageStockManagers() {
           </div>
         </main>
       </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit Stock Manager</DialogTitle>
+            <DialogDescription>
+              Update stock manager information.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-name" className="text-right">
+                Name *
+              </Label>
+              <Input
+                id="edit-name"
+                value={newManager.name}
+                onChange={(e) => setNewManager({ ...newManager, name: e.target.value })}
+                className="col-span-3"
+                placeholder="Full name"
+                required
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-email" className="text-right">
+                Email *
+              </Label>
+              <Input
+                id="edit-email"
+                type="email"
+                value={newManager.email}
+                onChange={(e) => setNewManager({ ...newManager, email: e.target.value })}
+                className="col-span-3"
+                placeholder="email@school.edu.rw"
+                required
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-phone" className="text-right">
+                Phone *
+              </Label>
+              <Input
+                id="edit-phone"
+                value={newManager.phone}
+                onChange={(e) => setNewManager({ ...newManager, phone: e.target.value })}
+                className="col-span-3"
+                placeholder="+250 788 123 456"
+                required
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-password" className="text-right">
+                Password
+              </Label>
+              <Input
+                id="edit-password"
+                type="password"
+                value={newManager.password}
+                onChange={(e) => setNewManager({ ...newManager, password: e.target.value })}
+                className="col-span-3"
+                placeholder="Leave blank to keep current password"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsEditDialogOpen(false)
+                setSelectedManager(null)
+                setNewManager({
+                  name: "",
+                  email: "",
+                  phone: "",
+                  password: "",
+                  department: "",
+                })
+              }}
+              disabled={isProcessing}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdateManager}
+              disabled={isProcessing || !newManager.name || !newManager.email || !newManager.phone}
+            >
+              {isProcessing ? "Updating..." : "Update Manager"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

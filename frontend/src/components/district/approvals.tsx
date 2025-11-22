@@ -1,7 +1,7 @@
 
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import { Bell, Check, Filter, LogOut, Package, Search, Settings, Truck, User, X } from "lucide-react"
+import { Bell, Check, Filter, LogOut, Package, Search, Settings, User, X, Loader2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -26,16 +26,56 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
+import { toast } from "@/components/ui/use-toast"
+
+const API_BASE_URL = "http://localhost:8070/api/respondDistrict"
+
+interface ApiRequestItem {
+  id: string
+  requestStatus: string
+  requestItemDetails: Array<{
+    id: string
+    item: { id: string; name?: string }
+    quantity: number
+  }>
+  description: string
+  created: string
+  updated?: string
+  school?: {
+    id: string
+    name?: string
+    school?: string
+  }
+}
+
+interface Item {
+  id: string
+  name: string
+  category?: string
+  unit?: string
+}
+
+interface Supplier {
+  id: string
+  name?: string
+  companyName?: string
+  user?: {
+    id: string
+    name?: string
+    email?: string
+  }
+}
 
 interface Request {
   id: string
   school: string
   items: string
   quantity: string
-  requestDate: string
-  urgency: "low" | "medium" | "high"
+  requestDate: string 
   status: "pending" | "approved" | "rejected"
+  description?: string
 }
 
 export function DistrictApprovals() {
@@ -46,55 +86,121 @@ export function DistrictApprovals() {
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(5)
+  const [requests, setRequests] = useState<Request[]>([])
+  const [loading, setLoading] = useState(true)
+  const [items, setItems] = useState<Item[]>([])
+  const [actionLoading, setActionLoading] = useState(false)
+  const [assignOrderDialogOpen, setAssignOrderDialogOpen] = useState(false)
+  const [pendingApprovalRequest, setPendingApprovalRequest] = useState<Request | null>(null)
+  const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string>("")
+  const [orderPrice, setOrderPrice] = useState<string>("")
+  const [assignLoading, setAssignLoading] = useState(false)
 
-  // Sample data
-  const requests: Request[] = [
-    {
-      id: "REQ-2025-042",
-      school: "Kigali Primary School",
-      items: "Rice, Beans",
-      quantity: "200kg, 100kg",
-      requestDate: "Apr 7, 2025",
-      urgency: "high",
-      status: "pending",
-    },
-    {
-      id: "REQ-2025-041",
-      school: "Nyamirambo Secondary School",
-      items: "Maize, Vegetables",
-      quantity: "150kg, 50kg",
-      requestDate: "Apr 6, 2025",
-      urgency: "medium",
-      status: "pending",
-    },
-    {
-      id: "REQ-2025-040",
-      school: "Remera High School",
-      items: "Rice, Oil",
-      quantity: "100kg, 20L",
-      requestDate: "Apr 5, 2025",
-      urgency: "low",
-      status: "pending",
-    },
-    {
-      id: "REQ-2025-039",
-      school: "Gasabo Elementary",
-      items: "Beans, Vegetables",
-      quantity: "80kg, 40kg",
-      requestDate: "Apr 4, 2025",
-      urgency: "medium",
-      status: "approved",
-    },
-    {
-      id: "REQ-2025-038",
-      school: "Kicukiro Academy",
-      items: "Rice, Fruits",
-      quantity: "120kg, 60kg",
-      requestDate: "Apr 3, 2025",
-      urgency: "low",
-      status: "rejected",
-    },
-  ]
+  // Fetch items to map IDs to names
+  useEffect(() => {
+    const fetchItems = async () => {
+      try {
+        const response = await fetch("http://localhost:8070/api/item/all")
+        if (response.ok) {
+          const data = await response.json()
+          setItems(data)
+        }
+      } catch (err) {
+        console.error("Error fetching items:", err)
+      }
+    }
+    fetchItems()
+  }, [])
+
+  // Fetch suppliers
+  useEffect(() => {
+    const fetchSuppliers = async () => {
+      try {
+        const token = localStorage.getItem("token")
+        const response = await fetch("http://localhost:8070/api/supplier/all", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        })
+        if (response.ok) {
+          const data = await response.json()
+          setSuppliers(data)
+        }
+      } catch (err) {
+        console.error("Error fetching suppliers:", err)
+      }
+    }
+    fetchSuppliers()
+  }, [])
+
+  // Fetch requests from API
+  useEffect(() => {
+    const fetchRequests = async () => {
+      const districtId = localStorage.getItem("districtId")
+      const token = localStorage.getItem("token")
+
+      if (!districtId || !token) {
+        setLoading(false)
+        toast({
+          title: "Error",
+          description: "District ID or authentication token not found. Please login again.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      try {
+        setLoading(true)
+        let url = ""
+        
+        // If status filter is set and not "all", use the filtered endpoint
+        if (statusFilter !== "all") {
+          // Map frontend status to backend enum values
+          const statusMap: Record<string, string> = {
+            pending: "PENDING",
+            approved: "COMPLETED",
+            rejected: "REJECTED",
+          }
+          const requestStatus = statusMap[statusFilter] || "PENDING"
+          url = `${API_BASE_URL}/districtRequestByRequestStatus?dId=${districtId}&requestStatus=${requestStatus}`
+        } else {
+          url = `${API_BASE_URL}/districtRequest/${districtId}`
+        }
+
+        const response = await fetch(url, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        })
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch requests")
+        }
+
+        const data: ApiRequestItem[] = await response.json()
+
+        // Transform API data to frontend Request format
+        const transformedRequests = transformApiData(data)
+        setRequests(transformedRequests)
+      } catch (err) {
+        console.error("Error fetching requests:", err)
+        toast({
+          title: "Error",
+          description: "Failed to load food requests. Please refresh the page.",
+          variant: "destructive",
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (items.length > 0 || statusFilter !== "all") {
+      fetchRequests()
+    }
+  }, [items, statusFilter])
 
   // Filter requests based on search term and filters
   const filteredRequests = requests.filter((request) => {
@@ -103,10 +209,9 @@ export function DistrictApprovals() {
       request.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       request.items.toLowerCase().includes(searchTerm.toLowerCase())
 
-    const matchesUrgency = urgencyFilter === "all" || request.urgency === urgencyFilter
     const matchesStatus = statusFilter === "all" || request.status === statusFilter
 
-    return matchesSearch && matchesUrgency && matchesStatus
+    return matchesSearch && matchesStatus
   })
 
   useEffect(() => {
@@ -130,36 +235,228 @@ export function DistrictApprovals() {
     return Array.from({ length: end - start + 1 }, (_, i) => start + i)
   }
 
-  const handleApprove = (request: Request) => {
-    // In a real app, you would update the request status in your backend
-    console.log(`Approving request ${request.id}`)
+  const handleApprove = async (request: Request) => {
+    // Open assign order dialog instead of directly approving
+    setPendingApprovalRequest(request)
+    setAssignOrderDialogOpen(true)
     setDetailsOpen(false)
   }
 
-  const handleReject = (request: Request) => {
-    // In a real app, you would update the request status in your backend
-    console.log(`Rejecting request ${request.id}`)
-    setDetailsOpen(false)
+  const handleAssignOrder = async () => {
+    if (!pendingApprovalRequest || !selectedSupplierId || !orderPrice) {
+      toast({
+        title: "Error",
+        description: "Please select a supplier and enter an order price.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    const token = localStorage.getItem("token")
+
+    if (!token) {
+      toast({
+        title: "Error",
+        description: "Authentication token not found. Please login again.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      setAssignLoading(true)
+      
+      // First approve the request
+      const approveResponse = await fetch(`${API_BASE_URL}/approval/${pendingApprovalRequest.id}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      })
+
+      // Handle response that might be JSON or plain text
+      let approveData: any
+      const contentType = approveResponse.headers.get("content-type")
+      if (contentType && contentType.includes("application/json")) {
+        approveData = await approveResponse.json()
+      } else {
+        const text = await approveResponse.text()
+        approveData = text ? { message: text } : {}
+      }
+
+      if (!approveResponse.ok) {
+        throw new Error(approveData?.message || approveData || "Failed to approve request")
+      }
+
+      // Then assign order to supplier
+      const assignResponse = await fetch("http://localhost:8070/api/respondDistrict/assignOrder", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          requestItem: { id: pendingApprovalRequest.id },
+          supplier: { id: selectedSupplierId },
+          orderPrice: parseFloat(orderPrice),
+        }),
+      })
+
+      // Handle response that might be JSON or plain text
+      let assignData: any
+      const assignContentType = assignResponse.headers.get("content-type")
+      if (assignContentType && assignContentType.includes("application/json")) {
+        assignData = await assignResponse.json()
+      } else {
+        const text = await assignResponse.text()
+        assignData = text ? { message: text } : {}
+      }
+
+      if (!assignResponse.ok) {
+        throw new Error(assignData?.message || assignData || "Failed to assign order")
+      }
+
+      toast({
+        title: "Success",
+        description: "Request approved and order assigned to supplier successfully.",
+      })
+
+      setAssignOrderDialogOpen(false)
+      setPendingApprovalRequest(null)
+      setSelectedSupplierId("")
+      setOrderPrice("")
+      await refreshRequests()
+    } catch (err: any) {
+      console.error("Error assigning order:", err)
+      toast({
+        title: "Error",
+        description: err?.message || "Failed to assign order. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setAssignLoading(false)
+    }
   }
 
-  const getUrgencyBadge = (urgency: string) => {
-    switch (urgency) {
-      case "high":
-        return <Badge variant="destructive">High</Badge>
-      case "medium":
-        return (
-          <Badge variant="outline" className="bg-amber-100 text-amber-800 hover:bg-amber-100">
-            Medium
-          </Badge>
-        )
-      case "low":
-        return (
-          <Badge variant="outline" className="bg-green-100 text-green-800 hover:bg-green-100">
-            Low
-          </Badge>
-        )
-      default:
-        return <Badge variant="outline">Unknown</Badge>
+  const handleReject = async (request: Request) => {
+    const token = localStorage.getItem("token")
+
+    if (!token) {
+      toast({
+        title: "Error",
+        description: "Authentication token not found. Please login again.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      setActionLoading(true)
+      const response = await fetch(`${API_BASE_URL}/reject/${request.id}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data?.message || data || "Failed to reject request")
+      }
+
+      toast({
+        title: "Success",
+        description: "Request rejected successfully.",
+      })
+
+      setDetailsOpen(false)
+      await refreshRequests()
+    } catch (err: any) {
+      console.error("Error rejecting request:", err)
+      toast({
+        title: "Error",
+        description: err?.message || "Failed to reject request. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  // Helper function to transform API data to frontend format
+  const transformApiData = (data: ApiRequestItem[]): Request[] => {
+    return data.map((request) => {
+      const requestItems = request.requestItemDetails.map((detail) => {
+        const item = items.find((i) => i.id === detail.item.id)
+        const itemName = item?.name || detail.item.name || `Item ${detail.item.id.substring(0, 8)}`
+        const unit = item?.unit || "kg"
+        return {
+          name: itemName,
+          quantity: detail.quantity,
+          unit: unit,
+        }
+      })
+
+      const itemsString = requestItems.map((i) => i.name).join(", ")
+      const quantityString = requestItems.map((i) => `${i.quantity}${i.unit}`).join(", ")
+
+      // Map backend status to frontend status
+      const statusMap: Record<string, "pending" | "approved" | "rejected"> = {
+        PENDING: "pending",
+        COMPLETED: "approved",
+        REJECTED: "rejected",
+      }
+      const frontendStatus = statusMap[request.requestStatus] || "pending"
+
+      // Format date
+      const date = new Date(request.created)
+      const formattedDate = date.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+
+      return {
+        id: request.id,
+        school: request.school?.name || request.school?.school || "Unknown School",
+        items: itemsString,
+        quantity: quantityString,
+        requestDate: formattedDate,
+        status: frontendStatus,
+        description: request.description,
+      }
+    })
+  }
+
+  // Helper function to refresh requests after approve/reject
+  const refreshRequests = async () => {
+    const districtId = localStorage.getItem("districtId")
+    const token = localStorage.getItem("token")
+
+    if (!districtId || !token) return
+
+    try {
+      const refreshUrl = statusFilter !== "all" 
+        ? `${API_BASE_URL}/districtRequestByRequestStatus?dId=${districtId}&requestStatus=${statusFilter === "pending" ? "PENDING" : statusFilter === "approved" ? "COMPLETED" : "REJECTED"}`
+        : `${API_BASE_URL}/districtRequest/${districtId}`
+      
+      const refreshResponse = await fetch(refreshUrl, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      })
+      
+      if (refreshResponse.ok) {
+        const refreshData: ApiRequestItem[] = await refreshResponse.json()
+        const transformedRequests = transformApiData(refreshData)
+        setRequests(transformedRequests)
+      }
+    } catch (err) {
+      console.error("Error refreshing requests:", err)
     }
   }
 
@@ -292,20 +589,27 @@ export function DistrictApprovals() {
                       <TableHead>School</TableHead>
                       <TableHead>Items</TableHead>
                       <TableHead>Date</TableHead>
-                      <TableHead>Urgency</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredRequests.length > 0 ? (
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="h-24 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <span>Loading requests...</span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : filteredRequests.length > 0 ? (
                       paginatedRequests.map((request) => (
                         <TableRow key={request.id}>
                           <TableCell className="font-medium">{request.id}</TableCell>
                           <TableCell>{request.school}</TableCell>
                           <TableCell>{request.items}</TableCell>
                           <TableCell>{request.requestDate}</TableCell>
-                          <TableCell>{getUrgencyBadge(request.urgency)}</TableCell>
                           <TableCell>{getStatusBadge(request.status)}</TableCell>
                           <TableCell className="text-right">
                             <Button
@@ -323,7 +627,7 @@ export function DistrictApprovals() {
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={7} className="h-24 text-center">
+                        <TableCell colSpan={6} className="h-24 text-center">
                           No requests found.
                         </TableCell>
                       </TableRow>
@@ -425,11 +729,7 @@ export function DistrictApprovals() {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Urgency</p>
-                  <div className="mt-1">{getUrgencyBadge(selectedRequest.urgency)}</div>
-                </div>
-                <div>
+                <div> 
                   <p className="text-sm font-medium text-muted-foreground">Status</p>
                   <div className="mt-1">{getStatusBadge(selectedRequest.status)}</div>
                 </div>
@@ -438,8 +738,7 @@ export function DistrictApprovals() {
               <div className="rounded-md bg-muted p-3">
                 <p className="text-sm font-medium">Additional Notes</p>
                 <p className="text-sm text-muted-foreground">
-                  This request is for the regular school feeding program. The school has reported that their current
-                  stock will last for 3 more days.
+                  {selectedRequest.description || "No additional notes provided."}
                 </p>
               </div>
             </div>
@@ -447,18 +746,135 @@ export function DistrictApprovals() {
             <DialogFooter className="flex flex-col sm:flex-row sm:justify-between">
               {selectedRequest.status === "pending" ? (
                 <>
-                  <Button variant="outline" onClick={() => handleReject(selectedRequest)}>
-                    <X className="mr-2 h-4 w-4" />
-                    Reject
+                  <Button 
+                    variant="outline" 
+                    onClick={() => handleReject(selectedRequest)}
+                    disabled={actionLoading}
+                  >
+                    {actionLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <X className="mr-2 h-4 w-4" />
+                        Reject
+                      </>
+                    )}
                   </Button>
-                  <Button onClick={() => handleApprove(selectedRequest)}>
-                    <Check className="mr-2 h-4 w-4" />
-                    Approve
+                  <Button 
+                    onClick={() => handleApprove(selectedRequest)}
+                    disabled={actionLoading}
+                  >
+                    {actionLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <Check className="mr-2 h-4 w-4" />
+                        Approve
+                      </>
+                    )}
                   </Button>
                 </>
               ) : (
                 <Button onClick={() => setDetailsOpen(false)}>Close</Button>
               )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Assign Order Dialog */}
+      {pendingApprovalRequest && (
+        <Dialog open={assignOrderDialogOpen} onOpenChange={setAssignOrderDialogOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Assign Order to Supplier</DialogTitle>
+              <DialogDescription>
+                Assign the approved request to a supplier. The request will be approved and the order will be created.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="grid gap-4 py-4">
+              <div>
+                <Label htmlFor="supplier">Supplier *</Label>
+                <Select value={selectedSupplierId} onValueChange={setSelectedSupplierId}>
+                  <SelectTrigger id="supplier">
+                    <SelectValue placeholder="Select a supplier" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {suppliers.length > 0 ? (
+                      suppliers.map((supplier) => (
+                        <SelectItem key={supplier.id} value={supplier.id}>
+                          {supplier.companyName || supplier.name || supplier.user?.name || `Supplier ${supplier.id.substring(0, 8)}`}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="no-suppliers" disabled>
+                        No suppliers available
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="orderPrice">Order Price (RWF) *</Label>
+                <Input
+                  id="orderPrice"
+                  type="number"
+                  placeholder="Enter order price"
+                  value={orderPrice}
+                  onChange={(e) => setOrderPrice(e.target.value)}
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+
+              <div className="rounded-md bg-muted p-3">
+                <p className="text-sm font-medium mb-2">Request Information</p>
+                <div className="space-y-1 text-sm text-muted-foreground">
+                  <p><span className="font-medium">Request ID:</span> {pendingApprovalRequest.id}</p>
+                  <p><span className="font-medium">School:</span> {pendingApprovalRequest.school}</p>
+                  <p><span className="font-medium">Items:</span> {pendingApprovalRequest.items}</p>
+                  <p><span className="font-medium">Quantity:</span> {pendingApprovalRequest.quantity}</p>
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setAssignOrderDialogOpen(false)
+                  setPendingApprovalRequest(null)
+                  setSelectedSupplierId("")
+                  setOrderPrice("")
+                }}
+                disabled={assignLoading}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleAssignOrder}
+                disabled={assignLoading || !selectedSupplierId || !orderPrice}
+              >
+                {assignLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <Check className="mr-2 h-4 w-4" />
+                    Approve & Assign Order
+                  </>
+                )}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

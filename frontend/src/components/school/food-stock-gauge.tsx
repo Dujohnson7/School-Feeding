@@ -7,23 +7,20 @@ interface FoodStockGaugeProps {
 
 export function FoodStockGauge({ value }: FoodStockGaugeProps) {
   const [mounted, setMounted] = useState(false)
-
-  // Ensure component is mounted before rendering to avoid hydration issues
+ 
   useEffect(() => {
     setMounted(true)
   }, [])
 
   if (!mounted) return null
-
-  // Calculate the rotation angle based on the value (0-100)
+ 
   const angle = (value / 100) * 180
-
-  // Determine the color based on the value
-  let color = "#ef4444" // red-500 for low
+ 
+  let color = "#ef4444"  
   if (value > 30 && value < 70) {
-    color = "#f59e0b" // amber-500 for medium
+    color = "#f59e0b"  
   } else if (value >= 70) {
-    color = "#10b981" // emerald-500 for high
+    color = "#10b981" 
   }
 
   return (

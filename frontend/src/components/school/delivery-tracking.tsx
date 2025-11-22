@@ -1,66 +1,387 @@
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import { ArrowLeft, Check, Clock, Truck } from "lucide-react"
+import { ArrowLeft, Check, Clock, Loader2, Truck } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
+import { toast } from "@/components/ui/use-toast"
+
+interface Item {
+  id: string
+  name: string
+  unit?: string
+}
+
+interface ApiOrder {
+  id: string
+  requestItem?: {
+    id: string
+    requestItemDetails?: Array<{
+      id: string
+      item: { id: string; name?: string }
+      quantity: number
+    }>
+    created?: string
+    updated?: string
+  }
+  supplier?: {
+    id: string
+    companyName?: string
+    name?: string
+    user?: {
+      id: string
+      name?: string
+    }
+  }
+  deliveryStatus?: string
+  orderPrice?: number
+  created?: string
+  updated?: string
+}
+
+interface Delivery {
+  id: string
+  items: string
+  supplier: string
+  orderedDate: string
+  estimatedDelivery?: string
+  deliveredDate?: string
+  status: string
+  timeline: Array<{
+    status: string
+    time: string
+    completed: boolean
+  }>
+}
 
 export function DeliveryTracking() {
   const [activeTab, setActiveTab] = useState("current")
+  const [currentDeliveries, setCurrentDeliveries] = useState<Delivery[]>([])
+  const [pastDeliveries, setPastDeliveries] = useState<Delivery[]>([])
+  const [loading, setLoading] = useState(true)
+  const [items, setItems] = useState<Item[]>([])
 
-  const currentDeliveries = [
-    {
-      id: "DEL-2025-042",
-      items: "Rice, Beans, Vegetables",
-      supplier: "Kigali Foods Ltd",
-      orderedDate: "Apr 6, 2025",
-      estimatedDelivery: "Apr 8, 2025",
+  // Fetch items to map IDs to names
+  useEffect(() => {
+    const fetchItems = async () => {
+      try {
+        const response = await fetch("http://localhost:8070/api/item/all")
+        if (response.ok) {
+          const data = await response.json()
+          setItems(data)
+        }
+      } catch (err) {
+        console.error("Error fetching items:", err)
+      }
+    }
+    fetchItems()
+  }, [])
+
+  // Fetch current delivery
+  useEffect(() => {
+    const fetchCurrentDelivery = async () => {
+      const schoolId = localStorage.getItem("schoolId")
+      const token = localStorage.getItem("token")
+
+      if (!schoolId || !token) {
+        setLoading(false)
+        return
+      }
+
+      try {
+        const response = await fetch(`http://localhost:8070/api/track/current/${schoolId}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        })
+
+        if (response.status === 404) {
+          // No current order found
+          setCurrentDeliveries([])
+          setLoading(false)
+          return
+        }
+
+        if (!response.ok) {
+          // Try to get error message
+          const contentType = response.headers.get("content-type")
+          let errorMessage = "Failed to fetch current delivery"
+          if (contentType && contentType.includes("application/json")) {
+            try {
+              const errorData = await response.json()
+              errorMessage = errorData?.message || errorData || errorMessage
+            } catch {
+              // Ignore JSON parse errors
+            }
+          } else {
+            try {
+              const errorText = await response.text()
+              if (errorText) errorMessage = errorText
+            } catch {
+              // Ignore text parse errors
+            }
+          }
+          throw new Error(errorMessage)
+        }
+
+        // Handle response that might be JSON or plain text
+        const contentType = response.headers.get("content-type")
+        let order: ApiOrder | null = null
+        if (contentType && contentType.includes("application/json")) {
+          order = await response.json()
+        } else {
+          // If not JSON, might be an error message
+          const text = await response.text()
+          if (text && !text.includes("Order not found")) {
+            throw new Error(text)
+          }
+        }
+
+        if (order) {
+          const transformed = transformOrderToDelivery(order, items)
+          setCurrentDeliveries(transformed ? [transformed] : [])
+        } else {
+          setCurrentDeliveries([])
+        }
+      } catch (err: any) {
+        console.error("Error fetching current delivery:", err)
+        setCurrentDeliveries([])
+        toast({
+          title: "Error",
+          description: err?.message || "Failed to load current delivery. Please try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (items.length > 0) {
+      fetchCurrentDelivery()
+    }
+  }, [items])
+
+  // Fetch past deliveries
+  useEffect(() => {
+    const fetchPastDeliveries = async () => {
+      const schoolId = localStorage.getItem("schoolId")
+      const token = localStorage.getItem("token")
+
+      if (!schoolId || !token) {
+        return
+      }
+
+      try {
+        const response = await fetch(`http://localhost:8070/api/track/patDeliveries/${schoolId}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        })
+
+        if (!response.ok) {
+          // Try to get error message
+          const contentType = response.headers.get("content-type")
+          let errorMessage = "Failed to fetch past deliveries"
+          if (contentType && contentType.includes("application/json")) {
+            try {
+              const errorData = await response.json()
+              errorMessage = errorData?.message || errorData || errorMessage
+            } catch {
+              // Ignore JSON parse errors
+            }
+          } else {
+            try {
+              const errorText = await response.text()
+              if (errorText) errorMessage = errorText
+            } catch {
+              // Ignore text parse errors
+            }
+          }
+          throw new Error(errorMessage)
+        }
+
+        // Handle response that might be JSON array or empty
+        const contentType = response.headers.get("content-type")
+        let orders: ApiOrder[] = []
+        if (contentType && contentType.includes("application/json")) {
+          orders = await response.json()
+        } else {
+          // If not JSON, might be empty or error
+          const text = await response.text()
+          if (text && !text.includes("not found")) {
+            console.warn("Unexpected response format:", text)
+          }
+        }
+
+        const transformed = orders
+          .map((order) => transformOrderToDelivery(order, items))
+          .filter((delivery): delivery is Delivery => delivery !== null)
+        setPastDeliveries(transformed)
+      } catch (err: any) {
+        console.error("Error fetching past deliveries:", err)
+        setPastDeliveries([])
+        toast({
+          title: "Error",
+          description: err?.message || "Failed to load past deliveries. Please try again.",
+          variant: "destructive",
+        })
+      }
+    }
+
+    if (items.length > 0) {
+      fetchPastDeliveries()
+    }
+  }, [items])
+
+  const transformOrderToDelivery = (order: ApiOrder, itemsList: Item[]): Delivery | null => {
+    if (!order) return null
+
+    // Extract items from requestItemDetails
+    const itemsString = order.requestItem?.requestItemDetails
+      ?.map((detail) => {
+        const item = itemsList.find((i) => i.id === detail.item.id)
+        return item?.name || detail.item.name || `Item ${detail.item.id.substring(0, 8)}`
+      })
+      .join(", ") || "No items"
+
+    // Get supplier name
+    const supplierName =
+      order.supplier?.companyName ||
+      order.supplier?.name ||
+      order.supplier?.user?.name ||
+      "Unknown Supplier"
+
+    // Map delivery status
+    const deliveryStatus = order.deliveryStatus?.toLowerCase() || "pending"
+    const statusMap: Record<string, string> = {
+      pending: "ordered",
+      processing: "processing",
+      dispatched: "dispatched",
+      delivered: "delivered",
+    }
+    const frontendStatus = statusMap[deliveryStatus] || deliveryStatus
+
+    // Format dates
+    const orderedDate = order.requestItem?.created
+      ? new Date(order.requestItem.created).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })
+      : "Unknown date"
+
+    const estimatedDelivery = order.requestItem?.updated
+      ? new Date(order.requestItem.updated).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })
+      : undefined
+
+    const deliveredDate =
+      frontendStatus === "delivered" && order.updated
+        ? new Date(order.updated).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          })
+        : undefined
+
+    // Build timeline based on status
+    const timeline = buildTimeline(order, frontendStatus, orderedDate, deliveredDate, estimatedDelivery)
+
+    return {
+      id: order.id,
+      items: itemsString,
+      supplier: supplierName,
+      orderedDate,
+      estimatedDelivery,
+      deliveredDate,
+      status: frontendStatus,
+      timeline,
+    }
+  }
+
+  const buildTimeline = (
+    order: ApiOrder,
+    status: string,
+    orderedDate: string,
+    deliveredDate?: string,
+    estimatedDelivery?: string
+  ): Array<{ status: string; time: string; completed: boolean }> => {
+    const timeline: Array<{ status: string; time: string; completed: boolean }> = []
+
+    // Ordered
+    const orderedTime = order.requestItem?.created
+      ? new Date(order.requestItem.created).toLocaleString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+        })
+      : `${orderedDate} - Unknown time`
+    timeline.push({ status: "ordered", time: orderedTime, completed: true })
+
+    // Approved (assume it's approved if there's an order)
+    const approvedTime = order.requestItem?.updated
+      ? new Date(order.requestItem.updated).toLocaleString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+        })
+      : `${orderedDate} - Unknown time`
+    timeline.push({ status: "approved", time: approvedTime, completed: true })
+
+    // Processing
+    const processingCompleted = ["processing", "dispatched", "delivered"].includes(status)
+    timeline.push({
+      status: "processing",
+      time: processingCompleted ? approvedTime : "Pending",
+      completed: processingCompleted,
+    })
+
+    // Dispatched
+    const dispatchedCompleted = ["dispatched", "delivered"].includes(status)
+    const dispatchedTime = order.updated
+      ? new Date(order.updated).toLocaleString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+        })
+      : "Pending"
+    timeline.push({
       status: "dispatched",
-      timeline: [
-        { status: "ordered", time: "Apr 6, 2025 - 10:30 AM", completed: true },
-        { status: "approved", time: "Apr 6, 2025 - 2:15 PM", completed: true },
-        { status: "processing", time: "Apr 7, 2025 - 9:00 AM", completed: true },
-        { status: "dispatched", time: "Apr 7, 2025 - 2:30 PM", completed: true },
-        { status: "delivered", time: "Expected Apr 8, 2025", completed: false },
-      ],
-    },
-  ]
+      time: dispatchedCompleted ? dispatchedTime : `Expected ${estimatedDelivery || "soon"}`,
+      completed: dispatchedCompleted,
+    })
 
-  const pastDeliveries = [
-    {
-      id: "DEL-2025-041",
-      items: "Maize, Potatoes, Fruits",
-      supplier: "Rwanda Harvest Co.",
-      orderedDate: "Apr 1, 2025",
-      deliveredDate: "Apr 3, 2025",
+    // Delivered
+    const deliveredCompleted = status === "delivered"
+    timeline.push({
       status: "delivered",
-      timeline: [
-        { status: "ordered", time: "Apr 1, 2025 - 9:15 AM", completed: true },
-        { status: "approved", time: "Apr 1, 2025 - 11:30 AM", completed: true },
-        { status: "processing", time: "Apr 2, 2025 - 8:45 AM", completed: true },
-        { status: "dispatched", time: "Apr 2, 2025 - 1:20 PM", completed: true },
-        { status: "delivered", time: "Apr 3, 2025 - 10:05 AM", completed: true },
-      ],
-    },
-    {
-      id: "DEL-2025-039",
-      items: "Rice, Beans, Oil",
-      supplier: "Kigali Foods Ltd",
-      orderedDate: "Mar 26, 2025",
-      deliveredDate: "Mar 28, 2025",
-      status: "delivered",
-      timeline: [
-        { status: "ordered", time: "Mar 26, 2025 - 11:20 AM", completed: true },
-        { status: "approved", time: "Mar 26, 2025 - 3:45 PM", completed: true },
-        { status: "processing", time: "Mar 27, 2025 - 9:30 AM", completed: true },
-        { status: "dispatched", time: "Mar 27, 2025 - 2:15 PM", completed: true },
-        { status: "delivered", time: "Mar 28, 2025 - 11:10 AM", completed: true },
-      ],
-    },
-  ]
+      time: deliveredCompleted
+        ? deliveredDate
+          ? `${deliveredDate} - ${new Date(order.updated || "").toLocaleTimeString("en-US", {
+              hour: "numeric",
+              minute: "2-digit",
+            })}`
+          : "Delivered"
+        : `Expected ${estimatedDelivery || "soon"}`,
+      completed: deliveredCompleted,
+    })
+
+    return timeline
+  }
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -112,7 +433,14 @@ export function DeliveryTracking() {
               </TabsList>
 
               <TabsContent value="current" className="mt-6 space-y-6">
-                {currentDeliveries.length > 0 ? (
+                {loading ? (
+                  <Card>
+                    <CardContent className="flex flex-col items-center justify-center py-10">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                      <p className="mt-4 text-sm text-muted-foreground">Loading deliveries...</p>
+                    </CardContent>
+                  </Card>
+                ) : currentDeliveries.length > 0 ? (
                   currentDeliveries.map((delivery) => (
                     <Card key={delivery.id}>
                       <CardHeader>
@@ -207,7 +535,15 @@ export function DeliveryTracking() {
               </TabsContent>
 
               <TabsContent value="past" className="mt-6 space-y-6">
-                {pastDeliveries.map((delivery) => (
+                {loading ? (
+                  <Card>
+                    <CardContent className="flex flex-col items-center justify-center py-10">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                      <p className="mt-4 text-sm text-muted-foreground">Loading past deliveries...</p>
+                    </CardContent>
+                  </Card>
+                ) : pastDeliveries.length > 0 ? (
+                  pastDeliveries.map((delivery) => (
                   <Card key={delivery.id}>
                     <CardHeader>
                       <div className="flex items-center justify-between">
@@ -260,7 +596,20 @@ export function DeliveryTracking() {
                       </div>
                     </CardContent>
                   </Card>
-                ))}
+                ))
+                ) : (
+                  <Card>
+                    <CardContent className="flex flex-col items-center justify-center py-10">
+                      <div className="rounded-full bg-muted p-3">
+                        <Clock className="h-6 w-6 text-muted-foreground" />
+                      </div>
+                      <h3 className="mt-4 text-lg font-medium">No Past Deliveries</h3>
+                      <p className="mt-2 text-center text-sm text-muted-foreground">
+                        You don't have any past deliveries yet.
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
               </TabsContent>
             </Tabs>
           </div>

@@ -1,10 +1,12 @@
 
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import { Bell, Check, LogOut, Mail, MapPin, Package, Phone, Plus, Search, Settings, Truck, User } from "lucide-react"
+import { Bell, LogOut, Package, Plus, Search, Settings, User, Edit, Trash2 } from "lucide-react"
+import axios from "axios"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -33,13 +35,50 @@ import { useNavigate } from "react-router-dom"
 
 interface Supplier {
   id: string
-  name: string
-  contact: string
-  email: string
-  address: string
-  specialties: string[]
-  rating: number
-  status: "active" | "inactive"
+  companyName?: string
+  name?: string
+  contact?: string
+  phone?: string
+  email?: string
+  address?: string
+  specialties?: string[]
+  items?: Array<{ id: string; name?: string }>
+  rating?: number
+  status?: "active" | "inactive"
+  state?: boolean
+  tinNumber?: string
+  bankName?: string
+  bankAccount?: string
+  district?: { id: string; name?: string }
+  user?: { id: string; email?: string; phone?: string }
+}
+
+const API_BASE_URL = "http://localhost:8070/api/supplier"
+
+const supplierService = {
+  getAllSuppliers: async (districtId?: string) => {
+    if (districtId) {
+      const response = await axios.get(`${API_BASE_URL}/all/${districtId}`)
+      return response.data
+    }
+    const response = await axios.get(`${API_BASE_URL}/all`)
+    return response.data
+  },
+
+  getSupplier: async (id: string) => {
+    const response = await axios.get(`${API_BASE_URL}/${id}`)
+    return response.data
+  },
+
+  getSupplierItems: async (supplierId: string) => {
+    const response = await axios.get(`${API_BASE_URL}/items/${supplierId}`)
+    return response.data
+  },
+
+  deleteSupplier: async (id: string) => {
+    const response = await axios.delete(`${API_BASE_URL}/delete/${id}`)
+    return response.data
+  },
 }
 
 export function SupplierManagement() {
@@ -48,70 +87,57 @@ export function SupplierManagement() {
   const [assignDialogOpen, setAssignDialogOpen] = useState(false)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(5)
-   const navigate = useNavigate()
+  const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const navigate = useNavigate()
 
-  // Sample data
-  const suppliers: Supplier[] = [
-    {
-      id: "SUP-001",
-      name: "Kigali Foods Ltd",
-      contact: "+250 78 123 4567",
-      email: "info@kigalifoods.rw",
-      address: "Kigali, Rwanda",
-      specialties: ["Rice", "Beans", "Vegetables"],
-      rating: 3.9,
-      status: "active",
-    },
-    {
-      id: "SUP-002",
-      name: "Rwanda Harvest Co.",
-      contact: "+250 72 987 6543",
-      email: "contact@rwandaharvest.rw",
-      address: "Musanze, Rwanda",
-      specialties: ["Maize", "Potatoes", "Fruits"],
-      rating: 4.5,
-      status: "active",
-    },
-    {
-      id: "SUP-003",
-      name: "Fresh Farms Rwanda",
-      contact: "+250 73 456 7890",
-      email: "info@freshfarms.rw",
-      address: "Rwamagana, Rwanda",
-      specialties: ["Vegetables", "Fruits"],
-      rating: 4.2,
-      status: "active",
-    },
-    {
-      id: "SUP-004",
-      name: "Nyabihu Dairy Products",
-      contact: "+250 78 567 8901",
-      email: "orders@nyabihudairy.rw",
-      address: "Nyabihu, Rwanda",
-      specialties: ["Milk", "Yogurt", "Cheese"],
-      rating: 4.7,
-      status: "active",
-    },
-    {
-      id: "SUP-005",
-      name: "Eastern Grains Suppliers",
-      contact: "+250 72 345 6789",
-      email: "sales@easterngrains.rw",
-      address: "Kayonza, Rwanda",
-      specialties: ["Rice", "Maize", "Sorghum"],
-      rating: 4.0,
-      status: "inactive",
-    },
-  ]
+  useEffect(() => {
+    const fetchSuppliers = async () => {
+      try {
+        setLoading(true)
+        const districtId = localStorage.getItem("districtId")
+        const data = await supplierService.getAllSuppliers(districtId || undefined)
+        setSuppliers(data || [])
+      } catch (err: any) {
+        console.error("Error fetching suppliers:", err)
+        setError(err.response?.data || "Failed to fetch suppliers")
+        toast.error("Failed to load suppliers")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchSuppliers()
+  }, [])
 
   // Filter suppliers based on search term
   const filteredSuppliers = suppliers.filter((supplier) => {
+    const name = supplier.companyName || supplier.name || ""
+    const id = supplier.id || ""
+    const specialties = supplier.items?.map(i => i.name || "").join(" ") || supplier.specialties?.join(" ") || ""
+    
     return (
-      supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      supplier.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      supplier.specialties.some((s) => s.toLowerCase().includes(searchTerm.toLowerCase()))
+      name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      specialties.toLowerCase().includes(searchTerm.toLowerCase())
     )
   })
+
+  const handleDeleteSupplier = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this supplier?")) {
+      return
+    }
+
+    try {
+      await supplierService.deleteSupplier(id)
+      setSuppliers(suppliers.filter(s => s.id !== id))
+      toast.success("Supplier deleted successfully")
+    } catch (err: any) {
+      console.error("Error deleting supplier:", err)
+      toast.error(err.response?.data || "Failed to delete supplier")
+    }
+  }
 
   useEffect(() => {
     setPage(1)
@@ -143,7 +169,9 @@ export function SupplierManagement() {
     setAssignDialogOpen(false)
   }
 
-  const getRatingStars = (rating: number) => {
+  const getRatingStars = (rating?: number) => {
+    if (!rating) return <span className="text-sm text-muted-foreground">No rating</span>
+    
     const fullStars = Math.floor(rating)
     const hasHalfStar = rating % 1 >= 0.5
 
@@ -177,6 +205,28 @@ export function SupplierManagement() {
         ))}
 
         <span className="ml-1 text-sm text-muted-foreground">{rating.toFixed(1)}</span>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-destructive">Error loading suppliers</h2>
+          <p className="text-muted-foreground mt-2">{error}</p>
+          <Button onClick={() => window.location.reload()} className="mt-4">
+            Retry
+          </Button>
+        </div>
       </div>
     )
   }
@@ -287,21 +337,29 @@ export function SupplierManagement() {
                           key={supplier.id}
                           className={supplier.status === "inactive" ? "opacity-60" : ""}
                         >
-                          <TableCell className="font-medium">{supplier.id}</TableCell>
-                          <TableCell>{supplier.name}</TableCell>
+                          <TableCell className="font-medium">{supplier.id?.substring(0, 8)}...</TableCell>
+                          <TableCell>{supplier.companyName || supplier.name || "N/A"}</TableCell>
                           <TableCell>
                             <div className="flex flex-wrap gap-1">
-                              {supplier.specialties.map((s) => (
-                                <Badge key={s} variant="outline">{s}</Badge>
-                              ))}
+                              {supplier.items && supplier.items.length > 0 ? (
+                                supplier.items.map((item) => (
+                                  <Badge key={item.id} variant="outline">{item.name || item.id.substring(0, 8)}</Badge>
+                                ))
+                              ) : supplier.specialties && supplier.specialties.length > 0 ? (
+                                supplier.specialties.map((s, idx) => (
+                                  <Badge key={idx} variant="outline">{s}</Badge>
+                                ))
+                              ) : (
+                                <span className="text-sm text-muted-foreground">No items</span>
+                              )}
                             </div>
                           </TableCell>
-                          <TableCell className="whitespace-nowrap">{supplier.contact}</TableCell>
-                          <TableCell className="whitespace-nowrap">{supplier.email}</TableCell>
-                          <TableCell className="whitespace-nowrap">{supplier.address}</TableCell>
+                          <TableCell className="whitespace-nowrap">{supplier.phone || supplier.contact || supplier.user?.phone || "N/A"}</TableCell>
+                          <TableCell className="whitespace-nowrap">{supplier.email || supplier.user?.email || "N/A"}</TableCell>
+                          <TableCell className="whitespace-nowrap">{supplier.address || "N/A"}</TableCell>
                           <TableCell>{getRatingStars(supplier.rating)}</TableCell>
                           <TableCell>
-                            {supplier.status === "active" ? (
+                            {supplier.state !== false && supplier.status !== "inactive" ? (
                               <Badge className="bg-green-600 hover:bg-green-700">Active</Badge>
                             ) : (
                               <Badge variant="outline" className="bg-gray-100 text-gray-800 hover:bg-gray-100">
@@ -310,13 +368,30 @@ export function SupplierManagement() {
                             )}
                           </TableCell>
                           <TableCell className="text-right">
-                            <Button
-                              size="sm"
-                              disabled={supplier.status === "inactive"}
-                              onClick={() => handleAssignOrder(supplier)}
-                            >
-                              Assign
-                            </Button>
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => navigate(`/add-supplier?edit=${supplier.id}`)}
+                                title="Edit Supplier"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleDeleteSupplier(supplier.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                disabled={supplier.state === false || supplier.status === "inactive"}
+                                onClick={() => handleAssignOrder(supplier)}
+                              >
+                                Assign
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))
@@ -434,11 +509,21 @@ export function SupplierManagement() {
                     <SelectValue placeholder="Select items" />
                   </SelectTrigger>
                   <SelectContent>
-                    {selectedSupplier.specialties.map((specialty) => (
-                      <SelectItem key={specialty} value={specialty.toLowerCase()}>
-                        {specialty}
-                      </SelectItem>
-                    ))}
+                    {selectedSupplier.items && selectedSupplier.items.length > 0 ? (
+                      selectedSupplier.items.map((item) => (
+                        <SelectItem key={item.id} value={item.id}>
+                          {item.name || item.id.substring(0, 8)}
+                        </SelectItem>
+                      ))
+                    ) : selectedSupplier.specialties && selectedSupplier.specialties.length > 0 ? (
+                      selectedSupplier.specialties.map((specialty) => (
+                        <SelectItem key={specialty} value={specialty.toLowerCase()}>
+                          {specialty}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="no-items" disabled>No items available</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
