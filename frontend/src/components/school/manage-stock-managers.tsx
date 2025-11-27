@@ -1,32 +1,20 @@
 
 import { useEffect, useState } from "react"
-import { Link, useNavigate } from "react-router-dom"
+import { Link } from "react-router-dom"
 import {
-  Bell,
   Edit,
-  LogOut,
   Plus,
   Search,
-  Settings,
   Trash2,
-  User,
   Users,
 } from "lucide-react"
 import axios from "axios"
 import { toast } from "sonner"
-import { logout } from "@/lib/auth"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { HeaderActions } from "@/components/shared/header-actions"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
@@ -86,7 +74,6 @@ const stockManagerService = {
 }
 
 export function ManageStockManagers() {
-  const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState("")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
@@ -95,11 +82,6 @@ export function ManageStockManagers() {
   const [loading, setLoading] = useState(true)
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  const handleLogout = async (e: React.MouseEvent) => {
-    e.preventDefault()
-    await logout(navigate)
-  }
   const [newManager, setNewManager] = useState({
     name: "",
     email: "",
@@ -411,70 +393,42 @@ export function ManageStockManagers() {
           <div className="w-full flex-1">
             <h1 className="text-lg font-semibold">Manage Stock Managers</h1>
           </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-              <span className="sr-only">Notifications</span>
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src="/placeholder.svg" alt="Avatar" />
-                    <AvatarFallback>SA</AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">School Administrator</p>
-                    <p className="text-xs leading-none text-muted-foreground">admin@school.edu.rw</p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <User className="mr-2 h-4 w-4" />
-                  <span>Profile</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Settings</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          <HeaderActions role="school" />
         </header>
 
         {/* Main Content */}
         <main className="flex-1 overflow-auto p-2 sm:p-4 md:p-6 min-w-0">
           <div className="space-y-6">
-            {/* Header Actions */}
-            <div className="flex items-center justify-between">
-              <div className="flex-1 max-w-sm">
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="search"
-                    placeholder="Search stock managers..."
-                    className="w-full pl-8"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-              </div>
-              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Stock Manager
-                  </Button>
-                </DialogTrigger>
+            {/* Stock Managers Table */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Stock Managers</CardTitle>
+                <CardDescription>
+                  Manage your school's stock management team members and their access levels.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-6 flex flex-col gap-4 md:flex-row">
+                  <div className="flex-1 min-w-0">
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="search"
+                        placeholder="Search stock managers..."
+                        className="w-full pl-8"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Add Stock Manager
+                        </Button>
+                      </DialogTrigger>
                 <DialogContent className="sm:max-w-[425px]">
                   <DialogHeader>
                     <DialogTitle>Add New Stock Manager</DialogTitle>
@@ -561,18 +515,10 @@ export function ManageStockManagers() {
                     </Button>
                   </DialogFooter>
                 </DialogContent>
-              </Dialog>
-            </div>
+                    </Dialog>
+                  </div>
+                </div>
 
-            {/* Stock Managers Table */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Stock Managers</CardTitle>
-                <CardDescription>
-                  Manage your school's stock management team members and their access levels.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
                 <div className="rounded-md border">
                   <Table>
                     <TableHeader>

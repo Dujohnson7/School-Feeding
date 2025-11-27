@@ -33,6 +33,9 @@ public class IItemServiceImpl implements IItemService{
             found.setName(theItem.getName());
             found.setDescription(theItem.getDescription());
             found.setPerStudent(theItem.getPerStudent());
+            found.setPrice(theItem.getPrice());
+            found.setUnit(theItem.getUnit());
+            found.setFoodCategory(theItem.getFoodCategory());
             return  itemRepository.save(found);
         }
         throw new ObjectNotFoundException(Item.class,"ITEM NOT FOUND");

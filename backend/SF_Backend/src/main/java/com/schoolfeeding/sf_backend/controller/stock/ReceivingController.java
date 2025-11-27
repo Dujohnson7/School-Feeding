@@ -37,19 +37,24 @@ public class ReceivingController {
 
 
 
+
     @PutMapping("/receivingOrder/{id}")
-    public ResponseEntity<?> receivingOrder(@PathVariable String id) {
+    public ResponseEntity<?> receivingOrder(
+            @PathVariable String id,
+            @RequestParam int rating) {
+
         try {
             Orders existOrder = respondService.findById(UUID.fromString(id));
             if (Objects.nonNull(existOrder)) {
-                existOrder.setId(UUID.fromString(id));
+                existOrder.setRating(rating);
                 Orders saveProcess = respondService.recieveOrders(existOrder);
                 return ResponseEntity.ok(saveProcess);
-            }else  {
+            } else {
                 return ResponseEntity.badRequest().body("Invalid Delivery Id");
             }
-        }catch (Exception ex){
+        } catch (Exception ex) {
             return ResponseEntity.badRequest().body("Error " + ex.getMessage());
         }
     }
+
 }

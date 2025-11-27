@@ -1,25 +1,24 @@
 
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import { AlertTriangle, ArrowUpDown, Bell, Download, Filter, Package, Plus, Search, Settings, User, LogOut } from "lucide-react"
+import { ArrowUpDown, Download, Filter, Package, Search } from "lucide-react"
 import axios from "axios"
 import { toast } from "sonner"
+import { format } from "date-fns"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { HeaderActions } from "@/components/shared/header-actions"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Dialog,
   DialogContent,
@@ -29,6 +28,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
+import { exportFoodTrackingSheetPDF, exportFoodTrackingSheetCSV, exportFoodTrackingSheetExcel } from "@/utils/export-utils"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 
 interface Stock {
@@ -37,13 +37,13 @@ interface Stock {
   updated?: string
   quantity?: number
   batchNumber?: string
-  receivedDate?: string
-  expiryDate?: string
+  receivedDate?: string 
   location?: string
+  stockState?: "NORMAL" | "LOW" | "CRITICAL"
   item?: {
     id?: string
     name?: string
-    category?: string
+    foodCategory?: string
     unit?: string
   }
   school?: {
@@ -65,13 +65,17 @@ export function StockInventory() {
   const [searchTerm, setSearchTerm] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
-  const [selectedItem, setSelectedItem] = useState<Stock | null>(null)
   const [inventoryItems, setInventoryItems] = useState<Stock[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [adjustDialogOpen, setAdjustDialogOpen] = useState(false)
+  const [error, setError] = useState<string | null>(null) 
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(5)
+  const [exportDialogOpen, setExportDialogOpen] = useState(false)
+  const [selectedItem, setSelectedItem] = useState<string>("")
+  const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), "yyyy-MM"))
+  const [exportFormat, setExportFormat] = useState<string>("pdf")
+  const [isExporting, setIsExporting] = useState(false)
+  const [distributions, setDistributions] = useState<any[]>([])
 
   // Fetch inventory on component mount
   useEffect(() => {
@@ -103,18 +107,33 @@ export function StockInventory() {
     fetchInventory()
   }, [])
 
-  // Helper function to determine status based on quantity and expiry date
-  const getItemStatus = (item: Stock): "normal" | "low" | "critical" | "expired" => {
-    if (!item.quantity) return "critical"
-    
-    const quantity = item.quantity
-    const expiryDate = item.expiryDate ? new Date(item.expiryDate) : null
-    const today = new Date()
-    
-    if (expiryDate && expiryDate < today) return "expired"
-    if (quantity < 50) return "critical"
-    if (quantity < 100) return "low"
-    return "normal"
+  // Fetch distributions for tracking sheet
+  useEffect(() => {
+    const fetchDistributions = async () => {
+      try {
+        const schoolId = localStorage.getItem("schoolId")
+        if (!schoolId) return
+        
+        const response = await axios.get(`http://localhost:8070/api/distribute/all/${schoolId}`)
+        setDistributions(Array.isArray(response.data) ? response.data : [])
+      } catch (err) {
+        console.error("Error fetching distributions:", err)
+      }
+    }
+    fetchDistributions()
+  }, [])
+
+  useEffect(() => {
+    setPage(1)
+  }, [searchTerm, categoryFilter, statusFilter])
+
+  // Helper function to format food category for display
+  const formatCategory = (category?: string) => {
+    if (!category) return "N/A"
+    return category
+      .split("_")
+      .map(word => word.charAt(0) + word.slice(1).toLowerCase())
+      .join(" ")
   }
 
   // Filter inventory items based on search term and filters
@@ -122,23 +141,19 @@ export function StockInventory() {
     const itemName = item.item?.name || ""
     const itemId = item.id || ""
     const batchNumber = item.batchNumber || ""
-    const category = item.item?.category || ""
+    const foodCategory = item.item?.foodCategory || ""
+    const stockState = item.stockState?.toUpperCase() || ""
 
     const matchesSearch =
       itemName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       itemId.toLowerCase().includes(searchTerm.toLowerCase()) ||
       batchNumber.toLowerCase().includes(searchTerm.toLowerCase())
 
-    const matchesCategory = categoryFilter === "all" || category === categoryFilter
-    const itemStatus = getItemStatus(item)
-    const matchesStatus = statusFilter === "all" || itemStatus === statusFilter
+    const matchesCategory = categoryFilter === "all" || foodCategory === categoryFilter
+    const matchesStatus = statusFilter === "all" || stockState === statusFilter.toUpperCase()
 
     return matchesSearch && matchesCategory && matchesStatus
   })
-
-  useEffect(() => {
-    setPage(1)
-  }, [searchTerm, categoryFilter, statusFilter])
 
   const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize))
   const startIndex = (page - 1) * pageSize
@@ -157,19 +172,21 @@ export function StockInventory() {
     return Array.from({ length: end - start + 1 }, (_, i) => start + i)
   }
 
-  const handleAdjustStock = () => {
-    // In a real app, this would update the inventory item quantity
-    console.log(`Adjusting stock for ${selectedItem?.item?.name}`)
-    setAdjustDialogOpen(false)
-  }
-
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return "N/A"
-    try {
-      const date = new Date(dateString)
-      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-    } catch {
-      return dateString
+  const getStatusBadge = (status?: string) => {
+    const stockState = status?.toUpperCase() || ""
+    switch (stockState) {
+      case "NORMAL":
+        return <Badge className="bg-green-600 hover:bg-green-700">Normal</Badge>
+      case "LOW":
+        return (
+          <Badge variant="outline" className="bg-amber-100 text-amber-800 hover:bg-amber-100">
+            Low
+          </Badge>
+        )
+      case "CRITICAL":
+        return <Badge variant="destructive">Critical</Badge>
+      default:
+        return <Badge variant="outline">Unknown</Badge>
     }
   }
 
@@ -195,33 +212,125 @@ export function StockInventory() {
     )
   }
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "normal":
-        return <Badge className="bg-green-600 hover:bg-green-700">Normal</Badge>
-      case "low":
-        return (
-          <Badge variant="outline" className="bg-amber-100 text-amber-800 hover:bg-amber-100">
-            Low
-          </Badge>
-        )
-      case "critical":
-        return <Badge variant="destructive">Critical</Badge>
-      case "expired":
-        return (
-          <Badge variant="outline" className="bg-red-100 text-red-800 hover:bg-red-100">
-            Expired
-          </Badge>
-        )
-      default:
-        return <Badge variant="outline">Unknown</Badge>
-    }
+  const handleExport = (format: string) => {
+    setExportFormat(format)
+    setExportDialogOpen(true)
   }
 
-  const handleExport = (format: string) => {
-    // In a real app, this would generate and download a report
-    console.log(`Exporting inventory in ${format} format`)
-    alert(`Inventory would be exported as ${format.toUpperCase()} in a real application`)
+  const handleGenerateTrackingSheet = async () => {
+    if (!selectedItem) {
+      toast.error("Please select a food item")
+      return
+    }
+
+    try {
+      setIsExporting(true)
+      const schoolId = localStorage.getItem("schoolId")
+      const user = JSON.parse(localStorage.getItem("user") || "null")
+      
+      // Get school info
+      const schoolInfo = {
+        name: user?.school?.name || inventoryItems[0]?.school?.name || "N/A",
+        id: schoolId || "N/A",
+        district: user?.district?.district || user?.district || "N/A",
+        community: "N/A" // You may need to add this to your data model
+      }
+
+      // Get selected item details
+      const item = inventoryItems.find(i => i.item?.id === selectedItem)
+      if (!item || !item.item) {
+        toast.error("Item not found")
+        return
+      }
+
+      const foodItem = {
+        id: item.item.id,
+        name: item.item.name || "N/A",
+        unit: item.item.unit || "kg"
+      }
+
+      // Get month and year
+      const [year, month] = selectedMonth.split("-")
+      const monthYear = `${format(new Date(parseInt(year), parseInt(month) - 1, 1), "MMMM")} ${year}`
+
+      // Prepare inventory data from distributions
+      // Filter distributions by month and item
+      const monthStart = new Date(parseInt(year), parseInt(month) - 1, 1)
+      const monthEnd = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59)
+      
+      const relevantDistributions = distributions.filter(dist => {
+        const distDate = new Date(dist.created || dist.date || "")
+        return distDate >= monthStart && distDate <= monthEnd &&
+               dist.stockOutItemDetails?.some((itemDetail: any) => itemDetail.item?.id === selectedItem)
+      })
+
+      // Generate daily data (simplified - you may need to adjust based on your data structure)
+      const daysInMonth = new Date(parseInt(year), parseInt(month), 0).getDate()
+      const inventoryData: Array<{
+        date: string
+        stockAtStart: number
+        foodReceived: number
+        handedOut: number
+        missing: number
+        suspectedUnfit: number
+        confirmedUnfit: number
+        disposed: number
+        stockAtEnd: number
+        remarks: string
+      }> = []
+      
+      let currentStock = item.quantity || 0
+      
+      for (let i = 0; i < daysInMonth; i++) {
+        const date = new Date(parseInt(year), parseInt(month) - 1, i + 1)
+        const dayDistributions = relevantDistributions.filter(dist => {
+          const distDate = new Date(dist.created || dist.date || "")
+          return distDate.getDate() === date.getDate()
+        })
+
+        const totalHandedOut = dayDistributions.reduce((sum, dist) => {
+          const itemDetail = dist.stockOutItemDetails?.find((itemDetail: any) => itemDetail.item?.id === selectedItem)
+          return sum + (itemDetail?.quantity || 0)
+        }, 0)
+
+        const stockAtStart = currentStock
+        const foodReceived = 0 // You may need to fetch this from receiving records
+        const stockAtEnd = stockAtStart + foodReceived - totalHandedOut
+        currentStock = Math.max(0, stockAtEnd)
+
+        inventoryData.push({
+          date: date.toISOString(),
+          stockAtStart: Math.max(0, stockAtStart),
+          foodReceived: foodReceived,
+          handedOut: totalHandedOut,
+          missing: 0,
+          suspectedUnfit: 0,
+          confirmedUnfit: 0,
+          disposed: 0,
+          stockAtEnd: Math.max(0, stockAtEnd),
+          remarks: ""
+        })
+      }
+
+      // Export based on format
+      if (exportFormat === "pdf") {
+        await exportFoodTrackingSheetPDF(schoolInfo, foodItem, monthYear, inventoryData)
+        toast.success("Food Tracking Sheet exported as PDF")
+      } else if (exportFormat === "csv") {
+        exportFoodTrackingSheetCSV(schoolInfo, foodItem, monthYear, inventoryData)
+        toast.success("Food Tracking Sheet exported as CSV")
+      } else if (exportFormat === "excel") {
+        await exportFoodTrackingSheetExcel(schoolInfo, foodItem, monthYear, inventoryData)
+        toast.success("Food Tracking Sheet exported as Excel")
+      }
+
+      setExportDialogOpen(false)
+    } catch (err: any) {
+      console.error("Error exporting tracking sheet:", err)
+      toast.error(err.message || "Failed to export tracking sheet")
+    } finally {
+      setIsExporting(false)
+    }
   }
 
   return (
@@ -237,44 +346,7 @@ export function StockInventory() {
           <div className="w-full flex-1">
             <h1 className="text-lg font-semibold">Inventory Management</h1>
           </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-              <span className="sr-only">Notifications</span>
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src="/placeholder.svg" alt="Avatar" />
-                    <AvatarFallback>SK</AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">Stock Keeper</p>
-                    <p className="text-xs leading-none text-muted-foreground">stockkeeper@school.rw</p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <User className="mr-2 h-4 w-4" />
-                  <span>Profile</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Settings</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          <HeaderActions role="stock" />
         </header>
 
         {/* Main Content */}
@@ -308,16 +380,17 @@ export function StockInventory() {
                     <span className="text-sm">Filter:</span>
                   </div>
                   <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                    <SelectTrigger className="w-[130px]">
+                    <SelectTrigger className="w-[180px]">
                       <SelectValue placeholder="Category" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Categories</SelectItem>
-                      <SelectItem value="grains">Grains</SelectItem>
-                      <SelectItem value="legumes">Legumes</SelectItem>
-                      <SelectItem value="produce">Produce</SelectItem>
-                      <SelectItem value="condiments">Condiments</SelectItem>
-                      <SelectItem value="dairy">Dairy</SelectItem>
+                      <SelectItem value="GRAINS_ROOTS_TUBERS">Grains, Roots & Tubers</SelectItem>
+                      <SelectItem value="PULSES_LEGUMES_NUTS">Pulses, Legumes & Nuts</SelectItem>
+                      <SelectItem value="OILS_FATS">Oils & Fats</SelectItem>
+                      <SelectItem value="VEGETABLES">Vegetables</SelectItem>
+                      <SelectItem value="FRUITS">Fruits</SelectItem>
+                      <SelectItem value="ANIMAL_SOURCE_FOODS">Animal Source Foods</SelectItem>
                     </SelectContent>
                   </Select>
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -326,10 +399,9 @@ export function StockInventory() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="normal">Normal</SelectItem>
-                      <SelectItem value="low">Low</SelectItem>
-                      <SelectItem value="critical">Critical</SelectItem>
-                      <SelectItem value="expired">Expired</SelectItem>
+                      <SelectItem value="NORMAL">Normal</SelectItem>
+                      <SelectItem value="LOW">Low</SelectItem>
+                      <SelectItem value="CRITICAL">Critical</SelectItem>
                     </SelectContent>
                   </Select>
                   <DropdownMenu>
@@ -360,52 +432,22 @@ export function StockInventory() {
                         </div>
                       </TableHead>
                       <TableHead>Category</TableHead>
-                      <TableHead className="text-right">Quantity</TableHead>
-                      <TableHead>Batch #</TableHead>
-                      <TableHead>Expiry Date</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead className="text-right">Quantity</TableHead>  
+                      <TableHead>Status</TableHead> 
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredItems.length > 0 ? (
                       paginatedItems.map((item) => {
-                        const itemStatus = getItemStatus(item)
-                        const expiryDate = item.expiryDate ? new Date(item.expiryDate) : null
-                        const isExpiringSoon = expiryDate && expiryDate <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-                        
                         return (
                           <TableRow key={item.id}>
                             <TableCell className="font-medium">{item.id?.substring(0, 8)}...</TableCell>
                             <TableCell>{item.item?.name || "N/A"}</TableCell>
-                            <TableCell className="capitalize">{item.item?.category || "N/A"}</TableCell>
+                            <TableCell>{formatCategory(item.item?.foodCategory)}</TableCell>
                             <TableCell className="text-right">
                               {item.quantity || 0} {item.item?.unit || "kg"}
-                            </TableCell>
-                            <TableCell>{item.batchNumber || "N/A"}</TableCell>
-                            <TableCell>
-                              {formatDate(item.receivedDate)}
-                            </TableCell>
-                            <TableCell>
-                              {formatDate(item.expiryDate)}
-                              {isExpiringSoon && (
-                                <AlertTriangle className="ml-2 inline h-4 w-4 text-amber-500" />
-                              )}
-                            </TableCell>
-                            <TableCell>{item.location || "N/A"}</TableCell>
-                            <TableCell>{getStatusBadge(itemStatus)}</TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedItem(item)
-                                  setAdjustDialogOpen(true)
-                                }}
-                              >
-                                Adjust
-                              </Button>
-                            </TableCell>
+                            </TableCell>  
+                            <TableCell>{getStatusBadge(item.stockState)}</TableCell> 
                           </TableRow>
                         )
                       })
@@ -474,71 +516,78 @@ export function StockInventory() {
         </main>
       </div>
 
-      {/* Adjust Stock Dialog */}
-      {selectedItem && (
-        <Dialog open={adjustDialogOpen} onOpenChange={setAdjustDialogOpen}>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Adjust Inventory</DialogTitle>
-              <DialogDescription>Update the quantity of this inventory item</DialogDescription>
-            </DialogHeader>
+      {/* Export Dialog */}
+      <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Export Food Tracking Sheet</DialogTitle>
+            <DialogDescription>
+              Generate a food tracking sheet in the format of Annex 3
+            </DialogDescription>
+          </DialogHeader>
 
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Item</p>
-                  <p className="font-medium">{selectedItem.name}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Current Quantity</p>
-                  <p>
-                    {selectedItem.quantity} {selectedItem.unit}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Batch Number</p>
-                  <p>{selectedItem.batchNumber}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Location</p>
-                  <p>{selectedItem.location}</p>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="new-quantity">New Quantity</Label>
-                <Input id="new-quantity" type="number" defaultValue={selectedItem.quantity} min={0} />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="reason">Reason for Adjustment</Label>
-                <Select defaultValue="count">
-                  <SelectTrigger id="reason">
-                    <SelectValue placeholder="Select reason" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="count">Inventory Count</SelectItem>
-                    <SelectItem value="damage">Damaged Goods</SelectItem>
-                    <SelectItem value="expired">Expired Items</SelectItem>
-                    <SelectItem value="correction">Data Correction</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="food-item">Food Item *</Label>
+              <Select value={selectedItem} onValueChange={setSelectedItem}>
+                <SelectTrigger id="food-item">
+                  <SelectValue placeholder="Select food item" />
+                </SelectTrigger>
+                <SelectContent>
+                  {inventoryItems
+                    .filter(item => item.item?.name)
+                    .map((item) => (
+                      <SelectItem key={item.item?.id} value={item.item?.id || ""}>
+                        {item.item?.name} ({item.quantity || 0} {item.item?.unit || "kg"})
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
             </div>
 
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setAdjustDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleAdjustStock}>Save Changes</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+            <div className="space-y-2">
+              <Label htmlFor="month">Month / Year *</Label>
+              <Input
+                id="month"
+                type="month"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="format">Export Format *</Label>
+              <Select value={exportFormat} onValueChange={setExportFormat}>
+                <SelectTrigger id="format">
+                  <SelectValue placeholder="Select format" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pdf">PDF Document</SelectItem>
+                  <SelectItem value="csv">CSV File</SelectItem>
+                  <SelectItem value="excel">Excel Spreadsheet</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setExportDialogOpen(false)}
+              disabled={isExporting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleGenerateTrackingSheet}
+              disabled={isExporting || !selectedItem}
+            >
+              {isExporting ? "Exporting..." : "Generate & Export"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

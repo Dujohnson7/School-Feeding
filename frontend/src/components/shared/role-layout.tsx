@@ -8,6 +8,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Link, useNavigate } from "react-router-dom"
 import { logout } from "@/lib/auth"
+import { useNotifications } from "@/hooks/use-notifications"
+import { Badge } from "@/components/ui/badge"
 
 interface RoleLayoutProps {
   role: RoleKey
@@ -34,7 +36,9 @@ export default function RoleLayout({ role, children }: RoleLayoutProps) {
 
   const userName = user?.names || user?.name || "User"
   const userEmail = user?.email || ""
-  const userAvatar = user?.profile || "/userIcon.png"
+  const userAvatar = user?.profile 
+    ? `http://localhost:8070/uploads/${user.profile}` 
+    : "/userIcon.png"
   const userInitials = React.useMemo(() => {
     if (userName && userName !== "User") {
       const names = userName.split(" ")
@@ -51,47 +55,8 @@ export default function RoleLayout({ role, children }: RoleLayoutProps) {
     await logout(navigate)
   }
 
-  const notifications: string[] = React.useMemo(() => {
-    switch (role) {
-      case "district":
-        return [
-          "Nonko Primary School requested 100kg rice",
-          "Kinyinya Primary School submitted a delivery report",
-          "Budget reminder: Q4 allocation review due",
-        ]
-      case "school":
-        return [
-          "Delivery ETA updated to Friday 10:00",
-          "Stock report due tomorrow",
-          "District approved your last request",
-        ]
-      case "supplier":
-        return [
-          "New order from Gasabo District",
-          "Delivery route updated for Kicukiro",
-          "Invoice #SF-2034 approved",
-        ]
-      case "stock":
-        return [
-          "Receiving scheduled today 14:00",
-          "Low stock alert: Beans (20%)",
-          "Distribution plan updated",
-        ]
-      case "government":
-        return [
-          "Monthly analytics report ready",
-          "Budget variance exceeds 5% in 2 districts",
-          "2 compliance reports pending review",
-        ]
-      case "admin":
-      default:
-        return [
-          "3 new users awaiting approval",
-          "System log: 2 warnings in the last hour",
-          "Backup completed successfully",
-        ]
-    }
-  }, [role])
+  // Use notification hook to fetch real notifications
+  const { notifications, unreadCount } = useNotifications(role)
 
   return (
     <div className="flex min-h-screen w-full">
@@ -117,19 +82,59 @@ export default function RoleLayout({ role, children }: RoleLayoutProps) {
  
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full shrink-0">
+              <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full shrink-0 relative">
                 <Bell className="h-3.5 w-3.5" />
+                {unreadCount > 0 && (
+                  <Badge className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center p-0 text-xs">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </Badge>
+                )}
                 <span className="sr-only">Notifications</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-72" align="end" forceMount>
-              <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+              <DropdownMenuLabel>
+                Notifications
+                {unreadCount > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {unreadCount} new
+                  </Badge>
+                )}
+              </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {notifications.map((msg, idx) => (
-                <DropdownMenuItem key={idx} className="whitespace-normal text-sm leading-snug py-2">
-                  {msg}
+              {notifications.length > 0 ? (
+                notifications.slice(0, 10).map((notification, idx) => (
+                  <DropdownMenuItem
+                    key={notification.id || idx}
+                    className="whitespace-normal text-sm leading-snug py-2"
+                    asChild
+                  >
+                    {notification.link ? (
+                      <Link to={notification.link} className="flex flex-col">
+                        <span>{notification.message}</span>
+                        {notification.timestamp && (
+                          <span className="text-xs text-muted-foreground mt-1">
+                            {new Date(notification.timestamp).toLocaleDateString()}
+                          </span>
+                        )}
+                      </Link>
+                    ) : (
+                      <div className="flex flex-col">
+                        <span>{notification.message}</span>
+                        {notification.timestamp && (
+                          <span className="text-xs text-muted-foreground mt-1">
+                            {new Date(notification.timestamp).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </DropdownMenuItem>
+                ))
+              ) : (
+                <DropdownMenuItem disabled className="text-sm text-muted-foreground">
+                  No notifications
                 </DropdownMenuItem>
-              ))}
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem>Mark all as read</DropdownMenuItem>
               <DropdownMenuItem>Notification settings</DropdownMenuItem>

@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Textarea } from "@/components/ui/textarea"
-import { toast } from "@/components/ui/use-toast"
+import { toast } from "sonner"
 
 interface Item {
   id: string
@@ -45,11 +45,7 @@ export function RequestFoodForm() {
         setItems(data)
       } catch (err) {
         console.error("Error fetching items:", err)
-        toast({
-          title: "Error",
-          description: "Failed to load food items. Please refresh the page.",
-          variant: "destructive",
-        })
+        toast.error("Failed to load food items. Please refresh the page.")
       } finally {
         setLoadingItems(false)
       }
@@ -177,20 +173,13 @@ export function RequestFoodForm() {
         throw new Error(errorMessage)
       }
 
-      toast({
-        title: "Success",
-        description: "Your food request has been submitted successfully.",
-      })
+      toast.success("Your food request has been submitted successfully.")
 
       setSubmitted(true)
     } catch (err: any) {
       const errorMessage = err?.message || "Failed to submit request. Please try again."
       setError(errorMessage)
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      })
+      toast.error(errorMessage)
     } finally {
       setLoading(false)
     }

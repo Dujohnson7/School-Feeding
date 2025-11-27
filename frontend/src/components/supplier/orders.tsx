@@ -1,15 +1,13 @@
 
 import { useEffect, useState } from "react"
-import { Link, useNavigate } from "react-router-dom"
-import { Bell, LogOut, Package, Search, Settings, User } from "lucide-react"
+import { Link } from "react-router-dom"
+import { Package, Search } from "lucide-react"
 import axios from "axios"
-import { toast } from "@/components/ui/use-toast"
-import { logout } from "@/lib/auth"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import {  DropdownMenu,  DropdownMenuContent,  DropdownMenuItem,  DropdownMenuLabel,  DropdownMenuSeparator,  DropdownMenuTrigger,} from "@/components/ui/dropdown-menu"
+import { HeaderActions } from "@/components/shared/header-actions"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -174,7 +172,6 @@ const mapBackendOrderToFrontend = (backendOrder: BackendOrder): Order => {
 }
 
 export function SupplierOrders() {
-  const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
@@ -185,11 +182,6 @@ export function SupplierOrders() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-
-  const handleLogout = async (e: React.MouseEvent) => {
-    e.preventDefault()
-    await logout(navigate)
-  }
 
   // Fetch orders from API
   useEffect(() => {
@@ -222,11 +214,7 @@ export function SupplierOrders() {
           console.error("Error fetching orders:", err)
           const errorMessage = err.response?.data?.message || err.message || "Failed to fetch orders"
           setError(errorMessage)
-          toast({
-            title: "Error",
-            description: errorMessage,
-            variant: "destructive",
-          })
+          toast.error(errorMessage)
           setOrders([])
         }
       } finally {
@@ -345,44 +333,7 @@ export function SupplierOrders() {
           <div className="w-full flex-1">
             <h1 className="text-lg font-semibold">Order Management</h1>
           </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-              <span className="sr-only">Notifications</span>
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src="/placeholder.svg" alt="Avatar" />
-                    <AvatarFallback>SP</AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">Supplier</p>
-                    <p className="text-xs leading-none text-muted-foreground">supplier@kigalifoods.rw</p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <User className="mr-2 h-4 w-4" />
-                  <span>Profile</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Settings</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          <HeaderActions role="supplier" />
         </header>
 
         {/* Main Content */}

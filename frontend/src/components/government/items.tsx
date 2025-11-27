@@ -1,11 +1,7 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import {
-  Bell,
-  LogOut,
   Package,
-  Settings,
-  User,
   Plus,
   Search,
   Edit,
@@ -16,15 +12,7 @@ import axios from "axios"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { HeaderActions } from "@/components/shared/header-actions"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -41,9 +29,7 @@ import {
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
-import { toast } from "@/components/ui/use-toast"
-import { logout } from "@/lib/auth"
-import { useNavigate } from "react-router-dom"
+import { toast } from "sonner"
 
 const API_BASE_URL = "http://localhost:8070/api/item"
 
@@ -53,6 +39,9 @@ interface Item {
   perStudent: number
   description: string
   active: boolean
+  foodCategory?: string
+  price?: number
+  unit?: string
   created?: string
   updated?: string
 }
@@ -82,11 +71,21 @@ const itemService = {
     const response = await axios.delete(`${API_BASE_URL}/delete/${id}`)
     return response.data
   },
+
+  getFoodCategories: async () => {
+    const response = await axios.get(`${API_BASE_URL}/foodCategoryList`)
+    return response.data
+  },
+
+  getFoodUnits: async () => {
+    const response = await axios.get(`${API_BASE_URL}/foodUnitList`)
+    return response.data
+  },
 }
 
 export function GovItems() {
-  const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState("")
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>("all")
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [items, setItems] = useState<Item[]>([])
@@ -95,16 +94,48 @@ export function GovItems() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [selectedItem, setSelectedItem] = useState<Item | null>(null)
+  const [foodCategories, setFoodCategories] = useState<string[]>([])
+  const [foodUnits, setFoodUnits] = useState<string[]>([])
 
-  const [newItem, setNewItem] = useState({
+  const [newItem, setNewItem] = useState<{
+    name: string
+    perStudent: string
+    description: string
+    foodCategory: string
+    price: string
+    unit: string
+  }>({
     name: "",
     perStudent: "",
-    description: "", 
+    description: "",
+    foodCategory: "",
+    price: "",
+    unit: "",
   })
 
   useEffect(() => {
     fetchItems()
+    fetchFoodCategories()
+    fetchFoodUnits()
   }, [])
+
+  const fetchFoodCategories = async () => {
+    try {
+      const data = await itemService.getFoodCategories()
+      setFoodCategories(data || [])
+    } catch (err: any) {
+      console.error("Error fetching food categories:", err)
+    }
+  }
+
+  const fetchFoodUnits = async () => {
+    try {
+      const data = await itemService.getFoodUnits()
+      setFoodUnits(data || [])
+    } catch (err: any) {
+      console.error("Error fetching food units:", err)
+    }
+  }
 
   const fetchItems = async () => {
     try {
@@ -113,59 +144,52 @@ export function GovItems() {
       setItems(data || [])
     } catch (err: any) {
       console.error("Error fetching items:", err)
-      toast({
-        title: "Error",
-        description: "Failed to load items",
-        variant: "destructive",
-      })
+      toast.error("Failed to load items")
     } finally {
       setLoading(false)
     }
   }
 
-  const handleLogout = async (e: React.MouseEvent) => {
-    e.preventDefault()
-    await logout(navigate)
-  }
-
   const handleAddItem = async () => {
     if (!newItem.name || !newItem.perStudent || !newItem.description) {
-      toast({
-        title: "Validation Error",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      })
+      toast.error("Please fill in all required fields")
       return
     }
 
     try {
       setIsProcessing(true)
-      const itemPayload = {
+      const itemPayload: any = {
         name: newItem.name,
         perStudent: Number(newItem.perStudent),
-        description: newItem.description, 
+        description: newItem.description,
+      }
+
+      if (newItem.foodCategory) {
+        itemPayload.foodCategory = newItem.foodCategory
+      }
+      if (newItem.price) {
+        itemPayload.price = Number(newItem.price)
+      }
+      if (newItem.unit) {
+        itemPayload.unit = newItem.unit
       }
 
       await itemService.registerItem(itemPayload)
-      toast({
-        title: "Success",
-        description: "Item added successfully",
-      })
+      toast.success("Item added successfully")
       setIsAddDialogOpen(false)
       setNewItem({
         name: "",
         perStudent: "",
         description: "",
+        foodCategory: "",
+        price: "",
+        unit: "",
       })
       fetchItems()
     } catch (err: any) {
       console.error("Error adding item:", err)
       const errorMessage = err.response?.data?.message || err.response?.data || "Failed to add item"
-      toast({
-        title: "Error",
-        description: typeof errorMessage === 'string' ? errorMessage : "Failed to add item",
-        variant: "destructive",
-      })
+      toast.error(typeof errorMessage === 'string' ? errorMessage : "Failed to add item")
     } finally {
       setIsProcessing(false)
     }
@@ -177,49 +201,54 @@ export function GovItems() {
       name: item.name,
       perStudent: String(item.perStudent),
       description: item.description,
+      foodCategory: item.foodCategory || "",
+      price: item.price ? String(item.price) : "",
+      unit: item.unit || "",
     })
     setIsEditDialogOpen(true)
   }
 
   const handleUpdateItem = async () => {
     if (!selectedItem || !newItem.name || !newItem.perStudent || !newItem.description) {
-      toast({
-        title: "Validation Error",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      })
+      toast.error("Please fill in all required fields")
       return
     }
 
     try {
       setIsProcessing(true)
-      const itemPayload = {
+      const itemPayload: any = {
         name: newItem.name,
         perStudent: Number(newItem.perStudent),
         description: newItem.description,
       }
 
+      if (newItem.foodCategory) {
+        itemPayload.foodCategory = newItem.foodCategory
+      }
+      if (newItem.price) {
+        itemPayload.price = Number(newItem.price)
+      }
+      if (newItem.unit) {
+        itemPayload.unit = newItem.unit
+      }
+
       await itemService.updateItem(selectedItem.id, itemPayload)
-      toast({
-        title: "Success",
-        description: "Item updated successfully",
-      })
+      toast.success("Item updated successfully")
       setIsEditDialogOpen(false)
       setSelectedItem(null)
       setNewItem({
         name: "",
         perStudent: "",
         description: "",
+        foodCategory: "",
+        price: "",
+        unit: "",
       })
       fetchItems()
     } catch (err: any) {
       console.error("Error updating item:", err)
       const errorMessage = err.response?.data?.message || err.response?.data || "Failed to update item"
-      toast({
-        title: "Error",
-        description: typeof errorMessage === 'string' ? errorMessage : "Failed to update item",
-        variant: "destructive",
-      })
+      toast.error(typeof errorMessage === 'string' ? errorMessage : "Failed to update item")
     } finally {
       setIsProcessing(false)
     }
@@ -233,33 +262,31 @@ export function GovItems() {
     try {
       setIsProcessing(true)
       await itemService.deleteItem(itemId)
-      toast({
-        title: "Success",
-        description: "Item deleted successfully",
-      })
+      toast.success("Item deleted successfully")
       fetchItems()
     } catch (err: any) {
       console.error("Error deleting item:", err)
       const errorMessage = err.response?.data?.message || err.response?.data || "Failed to delete item"
-      toast({
-        title: "Error",
-        description: typeof errorMessage === 'string' ? errorMessage : "Failed to delete item",
-        variant: "destructive",
-      })
+      toast.error(typeof errorMessage === 'string' ? errorMessage : "Failed to delete item")
     } finally {
       setIsProcessing(false)
     }
   }
 
-  const filteredItems = items.filter(
-    (item) =>
+  const filteredItems = items.filter((item) => {
+    const matchesSearch =
       item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.description.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+      item.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.foodCategory && item.foodCategory.toLowerCase().includes(searchTerm.toLowerCase()))
+
+    const matchesCategory = selectedCategoryFilter === "all" || item.foodCategory === selectedCategoryFilter
+
+    return matchesSearch && matchesCategory
+  })
 
   useEffect(() => {
     setPage(1)
-  }, [searchTerm])
+  }, [searchTerm, selectedCategoryFilter])
 
   const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize))
   const startIndex = (page - 1) * pageSize
@@ -295,68 +322,76 @@ export function GovItems() {
           <div className="w-full flex-1">
             <h1 className="text-lg font-semibold">Item Management</h1>
           </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-              <span className="sr-only">Notifications</span>
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src="/placeholder.svg" alt="Avatar" />
-                    <AvatarFallback>GO</AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">Government Official</p>
-                    <p className="text-xs leading-none text-muted-foreground">gov@mineduc.gov.rw</p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <User className="mr-2 h-4 w-4" />
-                  <span>Profile</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Settings</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          <HeaderActions role="government" />
         </header>
 
         <main className="flex-1 overflow-auto p-2 sm:p-4 md:p-6 min-w-0">
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex-1 max-w-sm">
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="search"
-                    placeholder="Search items..."
-                    className="w-full pl-8"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-              </div>
-              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Item
-                  </Button>
-                </DialogTrigger>
+            <Card>
+              <CardHeader>
+                <CardTitle>Items</CardTitle>
+                <CardDescription>
+                  Manage all food items in the system.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-6 flex flex-col gap-4 md:flex-row">
+                  <div className="flex-1 min-w-0">
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="search"
+                        placeholder="Search items..."
+                        className="w-full pl-8"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Select
+                      value={selectedCategoryFilter}
+                      onValueChange={(value) => {
+                        setSelectedCategoryFilter(value)
+                        setPage(1)
+                      }}
+                    >
+                      <SelectTrigger className="w-[200px]">
+                        <SelectValue placeholder="Filter by category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Categories</SelectItem>
+                        {foodCategories.map((category) => (
+                          <SelectItem key={category} value={category}>
+                            {category.replace(/_/g, " ")}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex gap-2">
+                    <Dialog
+                      open={isAddDialogOpen}
+                      onOpenChange={(open) => {
+                        setIsAddDialogOpen(open)
+                        if (!open) {
+                          setNewItem({
+                            name: "",
+                            perStudent: "",
+                            description: "",
+                            foodCategory: "",
+                            price: "",
+                            unit: "",
+                          })
+                        }
+                      }}
+                    >
+                      <DialogTrigger asChild>
+                        <Button>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Add Item
+                        </Button>
+                      </DialogTrigger>
                 <DialogContent className="sm:max-w-[500px]">
                   <DialogHeader>
                     <DialogTitle>Add New Item</DialogTitle>
@@ -403,7 +438,61 @@ export function GovItems() {
                         placeholder="Item description"
                         rows={3}
                       />
-                    </div> 
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="foodCategory" className="text-right">
+                        Food Category
+                      </Label>
+                      <Select
+                        value={newItem.foodCategory}
+                        onValueChange={(value) => setNewItem({ ...newItem, foodCategory: value })}
+                      >
+                        <SelectTrigger className="col-span-3">
+                          <SelectValue placeholder="Select food category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {foodCategories.map((category) => (
+                            <SelectItem key={category} value={category}>
+                              {category.replace(/_/g, " ")}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="price" className="text-right">
+                        Price
+                      </Label>
+                      <Input
+                        id="price"
+                        type="number"
+                        step="0.01"
+                        value={newItem.price}
+                        onChange={(e) => setNewItem({ ...newItem, price: e.target.value })}
+                        className="col-span-3"
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="unit" className="text-right">
+                        Unit
+                      </Label>
+                      <Select
+                        value={newItem.unit}
+                        onValueChange={(value) => setNewItem({ ...newItem, unit: value })}
+                      >
+                        <SelectTrigger className="col-span-3">
+                          <SelectValue placeholder="Select unit" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {foodUnits.map((unit) => (
+                            <SelectItem key={unit} value={unit}>
+                              {unit}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                   <DialogFooter>
                     <Button
@@ -414,6 +503,9 @@ export function GovItems() {
                           name: "",
                           perStudent: "",
                           description: "",
+                          foodCategory: "",
+                          price: "",
+                          unit: "",
                         })
                       }}
                       disabled={isProcessing}
@@ -428,23 +520,19 @@ export function GovItems() {
                     </Button>
                   </DialogFooter>
                 </DialogContent>
-              </Dialog>
-            </div>
+                    </Dialog>
+                  </div>
+                </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Items</CardTitle>
-                <CardDescription>
-                  Manage all food items in the system.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
                 <div className="rounded-md border">
                   <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Name</TableHead>
                         <TableHead>Per Student</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead>Price</TableHead>
+                        <TableHead>Unit</TableHead>
                         <TableHead>Description</TableHead>
                         <TableHead>Created</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
@@ -456,6 +544,23 @@ export function GovItems() {
                           <TableRow key={item.id}>
                             <TableCell className="font-medium">{item.name}</TableCell>
                             <TableCell>{item.perStudent}</TableCell>
+                            <TableCell>
+                              {item.foodCategory ? (
+                                <Badge variant="outline">
+                                  {item.foodCategory.replace(/_/g, " ")}
+                                </Badge>
+                              ) : (
+                                "N/A"
+                              )}
+                            </TableCell>
+                            <TableCell>{item.price ? `${item.price}` : "N/A"}</TableCell>
+                            <TableCell>
+                              {item.unit ? (
+                                <Badge variant="secondary">{item.unit}</Badge>
+                              ) : (
+                                "N/A"
+                              )}
+                            </TableCell>
                             <TableCell className="max-w-md truncate">{item.description}</TableCell>
                             <TableCell>
                               {item.created ? new Date(item.created).toLocaleDateString() : "N/A"}
@@ -484,7 +589,7 @@ export function GovItems() {
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={6} className="h-24 text-center">
+                          <TableCell colSpan={8} className="h-24 text-center">
                             No items found.
                           </TableCell>
                         </TableRow>
@@ -550,7 +655,23 @@ export function GovItems() {
       </div>
 
       {/* Edit Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+      <Dialog
+        open={isEditDialogOpen}
+        onOpenChange={(open) => {
+          setIsEditDialogOpen(open)
+          if (!open) {
+            setSelectedItem(null)
+            setNewItem({
+              name: "",
+              perStudent: "",
+              description: "",
+              foodCategory: "",
+              price: "",
+              unit: "",
+            })
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>Edit Item</DialogTitle>
@@ -598,7 +719,60 @@ export function GovItems() {
                 rows={3}
               />
             </div>
-           
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-foodCategory" className="text-right">
+                Food Category
+              </Label>
+              <Select
+                value={newItem.foodCategory}
+                onValueChange={(value) => setNewItem({ ...newItem, foodCategory: value })}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select food category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {foodCategories.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category.replace(/_/g, " ")}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-price" className="text-right">
+                Price
+              </Label>
+              <Input
+                id="edit-price"
+                type="number"
+                step="0.01"
+                value={newItem.price}
+                onChange={(e) => setNewItem({ ...newItem, price: e.target.value })}
+                className="col-span-3"
+                placeholder="0.00"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="edit-unit" className="text-right">
+                Unit
+              </Label>
+              <Select
+                value={newItem.unit}
+                onValueChange={(value) => setNewItem({ ...newItem, unit: value })}
+              >
+                <SelectTrigger className="col-span-3">
+                  <SelectValue placeholder="Select unit" />
+                </SelectTrigger>
+                <SelectContent>
+                  {foodUnits.map((unit) => (
+                    <SelectItem key={unit} value={unit}>
+                      {unit}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button
@@ -610,6 +784,9 @@ export function GovItems() {
                   name: "",
                   perStudent: "",
                   description: "",
+                  foodCategory: "",
+                  price: "",
+                  unit: "",
                 })
               }}
               disabled={isProcessing}

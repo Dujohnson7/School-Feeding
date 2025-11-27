@@ -83,6 +83,7 @@ public class RespondServiceImpl implements IRespondService {
 
             found.setDeliveryStatus(EDelivery.APPROVED);
             found.setDeliveryDate(theOrders.getDeliveryDate());
+            found.setRating(theOrders.getRating());
             return orderRepository.save(found);
         }
         throw new ObjectNotFoundException(Orders.class,"Order Not Found");

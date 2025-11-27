@@ -1,19 +1,13 @@
 
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import { Bell, Calendar, Download, FileText, Filter, LogOut, Search, Settings, User } from "lucide-react"
+import { Calendar, Download, FileText, Filter, Search } from "lucide-react"
+import { toast } from "sonner"
+import { generateSupplierReport } from "@/utils/export-utils"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { HeaderActions } from "@/components/shared/header-actions"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -30,6 +24,8 @@ export function SupplierReports() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(5)
+  const [selectedReportFormat, setSelectedReportFormat] = useState<Record<string, string>>({})
+  const [isGenerating, setIsGenerating] = useState<Record<string, boolean>>({})
 
   const reports = [
     {
@@ -117,9 +113,32 @@ export function SupplierReports() {
     return Array.from({ length: end - start + 1 }, (_, i) => start + i)
   }
 
-  const handleGenerateReport = (type: string, category: string) => {
-    console.log(`Generating ${type} report for ${category}`)
-    alert(`${type} report generation started. You will be notified when it's ready.`)
+  const handleGenerateReport = async (type: string, category: string) => {
+    try {
+      setIsGenerating(prev => ({ ...prev, [type]: true }))
+      const format = (selectedReportFormat[type] || 'pdf') as 'pdf' | 'csv' | 'excel'
+      
+      // Sample data - in real app, fetch from API based on type and dateRange
+      const sampleData = [
+        { 'Supplier': 'ABC Foods Ltd', 'Deliveries': 15, 'Total Amount': 500000, 'Status': 'Active' },
+        { 'Supplier': 'XYZ Distributors', 'Deliveries': 12, 'Total Amount': 350000, 'Status': 'Active' },
+        { 'Supplier': 'Fresh Produce Co', 'Deliveries': 8, 'Total Amount': 200000, 'Status': 'Inactive' }
+      ]
+      
+      await generateSupplierReport(
+        category,
+        { from: dateRange?.from, to: dateRange?.to },
+        format,
+        sampleData
+      )
+      
+      toast.success(`${category} report generated successfully`)
+    } catch (error: any) {
+      console.error('Error generating report:', error)
+      toast.error(error.message || 'Failed to generate report')
+    } finally {
+      setIsGenerating(prev => ({ ...prev, [type]: false }))
+    }
   }
 
   const handleDownload = (reportId: string) => {
@@ -166,44 +185,7 @@ export function SupplierReports() {
           <div className="w-full flex-1">
             <h1 className="text-lg font-semibold">Supplier Reports</h1>
           </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-              <span className="sr-only">Notifications</span>
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src="/placeholder.svg" alt="Avatar" />
-                    <AvatarFallback>SP</AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">Fresh Foods Ltd</p>
-                    <p className="text-xs leading-none text-muted-foreground">supplier@freshfoods.rw</p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <User className="mr-2 h-4 w-4" />
-                  <span>Profile</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Settings</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          <HeaderActions role="supplier" />
         </header>
 
         {/* Main Content */}
@@ -230,7 +212,10 @@ export function SupplierReports() {
                         </div>
                         <div className="space-y-2">
                           <label className="text-sm font-medium">Report Format</label>
-                          <Select defaultValue="pdf">
+                          <Select 
+                            value={selectedReportFormat[category.value] || "pdf"}
+                            onValueChange={(value) => setSelectedReportFormat(prev => ({ ...prev, [category.value]: value }))}
+                          >
                             <SelectTrigger>
                               <SelectValue />
                             </SelectTrigger>
@@ -241,8 +226,12 @@ export function SupplierReports() {
                             </SelectContent>
                           </Select>
                         </div>
-                        <Button className="w-full" onClick={() => handleGenerateReport(category.value, category.label)}>
-                          Generate Report
+                        <Button 
+                          className="w-full" 
+                          onClick={() => handleGenerateReport(category.value, category.label)}
+                          disabled={isGenerating[category.value]}
+                        >
+                          {isGenerating[category.value] ? "Generating..." : "Generate Report"}
                         </Button>
                       </div>
                     </CardContent>

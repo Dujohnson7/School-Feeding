@@ -1,14 +1,12 @@
 import { useEffect, useState } from "react"
-import { Link, useNavigate } from "react-router-dom"
-import { Bell, Calendar, Download, FileText, Home, LogOut, Search, Settings, Shield, Users, X } from "lucide-react"
+import { Link } from "react-router-dom"
+import { Calendar, Download, FileText, Home, Search, Shield, Users, X } from "lucide-react"
 import { format, subDays } from "date-fns"
 import { DateRange } from "react-day-picker"
-import { logout } from "@/lib/auth"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Avatar, AvatarImage } from "@/components/ui/avatar"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,} from "@/components/ui/dropdown-menu"
+import { HeaderActions } from "@/components/shared/header-actions"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -35,15 +33,9 @@ interface AuditLog {
 }
 
 export function AdminAuditLogs() {
-  const navigate = useNavigate()
   const API_URL = "http://localhost:8070/api/audit"
 
   const [auditLogsList, setAuditLogsList] = useState<AuditLog[]>([])
-
-  const handleLogout = async (e: React.MouseEvent) => {
-    e.preventDefault()
-    await logout(navigate)
-  }
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedAction, setSelectedAction] = useState("all")
@@ -275,33 +267,7 @@ export function AdminAuditLogs() {
         <div className="w-full flex-1">
           <h1 className="text-lg font-semibold">Audit Logs</h1>
         </div>
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" className="hidden sm:flex">
-            <Bell className="h-5 w-5" />
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src="/userIcon.png" alt="Avatar" />
-                </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end" forceMount>
-              <DropdownMenuLabel className="font-normal">
-                <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">System Admin</p>
-                  <p className="text-xs leading-none text-muted-foreground">admin@system.rw</p>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>Settings</DropdownMenuItem>
-              <DropdownMenuItem>Support</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout}>Log out</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+        <HeaderActions role="admin" />
       </header>
       <main className="flex-1 p-2 sm:p-4 lg:p-6 overflow-auto min-w-0">
         <div className="flex flex-col gap-4 h-full">

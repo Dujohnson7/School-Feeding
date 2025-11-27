@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
-import { toast } from "@/components/ui/use-toast"
+import { toast } from "sonner"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,} from "@/components/ui/alert-dialog"
  
 interface ApiRequestItem {
@@ -127,11 +127,7 @@ export function RequestFoodList() {
         setRequests(transformedRequests)
       } catch (err) {
         console.error("Error fetching requests:", err)
-        toast({
-          title: "Error",
-          description: "Failed to load food requests. Please refresh the page.",
-          variant: "destructive",
-        })
+        toast.error("Failed to load food requests. Please refresh the page.")
       } finally {
         setLoading(false)
       }
@@ -276,10 +272,7 @@ export function RequestFoodList() {
         throw new Error(errorMessage)
       }
 
-      toast({
-        title: "Success",
-        description: "Food request updated successfully.",
-      })
+      toast.success("Food request updated successfully.")
  
       if (schoolId && token) {
         const refreshResponse = await fetch(
@@ -317,11 +310,7 @@ export function RequestFoodList() {
     } catch (err: any) {
       const errorMessage = err?.message || "Failed to update request. Please try again."
       setEditError(errorMessage)
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      })
+      toast.error(errorMessage)
     } finally {
       setEditLoading(false)
     }
@@ -333,11 +322,7 @@ export function RequestFoodList() {
 
     const token = localStorage.getItem("token")
     if (!token) {
-      toast({
-        title: "Error",
-        description: "Authentication required. Please log in again.",
-        variant: "destructive",
-      })
+      toast.error("Authentication required. Please log in again.")
       return
     }
 
@@ -356,21 +341,14 @@ export function RequestFoodList() {
         throw new Error("Failed to delete request")
       }
 
-      toast({
-        title: "Success",
-        description: "Food request deleted successfully.",
-      })
+      toast.success("Food request deleted successfully.")
 
      
       setRequests(requests.filter((r) => r.id !== selectedRequest.id))
       setDeleteDialogOpen(false)
       setSelectedRequest(null)
     } catch (err: any) {
-      toast({
-        title: "Error",
-        description: err?.message || "Failed to delete request. Please try again.",
-        variant: "destructive",
-      })
+      toast.error(err?.message || "Failed to delete request. Please try again.")
     }
   }
 

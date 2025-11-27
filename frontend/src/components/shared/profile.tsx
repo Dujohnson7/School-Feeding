@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Bell, BookOpen, Save, Loader2 } from "lucide-react";
+import { BookOpen, Save, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { HeaderActions } from "@/components/shared/header-actions";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -306,12 +307,7 @@ export function Profile() {
           <div className="w-full flex-1">
             <h1 className="text-lg font-semibold">Profile Settings</h1>
           </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-              <span className="sr-only">Notifications</span>
-            </Button>
-          </div>
+          <HeaderActions role={user?.role?.toLowerCase()} />
         </header>
 
         <main className="flex-1 overflow-auto">

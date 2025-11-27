@@ -1,21 +1,13 @@
 
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import { Bell, Calendar, Check, Filter, LogOut, Package, Plus, Search, Settings, User, X } from "lucide-react"
+import { Calendar, Check, Filter, Package, Plus, Search, X, Eye, Star } from "lucide-react"
 import axios from "axios"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { HeaderActions } from "@/components/shared/header-actions"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -38,13 +30,24 @@ interface Order {
   updated?: string
   deliveryDate?: string
   deliveryStatus?: "APPROVED" | "SCHEDULED" | "PROCESSING" | "DELIVERED" | "CANCELLED"
+  orderPrice?: number
+  orderPayState?: string
+  rating?: number
   supplier?: {
     id?: string
     companyName?: string
     names?: string
+    items?: Array<{
+      id?: string
+      name?: string
+      unit?: string
+      price?: number
+    }>
   }
   requestItem?: {
     id?: string
+    description?: string
+    requestStatus?: string
     requestItemDetails?: Array<{
       id?: string
       quantity?: number
@@ -65,8 +68,8 @@ const receivingService = {
     return response.data
   },
 
-  receiveOrder: async (id: string) => {
-    const response = await axios.put(`${API_BASE_URL}/receivingOrder/${id}`)
+  receiveOrder: async (id: string, rating: number) => {
+    const response = await axios.put(`${API_BASE_URL}/receivingOrder/${id}?rating=${rating}`)
     return response.data
   },
 }
@@ -80,9 +83,11 @@ export function StockReceiving() {
   const [error, setError] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [receiveDialogOpen, setReceiveDialogOpen] = useState(false)
+  const [viewDetailsDialogOpen, setViewDetailsDialogOpen] = useState(false)
   const [newDeliveryOpen, setNewDeliveryOpen] = useState(false)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(5)
+  const [rating, setRating] = useState(0)
 
   // Fetch deliveries on component mount
   useEffect(() => {
@@ -124,11 +129,25 @@ export function StockReceiving() {
     }
   }
 
+  // Helper function to get item name from supplier items array
+  const getItemName = (order: Order, itemId?: string) => {
+    if (!itemId || !order.supplier?.items) return "N/A"
+    const item = order.supplier.items.find(i => i.id === itemId)
+    return item?.name || "N/A"
+  }
+
+  // Helper function to get item unit from supplier items array
+  const getItemUnit = (order: Order, itemId?: string) => {
+    if (!itemId || !order.supplier?.items) return "kg"
+    const item = order.supplier.items.find(i => i.id === itemId)
+    return item?.unit || "kg"
+  }
+
   // Filter deliveries based on search term and status filter
   const filteredDeliveries = (Array.isArray(deliveries) ? deliveries : []).filter((delivery) => {
     const supplierName = delivery.supplier?.companyName || delivery.supplier?.names || ""
     const deliveryId = delivery.id || ""
-    const items = delivery.requestItem?.requestItemDetails?.map(d => d.item?.name || "").join(" ") || ""
+    const items = delivery.requestItem?.requestItemDetails?.map(d => getItemName(delivery, d.item?.id)).join(" ") || ""
 
     const matchesSearch =
       supplierName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -136,12 +155,7 @@ export function StockReceiving() {
       items.toLowerCase().includes(searchTerm.toLowerCase())
 
     const deliveryStatus = delivery.deliveryStatus?.toUpperCase() || ""
-    const normalizedStatus = deliveryStatus === "SCHEDULED" || deliveryStatus === "APPROVED" ? "pending" :
-                             deliveryStatus === "DELIVERED" ? "received" :
-                             deliveryStatus === "PROCESSING" ? "partial" :
-                             deliveryStatus === "CANCELLED" ? "rejected" : "pending"
-    
-    const matchesStatus = statusFilter === "all" || normalizedStatus === statusFilter
+    const matchesStatus = statusFilter === "all" || deliveryStatus === statusFilter.toUpperCase()
 
     return matchesSearch && matchesStatus
   })
@@ -169,10 +183,14 @@ export function StockReceiving() {
 
   const handleReceiveDelivery = async () => {
     if (!selectedDelivery || !selectedDelivery.id) return
+    if (rating === 0) {
+      toast.error("Please provide a rating before receiving the order")
+      return
+    }
 
     try {
       setIsProcessing(true)
-      await receivingService.receiveOrder(selectedDelivery.id)
+      await receivingService.receiveOrder(selectedDelivery.id, rating)
       
       // Refresh the list
       const schoolId = localStorage.getItem("schoolId")
@@ -184,6 +202,7 @@ export function StockReceiving() {
       toast.success("Order received successfully")
       setReceiveDialogOpen(false)
       setSelectedDelivery(null)
+      setRating(0)
     } catch (err: any) {
       console.error("Error receiving order:", err)
       toast.error(err.response?.data || "Failed to receive order")
@@ -221,23 +240,30 @@ export function StockReceiving() {
   }
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "pending":
+    const deliveryStatus = status?.toUpperCase() || ""
+    switch (deliveryStatus) {
+      case "SCHEDULED":
         return (
           <Badge variant="outline" className="bg-blue-100 text-blue-800 hover:bg-blue-100">
-            Pending
+            Scheduled
           </Badge>
         )
-      case "received":
-        return <Badge className="bg-green-600 hover:bg-green-700">Received</Badge>
-      case "partial":
+      case "PROCESSING":
         return (
           <Badge variant="outline" className="bg-amber-100 text-amber-800 hover:bg-amber-100">
-            Partial
+            Processing
           </Badge>
         )
-      case "rejected":
-        return <Badge variant="destructive">Rejected</Badge>
+      case "APPROVED":
+        return (
+          <Badge variant="outline" className="bg-purple-100 text-purple-800 hover:bg-purple-100">
+            Approved
+          </Badge>
+        )
+      case "DELIVERED":
+        return <Badge className="bg-green-600 hover:bg-green-700">Delivered</Badge>
+      case "CANCELLED":
+        return <Badge variant="destructive">Cancelled</Badge>
       default:
         return <Badge variant="outline">Unknown</Badge>
     }
@@ -256,44 +282,7 @@ export function StockReceiving() {
           <div className="w-full flex-1">
             <h1 className="text-lg font-semibold">Receiving Management</h1>
           </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-              <span className="sr-only">Notifications</span>
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src="/placeholder.svg" alt="Avatar" />
-                    <AvatarFallback>SK</AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">Stock Keeper</p>
-                    <p className="text-xs leading-none text-muted-foreground">stockkeeper@school.rw</p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <User className="mr-2 h-4 w-4" />
-                  <span>Profile</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Settings</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          <HeaderActions role="stock" />
         </header>
 
         {/* Main Content */}
@@ -332,10 +321,11 @@ export function StockReceiving() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="received">Received</SelectItem>
-                      <SelectItem value="partial">Partial</SelectItem>
-                      <SelectItem value="rejected">Rejected</SelectItem>
+                      <SelectItem value="SCHEDULED">Scheduled</SelectItem>
+                      <SelectItem value="PROCESSING">Processing</SelectItem>
+                      <SelectItem value="APPROVED">Approved</SelectItem>
+                      <SelectItem value="DELIVERED">Delivered</SelectItem>
+                      <SelectItem value="CANCELLED">Cancelled</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -358,11 +348,8 @@ export function StockReceiving() {
                     {filteredDeliveries.length > 0 ? (
                       paginatedDeliveries.map((delivery) => {
                         const deliveryStatus = delivery.deliveryStatus?.toUpperCase() || ""
-                        const normalizedStatus = deliveryStatus === "SCHEDULED" || deliveryStatus === "APPROVED" ? "pending" :
-                                                 deliveryStatus === "DELIVERED" ? "received" :
-                                                 deliveryStatus === "PROCESSING" ? "partial" :
-                                                 deliveryStatus === "CANCELLED" ? "rejected" : "pending"
-                        const canReceive = normalizedStatus === "pending"
+                        // Show Receive button for SCHEDULED and PROCESSING (not APPROVED or DELIVERED)
+                        const canReceive = deliveryStatus === "SCHEDULED" || deliveryStatus === "PROCESSING"
                         
                         return (
                           <TableRow key={delivery.id}>
@@ -373,7 +360,7 @@ export function StockReceiving() {
                               {delivery.requestItem?.requestItemDetails && delivery.requestItem.requestItemDetails.length > 0 ? (
                                 delivery.requestItem.requestItemDetails.map((detail, index) => (
                                   <div key={index} className="text-sm">
-                                    {detail.item?.name || "N/A"} ({detail.quantity || 0}{detail.item?.unit || "kg"})
+                                    {getItemName(delivery, detail.item?.id)} ({detail.quantity || 0} {getItemUnit(delivery, detail.item?.id)})
                                   </div>
                                 ))
                               ) : (
@@ -386,19 +373,37 @@ export function StockReceiving() {
                                 {formatDate(delivery.deliveryDate || delivery.created)}
                               </div>
                             </TableCell>
-                            <TableCell>{getStatusBadge(normalizedStatus)}</TableCell>
+                            <TableCell>{getStatusBadge(deliveryStatus)}</TableCell>
                             <TableCell className="text-right">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedDelivery(delivery)
-                                  setReceiveDialogOpen(true)
-                                }}
-                                disabled={isProcessing || !canReceive}
-                              >
-                                {canReceive ? "Receive" : "View Details"}
-                              </Button>
+                              <div className="flex gap-2 justify-end">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedDelivery(delivery)
+                                    setViewDetailsDialogOpen(true)
+                                  }}
+                                  disabled={isProcessing}
+                                >
+                                  <Eye className="mr-2 h-4 w-4" />
+                                  View Details
+                                </Button>
+                                {canReceive && (
+                                  <Button
+                                    variant="default"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedDelivery(delivery)
+                                      setRating(0)
+                                      setReceiveDialogOpen(true)
+                                    }}
+                                    disabled={isProcessing}
+                                  >
+                                    <Check className="mr-2 h-4 w-4" />
+                                    Receive
+                                  </Button>
+                                )}
+                              </div>
                             </TableCell>
                           </TableRow>
                         )
@@ -468,107 +473,229 @@ export function StockReceiving() {
         </main>
       </div>
 
-      {/* Receive Delivery Dialog */}
+      {/* View Details Dialog */}
       {selectedDelivery && (
-        <Dialog open={receiveDialogOpen} onOpenChange={setReceiveDialogOpen}>
-          <DialogContent className="sm:max-w-[600px]">
+        <Dialog open={viewDetailsDialogOpen} onOpenChange={setViewDetailsDialogOpen}>
+          <DialogContent className="sm:max-w-[700px]">
             <DialogHeader>
-              <DialogTitle>Receive Delivery</DialogTitle>
-              <DialogDescription>Verify and receive incoming delivery items</DialogDescription>
+              <DialogTitle>Order Details</DialogTitle>
+              <DialogDescription>View complete information about this delivery order</DialogDescription>
             </DialogHeader>
 
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Delivery ID</p>
+                  <p className="text-sm font-medium text-muted-foreground">Order ID</p>
                   <p className="font-medium">{selectedDelivery.id}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Order Number</p>
-                  <p>{selectedDelivery.orderNumber}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Delivery Status</p>
+                  <div className="mt-1">
+                    {getStatusBadge(selectedDelivery.deliveryStatus || "")}
+                  </div>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Supplier</p>
-                  <p>{selectedDelivery.supplier}</p>
+                  <p className="font-medium">{selectedDelivery.supplier?.companyName || selectedDelivery.supplier?.names || "N/A"}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Expected Date</p>
-                  <p>{selectedDelivery.expectedDate}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Delivery Date</p>
+                  <p>{formatDate(selectedDelivery.deliveryDate || selectedDelivery.created)}</p>
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Order Price</p>
+                  <p className="font-medium">{selectedDelivery.orderPrice ? `RWF ${selectedDelivery.orderPrice.toLocaleString()}` : "N/A"}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Payment Status</p>
+                  <p>{selectedDelivery.orderPayState || "N/A"}</p>
+                </div>
+              </div>
+
+              {selectedDelivery.rating && selectedDelivery.rating > 0 && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-2">Rating</p>
+                  <div className="flex items-center gap-1">
+                    {[...Array(5)].map((_, i) => (
+                      <Star
+                        key={i}
+                        className={`h-5 w-5 ${
+                          i < selectedDelivery.rating!
+                            ? "fill-amber-400 text-amber-400"
+                            : "fill-gray-300 text-gray-300"
+                        }`}
+                      />
+                    ))}
+                    <span className="ml-2 text-sm text-muted-foreground">({selectedDelivery.rating}/5)</span>
+                  </div>
+                </div>
+              )}
+
               <div className="mt-2">
-                <p className="mb-2 text-sm font-medium">Items</p>
+                <p className="mb-2 text-sm font-medium">Order Items</p>
                 <div className="rounded-md border">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Item</TableHead>
-                        <TableHead>Expected</TableHead>
-                        <TableHead>Received</TableHead>
-                        <TableHead>Quality</TableHead>
-                        <TableHead className="w-[100px]">Accept</TableHead>
+                        <TableHead>Item Name</TableHead>
+                        <TableHead>Quantity</TableHead>
+                        <TableHead>Unit</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {selectedDelivery.items.map((item, index) => (
-                        <TableRow key={index}>
-                          <TableCell>{item}</TableCell>
-                          <TableCell>{selectedDelivery.quantities[index]}</TableCell>
-                          <TableCell>
-                            <Input type="text" defaultValue={selectedDelivery.quantities[index]} className="h-8 w-24" />
-                          </TableCell>
-                          <TableCell>
-                            <Select defaultValue="good">
-                              <SelectTrigger className="h-8 w-24">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="good">Good</SelectItem>
-                                <SelectItem value="fair">Fair</SelectItem>
-                                <SelectItem value="poor">Poor</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <div className="flex items-center justify-center">
-                              <input type="checkbox" defaultChecked className="h-4 w-4" />
-                            </div>
+                      {selectedDelivery.requestItem?.requestItemDetails && selectedDelivery.requestItem.requestItemDetails.length > 0 ? (
+                        selectedDelivery.requestItem.requestItemDetails.map((detail, index) => (
+                          <TableRow key={index}>
+                            <TableCell>{getItemName(selectedDelivery, detail.item?.id)}</TableCell>
+                            <TableCell>{detail.quantity || 0}</TableCell>
+                            <TableCell>{getItemUnit(selectedDelivery, detail.item?.id)}</TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={3} className="text-center text-muted-foreground">
+                            No items found
                           </TableCell>
                         </TableRow>
-                      ))}
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+
+              {selectedDelivery.requestItem?.description && (
+                <div className="space-y-2">
+                  <Label>Description</Label>
+                  <p className="text-sm text-muted-foreground">{selectedDelivery.requestItem.description}</p>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setViewDetailsDialogOpen(false)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Receive Delivery Dialog */}
+      {selectedDelivery && (
+        <Dialog open={receiveDialogOpen} onOpenChange={setReceiveDialogOpen}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Receive Delivery</DialogTitle>
+              <DialogDescription>Verify and receive incoming delivery items. Please rate the supplier before confirming receipt.</DialogDescription>
+            </DialogHeader>
+
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Order ID</p>
+                  <p className="font-medium">{selectedDelivery.id}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Supplier</p>
+                  <p className="font-medium">{selectedDelivery.supplier?.companyName || selectedDelivery.supplier?.names || "N/A"}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Delivery Date</p>
+                  <p>{formatDate(selectedDelivery.deliveryDate || selectedDelivery.created)}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Order Price</p>
+                  <p className="font-medium">{selectedDelivery.orderPrice ? `RWF ${selectedDelivery.orderPrice.toLocaleString()}` : "N/A"}</p>
+                </div>
+              </div>
+
+              <div className="mt-2">
+                <p className="mb-2 text-sm font-medium">Order Items</p>
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Item Name</TableHead>
+                        <TableHead>Expected Quantity</TableHead>
+                        <TableHead>Unit</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedDelivery.requestItem?.requestItemDetails && selectedDelivery.requestItem.requestItemDetails.length > 0 ? (
+                        selectedDelivery.requestItem.requestItemDetails.map((detail, index) => (
+                          <TableRow key={index}>
+                            <TableCell>{getItemName(selectedDelivery, detail.item?.id)}</TableCell>
+                            <TableCell>{detail.quantity || 0}</TableCell>
+                            <TableCell>{getItemUnit(selectedDelivery, detail.item?.id)}</TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={3} className="text-center text-muted-foreground">
+                            No items found
+                          </TableCell>
+                        </TableRow>
+                      )}
                     </TableBody>
                   </Table>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="notes">Notes</Label>
+                <Label htmlFor="rating">Rate Supplier *</Label>
+                <div className="flex items-center gap-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setRating(star)}
+                      className="focus:outline-none"
+                    >
+                      <Star
+                        className={`h-8 w-8 transition-colors ${
+                          star <= rating
+                            ? "fill-amber-400 text-amber-400"
+                            : "fill-gray-300 text-gray-300 hover:fill-amber-200 hover:text-amber-200"
+                        }`}
+                      />
+                    </button>
+                  ))}
+                  {rating > 0 && (
+                    <span className="ml-2 text-sm text-muted-foreground">({rating}/5)</span>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">Click on a star to rate the supplier for this delivery</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="notes">Notes (Optional)</Label>
                 <Textarea
                   id="notes"
                   placeholder="Add any notes about this delivery"
-                  defaultValue={selectedDelivery.notes}
                 />
               </div>
             </div>
 
             <DialogFooter className="flex justify-between sm:justify-between">
-              <Button variant="outline" onClick={() => setReceiveDialogOpen(false)}>
+              <Button variant="outline" onClick={() => {
+                setReceiveDialogOpen(false)
+                setRating(0)
+              }}>
                 Cancel
               </Button>
-              <div className="flex gap-2">
-                <Button variant="destructive">
-                  <X className="mr-2 h-4 w-4" />
-                  Reject Delivery
-                </Button>
-                <Button onClick={handleReceiveDelivery}>
-                  <Check className="mr-2 h-4 w-4" />
-                  Confirm Receipt
-                </Button>
-              </div>
+              <Button onClick={handleReceiveDelivery} disabled={isProcessing || rating === 0}>
+                <Check className="mr-2 h-4 w-4" />
+                {isProcessing ? "Processing..." : "Confirm Receipt"}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

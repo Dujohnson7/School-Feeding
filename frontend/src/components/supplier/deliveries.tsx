@@ -1,22 +1,13 @@
 
 import { useEffect, useState } from "react"
-import { Link, useNavigate } from "react-router-dom"
-import { Bell, Calendar, CheckCircle, Clock, Filter, LogOut, MapPin, Search, Settings, Truck, User, XCircle } from "lucide-react"
+import { Link } from "react-router-dom"
+import { Calendar, CheckCircle, Clock, Filter, MapPin, Search, Truck, XCircle } from "lucide-react"
 import axios from "axios"
-import { toast } from "@/components/ui/use-toast"
-import { logout } from "@/lib/auth"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { HeaderActions } from "@/components/shared/header-actions"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -185,7 +176,6 @@ const mapBackendOrderToDelivery = (backendOrder: BackendOrder): Delivery => {
 }
 
 export function SupplierDeliveries() {
-  const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [activeTab, setActiveTab] = useState("all")
@@ -197,11 +187,6 @@ export function SupplierDeliveries() {
   const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
-
-  const handleLogout = async (e: React.MouseEvent) => {
-    e.preventDefault()
-    await logout(navigate)
-  }
 
   // Fetch deliveries from API
   useEffect(() => {
@@ -234,11 +219,7 @@ export function SupplierDeliveries() {
           console.error("Error fetching deliveries:", err)
           const errorMessage = err.response?.data?.message || err.message || "Failed to fetch deliveries"
           setError(errorMessage)
-          toast({
-            title: "Error",
-            description: errorMessage,
-            variant: "destructive",
-          })
+          toast.error(errorMessage)
           setDeliveries([])
         }
       } finally {
@@ -343,10 +324,7 @@ export function SupplierDeliveries() {
     try {
       setUpdatingStatus(deliveryId)
       await deliveryService.processOrder(deliveryId)
-      toast({
-        title: "Success",
-        description: "Delivery status updated to Processing",
-      })
+      toast.success("Delivery status updated to Processing")
       // Refresh deliveries
       const supplierId = localStorage.getItem("userId")
       if (supplierId) {
@@ -358,11 +336,7 @@ export function SupplierDeliveries() {
       }
     } catch (err: any) {
       console.error("Error processing order:", err)
-      toast({
-        title: "Error",
-        description: err.response?.data?.message || err.message || "Failed to update delivery status",
-        variant: "destructive",
-      })
+      toast.error(err.response?.data?.message || err.message || "Failed to update delivery status")
     } finally {
       setUpdatingStatus(null)
     }
@@ -372,10 +346,7 @@ export function SupplierDeliveries() {
     try {
       setUpdatingStatus(deliveryId)
       await deliveryService.deliveryOrder(deliveryId)
-      toast({
-        title: "Success",
-        description: "Delivery marked as Delivered",
-      })
+      toast.success("Delivery marked as Delivered")
       // Refresh deliveries
       const supplierId = localStorage.getItem("userId")
       if (supplierId) {
@@ -387,11 +358,7 @@ export function SupplierDeliveries() {
       }
     } catch (err: any) {
       console.error("Error delivering order:", err)
-      toast({
-        title: "Error",
-        description: err.response?.data?.message || err.message || "Failed to update delivery status",
-        variant: "destructive",
-      })
+      toast.error(err.response?.data?.message || err.message || "Failed to update delivery status")
     } finally {
       setUpdatingStatus(null)
     }
@@ -410,44 +377,7 @@ export function SupplierDeliveries() {
           <div className="w-full flex-1">
             <h1 className="text-lg font-semibold">Delivery Management</h1>
           </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-              <span className="sr-only">Notifications</span>
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src="/placeholder.svg" alt="Avatar" />
-                    <AvatarFallback>SP</AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">Supplier</p>
-                    <p className="text-xs leading-none text-muted-foreground">supplier@kigalifoods.rw</p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <User className="mr-2 h-4 w-4" />
-                  <span>Profile</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Settings</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          <HeaderActions role="supplier" />
         </header>
 
         {/* Main Content */}

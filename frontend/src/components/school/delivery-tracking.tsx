@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { toast } from "@/components/ui/use-toast"
+import { toast } from "sonner"
 
 interface Item {
   id: string
@@ -161,11 +161,7 @@ export function DeliveryTracking() {
       } catch (err: any) {
         console.error("Error fetching current deliveries:", err)
         setCurrentDeliveries([])
-        toast({
-          title: "Error",
-          description: err?.message || "Failed to load current deliveries. Please try again.",
-          variant: "destructive",
-        })
+        toast.error(err?.message || "Failed to load current deliveries. Please try again.")
       } finally {
         setLoading(false)
       }
@@ -228,11 +224,7 @@ export function DeliveryTracking() {
       } catch (err: any) {
         console.error("Error fetching past deliveries:", err)
         setPastDeliveries([])
-        toast({
-          title: "Error",
-          description: err?.message || "Failed to load past deliveries. Please try again.",
-          variant: "destructive",
-        })
+        toast.error(err?.message || "Failed to load past deliveries. Please try again.")
       }
     }
 

@@ -2,11 +2,15 @@ package com.schoolfeeding.sf_backend.controller.gov;
 
 import com.schoolfeeding.sf_backend.domain.entity.Item;
 import com.schoolfeeding.sf_backend.service.gov.item.IItemService;
+import com.schoolfeeding.sf_backend.util.accounting.EBank;
+import com.schoolfeeding.sf_backend.util.item.FoodCategory;
+import com.schoolfeeding.sf_backend.util.item.FoodUnit;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -51,7 +55,7 @@ public class ItemController {
             Item existItem = itemService.findByIdAndState(UUID.fromString(id), Boolean.TRUE);
             if (!Objects.isNull(existItem)) {
                 theItem.setId(UUID.fromString(id));
-                Item updatedItem = itemService.updateItem(existItem);
+                Item updatedItem = itemService.updateItem(theItem);
                 return ResponseEntity.ok(updatedItem);
             } else {
                 return ResponseEntity.badRequest().body("Invalid Item ID");
@@ -90,4 +94,29 @@ public class ItemController {
             return ResponseEntity.badRequest().body("Error Item: " + ex.getMessage());
         }
     }
+
+
+    @GetMapping("/foodCategoryList")
+    @ResponseBody
+    public ResponseEntity<List<FoodCategory>> getAllFoodCategory() {
+        try {
+            List<FoodCategory> categoryList = Arrays.asList(FoodCategory.values());
+            return ResponseEntity.ok(categoryList);
+        } catch (Exception ex) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+
+    @GetMapping("/foodUnitList")
+    @ResponseBody
+    public ResponseEntity<List<FoodUnit>> getAllFoodUnit() {
+        try {
+            List<FoodUnit> unitList = Arrays.asList(FoodUnit.values());
+            return ResponseEntity.ok(unitList);
+        } catch (Exception ex) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
 }

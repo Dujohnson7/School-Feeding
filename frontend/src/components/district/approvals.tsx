@@ -1,20 +1,12 @@
 
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import { Bell, Check, Filter, LogOut, Package, Search, Settings, User, X, Loader2 } from "lucide-react"
+import { Check, Filter, Package, Search, X, Loader2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { HeaderActions } from "@/components/shared/header-actions"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -28,7 +20,7 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
-import { toast } from "@/components/ui/use-toast"
+import { toast } from "sonner"
 
 const API_BASE_URL = "http://localhost:8070/api/respondDistrict"
 
@@ -143,11 +135,7 @@ export function DistrictApprovals() {
 
       if (!districtId || !token) {
         setLoading(false)
-        toast({
-          title: "Error",
-          description: "District ID or authentication token not found. Please login again.",
-          variant: "destructive",
-        })
+        toast.error("District ID or authentication token not found. Please login again.")
         return
       }
 
@@ -187,11 +175,7 @@ export function DistrictApprovals() {
         setRequests(transformedRequests)
       } catch (err) {
         console.error("Error fetching requests:", err)
-        toast({
-          title: "Error",
-          description: "Failed to load food requests. Please refresh the page.",
-          variant: "destructive",
-        })
+        toast.error("Failed to load food requests. Please refresh the page.")
       } finally {
         setLoading(false)
       }
@@ -244,22 +228,14 @@ export function DistrictApprovals() {
 
   const handleAssignOrder = async () => {
     if (!pendingApprovalRequest || !selectedSupplierId || !orderPrice) {
-      toast({
-        title: "Error",
-        description: "Please select a supplier and enter an order price.",
-        variant: "destructive",
-      })
+      toast.error("Please select a supplier and enter an order price.")
       return
     }
 
     const token = localStorage.getItem("token")
 
     if (!token) {
-      toast({
-        title: "Error",
-        description: "Authentication token not found. Please login again.",
-        variant: "destructive",
-      })
+      toast.error("Authentication token not found. Please login again.")
       return
     }
 
@@ -317,10 +293,7 @@ export function DistrictApprovals() {
         throw new Error(assignData?.message || assignData || "Failed to assign order")
       }
 
-      toast({
-        title: "Success",
-        description: "Request approved and order assigned to supplier successfully.",
-      })
+      toast.success("Request approved and order assigned to supplier successfully.")
 
       setAssignOrderDialogOpen(false)
       setPendingApprovalRequest(null)
@@ -329,11 +302,7 @@ export function DistrictApprovals() {
       await refreshRequests()
     } catch (err: any) {
       console.error("Error assigning order:", err)
-      toast({
-        title: "Error",
-        description: err?.message || "Failed to assign order. Please try again.",
-        variant: "destructive",
-      })
+      toast.error(err?.message || "Failed to assign order. Please try again.")
     } finally {
       setAssignLoading(false)
     }
@@ -343,11 +312,7 @@ export function DistrictApprovals() {
     const token = localStorage.getItem("token")
 
     if (!token) {
-      toast({
-        title: "Error",
-        description: "Authentication token not found. Please login again.",
-        variant: "destructive",
-      })
+      toast.error("Authentication token not found. Please login again.")
       return
     }
 
@@ -367,20 +332,13 @@ export function DistrictApprovals() {
         throw new Error(data?.message || data || "Failed to reject request")
       }
 
-      toast({
-        title: "Success",
-        description: "Request rejected successfully.",
-      })
+      toast.success("Request rejected successfully.")
 
       setDetailsOpen(false)
       await refreshRequests()
     } catch (err: any) {
       console.error("Error rejecting request:", err)
-      toast({
-        title: "Error",
-        description: err?.message || "Failed to reject request. Please try again.",
-        variant: "destructive",
-      })
+      toast.error(err?.message || "Failed to reject request. Please try again.")
     } finally {
       setActionLoading(false)
     }
@@ -490,44 +448,7 @@ export function DistrictApprovals() {
           <div className="w-full flex-1">
             <h1 className="text-lg font-semibold">Food Request Approvals</h1>
           </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-              <span className="sr-only">Notifications</span>
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src="/placeholder.svg" alt="Avatar" />
-                    <AvatarFallback>DC</AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">District Coordinator</p>
-                    <p className="text-xs leading-none text-muted-foreground">coordinator@district.rw</p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <User className="mr-2 h-4 w-4" />
-                  <span>Profile</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Settings</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          <HeaderActions role="district" />
         </header>
 
         {/* Main Content */}

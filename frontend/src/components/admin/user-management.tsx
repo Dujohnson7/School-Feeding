@@ -1,14 +1,21 @@
 import { useState, useEffect } from "react"
-import { Link, useNavigate } from "react-router-dom"
-import { Bell, Edit, LogOut, MoreHorizontal, Plus, Search, Settings, Shield, Trash2, Users } from "lucide-react"
+import { Link } from "react-router-dom"
+import { Edit, MoreHorizontal, Plus, Search, Settings, Shield, Trash2 } from "lucide-react"
 import axios from "axios"
 import { toast } from "sonner"
-import { logout } from "@/lib/auth"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { HeaderActions } from "@/components/shared/header-actions"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -181,7 +188,6 @@ const userService = {
 }
 
 export function AdminUserManagement() {
-  const navigate = useNavigate()
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -191,11 +197,6 @@ export function AdminUserManagement() {
   const [pageSize, setPageSize] = useState(5)
   const [isAddUserOpen, setIsAddUserOpen] = useState(false)
   const [isEditUserOpen, setIsEditUserOpen] = useState(false)
-
-  const handleLogout = async (e: React.MouseEvent) => {
-    e.preventDefault()
-    await logout(navigate)
-  }
   const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false)
   const [resetPasswordUserId, setResetPasswordUserId] = useState<string | null>(null)
   const [newPassword, setNewPassword] = useState("")
@@ -691,161 +692,136 @@ export function AdminUserManagement() {
   }
 
   return (
-    <div className="flex min-h-screen bg-muted/40">
-      {/* Main Content */}
-      <div className="flex flex-1 flex-col">
-        <header className="hidden md:flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
-          <Link to="/admin-dashboard" className="lg:hidden">
-            <Shield className="h-6 w-6" />
-            <span className="sr-only">Home</span>
-          </Link>
-          <div className="w-full flex-1">
-            <h1 className="text-lg font-semibold">Users Management</h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-              <span className="sr-only">Notifications</span>
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src="/userIcon.png" alt="Avatar" />
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">System Admin</p>
-                    <p className="text-xs leading-none text-muted-foreground">admin@system.rw</p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <Users className="mr-2 h-4 w-4" />
-                  <span>Profile</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Settings</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </header>
-
-        {/* Main Content */}
-        <main className="flex-1 overflow-auto p-2 sm:p-4 md:p-6 min-w-0">
-          <Card>
-            <CardHeader>
-              <CardTitle>Users</CardTitle>
-              <CardDescription>Manage all system users and their permissions</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="mb-6 flex flex-col gap-4 md:flex-row">
-                <div className="flex-1 min-w-0">
-                  <div className="relative">
+    <div className="flex-1 min-w-0 flex flex-col">
+      <header className="hidden md:flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
+        <Link to="/admin-dashboard" className="lg:hidden">
+          <Shield className="h-6 w-6" />
+          <span className="sr-only">Home</span>
+        </Link>
+        <div className="w-full flex-1">
+          <h1 className="text-lg font-semibold">Users Management</h1>
+        </div>
+        <HeaderActions role="admin" />
+      </header>
+      <main className="flex-1 p-2 sm:p-4 lg:p-6 overflow-auto min-w-0">
+        <div className="flex flex-col gap-4 h-full">
+          <Card className="h-full flex flex-col">
+              <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-2">
+                <div className="space-y-1">
+                  <CardTitle>Users</CardTitle>
+                  <CardDescription className="hidden sm:block">Manage all system users and their permissions</CardDescription>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+                  <div className="relative flex-1 min-w-[150px]">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                       type="search"
                       placeholder="Search by name or email..."
-                      className="w-full pl-8"
+                      className="pl-8 w-full"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
                   </div>
+                  <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-nowrap">
+                    <Select value={selectedRole} onValueChange={setSelectedRole}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Filter by role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Roles</SelectItem>
+                        <SelectItem value="GOV">Government Official</SelectItem>
+                        <SelectItem value="DISTRICT">District Coordinator</SelectItem>
+                        <SelectItem value="SCHOOL">School Administrator</SelectItem>
+                        <SelectItem value="STOCK_KEEPER">Stock Manager</SelectItem>
+                        <SelectItem value="SUPPLIER">Supplier</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button onClick={() => setIsAddUserOpen(true)}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add User
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <Select value={selectedRole} onValueChange={setSelectedRole}>
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Filter by role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Roles</SelectItem>
-                      <SelectItem value="GOV">Government Official</SelectItem>
-                      <SelectItem value="DISTRICT">District Coordinator</SelectItem>
-                      <SelectItem value="SCHOOL">School Administrator</SelectItem>
-                      <SelectItem value="STOCK_KEEPER">Stock Manager</SelectItem>
-                      <SelectItem value="SUPPLIER">Supplier</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button onClick={() => setIsAddUserOpen(true)}>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add User
-                  </Button>
-                </div>
-              </div>
+              </CardHeader>
+              <CardContent className="flex-1 overflow-auto min-h-0">
+                <div className="rounded-md border">
+                  <div className="relative w-full overflow-auto">
+                    <Table className="min-w-[800px] md:min-w-full">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>User</TableHead>
+                        <TableHead className="hidden sm:table-cell">Role</TableHead>
+                        <TableHead className="hidden md:table-cell">Organisation</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="hidden lg:table-cell">Created</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredUsers.length > 0 ? (
+                        paginatedUsers.map((user) => (
+                          <TableRow key={user.id}>
+                            <TableCell>
+                              <div className="flex items-center gap-3">
+                                <Avatar className="h-8 w-8"><AvatarImage
+                                  src={
+                                    user?.profile
+                                      ? `http://localhost:8070/uploads/${user.profile}`
+                                      : "/userIcon.png"
+                                  }
+                                  alt={user?.name || "User"}
+                                />
 
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>User</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Organisation</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Created</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredUsers.length > 0 ? (
-                      paginatedUsers.map((user) => (
-                        <TableRow key={user.id}>
-                          <TableCell>
-                            <div className="flex items-center gap-3">
-                              <Avatar className="h-8 w-8"><AvatarImage
-                                src={
-                                  user?.profile
-                                    ? `http://localhost:8070/uploads/${user.profile}`
-                                    : "/userIcon.png"
-                                }
-                                alt={user?.name || "User"}
-                              />
-
-                                <AvatarFallback>
-                                  {user?.name
-                                    ? user.name
-                                      .split(" ")
-                                      .map((n) => n[0])
-                                      .join("")
-                                    : 'U'}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <div className="font-medium">{user.name}</div>
-                                <div className="text-sm text-muted-foreground">{user.email}</div>
+                                  <AvatarFallback>
+                                    {user?.name
+                                      ? user.name
+                                        .split(" ")
+                                        .map((n) => n[0])
+                                        .join("")
+                                      : 'U'}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div>
+                                  <div className="font-medium">{user.name}</div>
+                                  <div className="text-sm text-muted-foreground">{user.email}</div>
+                                  <div className="text-xs text-muted-foreground sm:hidden">{user.role}</div>
+                                  <div className="text-xs text-muted-foreground md:hidden">
+                                    {user.role === 'ADMIN'
+                                      ? 'System Administration'
+                                      : user.role === 'GOV'
+                                        ? 'MINEDUC'
+                                        : user.role === 'DISTRICT' && user.district
+                                          ? `${user.district.district} District`
+                                          : user.role === 'SCHOOL' || user.role === 'STOCK_KEEPER' && user.school
+                                            ? user.school.name
+                                            : user.role === 'SUPPLIER' && user.companyName
+                                              ? user.companyName
+                                              : 'N/A'}
+                                  </div>
+                                </div>
                               </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>{user.role}</TableCell>
-                          <TableCell>
-                            {user.role === 'ADMIN'
-                              ? 'System Administration'
-                              : user.role === 'GOV'
-                                ? 'MINEDUC'
-                                : user.role === 'DISTRICT' && user.district
-                                  ? `${user.district.district} District`
-                                  : user.role === 'SCHOOL' || user.role === 'STOCK_KEEPER' && user.school
-                                    ? user.school.name
-                                    : user.role === 'SUPPLIER' && user.companyName
-                                      ? user.companyName
-                                      : 'N/A'}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={user.userStatus ? 'default' : 'destructive'}>
-                              {user.userStatus ? 'Active' : 'Inactive'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{user.created ? new Date(user.created).toLocaleDateString() : "—"}</TableCell>
-                          <TableCell className="text-right">
+                            </TableCell>
+                            <TableCell className="hidden sm:table-cell">{user.role}</TableCell>
+                            <TableCell className="hidden md:table-cell">
+                              {user.role === 'ADMIN'
+                                ? 'System Administration'
+                                : user.role === 'GOV'
+                                  ? 'MINEDUC'
+                                  : user.role === 'DISTRICT' && user.district
+                                    ? `${user.district.district} District`
+                                    : user.role === 'SCHOOL' || user.role === 'STOCK_KEEPER' && user.school
+                                      ? user.school.name
+                                      : user.role === 'SUPPLIER' && user.companyName
+                                        ? user.companyName
+                                        : 'N/A'}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={user.userStatus ? 'default' : 'destructive'}>
+                                {user.userStatus ? 'Active' : 'Inactive'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="hidden lg:table-cell">{user.created ? new Date(user.created).toLocaleDateString() : "—"}</TableCell>
+                            <TableCell className="text-right">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" className="h-8 w-8 p-0">
@@ -895,55 +871,65 @@ export function AdminUserManagement() {
                       </TableRow>
                     )}
                   </TableBody>
-                </Table>
-
+                  </Table>
+                </div>
               </div>
-
-              <div className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <span className="text-sm">
-                    Showing {filteredUsers.length === 0 ? 0 : startIndex + 1}–
-                    {Math.min(startIndex + pageSize, filteredUsers.length)} of {filteredUsers.length}
-                  </span>
-                  <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1) }}>
-                    <SelectTrigger className="w-[110px]">
-                      <SelectValue placeholder="Rows" />
+              <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0 pt-4">
+                <div className="flex items-center space-x-2">
+                  <p className="text-sm font-medium hidden sm:block">Rows per page</p>
+                  <Select
+                    value={`${pageSize}`}
+                    onValueChange={(value) => {
+                      setPageSize(Number(value))
+                      setPage(1)
+                    }}
+                  >
+                    <SelectTrigger className="h-8 w-[70px]">
+                      <SelectValue placeholder={pageSize} />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="5">5</SelectItem>
-                      <SelectItem value="50">50</SelectItem>
-                      <SelectItem value="100">100</SelectItem>
+                    <SelectContent side="top">
+                      {[5, 10, 20, 50, 100].map((size) => (
+                        <SelectItem key={size} value={`${size}`}>
+                          {size}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
-
-                <Pagination>
+                <Pagination className="w-full sm:w-auto">
                   <PaginationContent>
                     <PaginationItem>
                       <PaginationPrevious
-                        onClick={(e) => { e.preventDefault(); if (canPrev) setPage((p) => p - 1) }}
-                        className={!canPrev ? "pointer-events-none opacity-50" : ""}
                         href="#"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          if (canPrev) setPage((p) => p - 1)
+                        }}
+                        className={!canPrev ? 'pointer-events-none opacity-50' : ''}
                       />
                     </PaginationItem>
-
                     {getPageWindow().map((p) => (
                       <PaginationItem key={p}>
                         <PaginationLink
                           href="#"
+                          onClick={(e) => {
+                            e.preventDefault()
+                            setPage(p)
+                          }}
                           isActive={p === page}
-                          onClick={(e) => { e.preventDefault(); setPage(p) }}
                         >
                           {p}
                         </PaginationLink>
                       </PaginationItem>
                     ))}
-
                     <PaginationItem>
                       <PaginationNext
-                        onClick={(e) => { e.preventDefault(); if (canNext) setPage((p) => p + 1) }}
-                        className={!canNext ? "pointer-events-none opacity-50" : ""}
                         href="#"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          if (canNext) setPage((p) => p + 1)
+                        }}
+                        className={!canNext ? 'pointer-events-none opacity-50' : ''}
                       />
                     </PaginationItem>
                   </PaginationContent>
@@ -951,8 +937,8 @@ export function AdminUserManagement() {
               </div>
             </CardContent>
           </Card>
-        </main>
-      </div>
+        </div>
+      </main>
 
       {/* Add User Dialog */}
       <Dialog open={isAddUserOpen} onOpenChange={setIsAddUserOpen}>

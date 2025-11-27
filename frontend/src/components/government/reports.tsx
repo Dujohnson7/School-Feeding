@@ -3,29 +3,21 @@ import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import {
   BarChart3,
-  Bell,
   Calendar,
   Download,
   FileText,
   Filter,
   Home,
-  LogOut,
   Search,
-  Settings,
-  User,
 } from "lucide-react"
+import { toast } from "sonner"
+import { generateGovReport } from "@/utils/export-utils"
+import { DatePickerWithRange } from "@/components/ui/date-range-picker"
+import type { DateRange } from "react-day-picker"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { HeaderActions } from "@/components/shared/header-actions"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -36,9 +28,11 @@ import { Pagination, PaginationContent, PaginationItem, PaginationLink, Paginati
 export function GovReports() {
   const [searchTerm, setSearchTerm] = useState("")
   const [reportType, setReportType] = useState("all")
-  const [dateRange, setDateRange] = useState("month")
+  const [dateRange, setDateRange] = useState<DateRange | undefined>()
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(5)
+  const [selectedReportFormat, setSelectedReportFormat] = useState<Record<string, string>>({})
+  const [isGenerating, setIsGenerating] = useState<Record<string, boolean>>({})
 
   const reports = [
     {
@@ -112,9 +106,34 @@ export function GovReports() {
     return Array.from({ length: end - start + 1 }, (_, i) => start + i)
   }
 
-  const handleGenerateReport = (type: string) => {
-    console.log(`Generating ${type} report`)
-    alert(`${type} report generation started. You will be notified when it's ready.`)
+  const handleGenerateReport = async (type: string) => {
+    try {
+      setIsGenerating(prev => ({ ...prev, [type]: true }))
+      const format = (selectedReportFormat[type] || 'pdf') as 'pdf' | 'csv' | 'excel'
+      
+      // Sample data - in real app, fetch from API based on type and dateRange
+      const sampleData = [
+        { 'Province': 'Kigali', 'Districts': 3, 'Schools': 150, 'Students': 45000 },
+        { 'Province': 'Eastern', 'Districts': 7, 'Schools': 200, 'Students': 60000 },
+        { 'Province': 'Northern', 'Districts': 5, 'Schools': 120, 'Students': 36000 },
+        { 'Province': 'Western', 'Districts': 7, 'Schools': 180, 'Students': 54000 },
+        { 'Province': 'Southern', 'Districts': 8, 'Schools': 220, 'Students': 66000 }
+      ]
+      
+      await generateGovReport(
+        type,
+        { from: dateRange?.from, to: dateRange?.to },
+        format,
+        sampleData
+      )
+      
+      toast.success(`${type} report generated successfully`)
+    } catch (error: any) {
+      console.error('Error generating report:', error)
+      toast.error(error.message || 'Failed to generate report')
+    } finally {
+      setIsGenerating(prev => ({ ...prev, [type]: false }))
+    }
   }
 
   const handleDownload = (reportId: string) => {
@@ -152,44 +171,7 @@ export function GovReports() {
           <div className="w-full flex-1">
             <h1 className="text-lg font-semibold">Reports & Analytics</h1>
           </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-              <span className="sr-only">Notifications</span>
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src="/placeholder.svg" alt="Avatar" />
-                    <AvatarFallback>GV</AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">Government Official</p>
-                    <p className="text-xs leading-none text-muted-foreground">official@mineduc.gov.rw</p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <User className="mr-2 h-4 w-4" />
-                  <span>Profile</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Settings</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          <HeaderActions role="government" />
         </header>
 
         {/* Main Content */}
@@ -210,21 +192,31 @@ export function GovReports() {
                   <CardContent>
                     <div className="space-y-4">
                       <div className="space-y-2">
-                        <label className="text-sm font-medium">Period</label>
-                        <Select defaultValue="month">
+                        <label className="text-sm font-medium">Date Range</label>
+                        <DatePickerWithRange date={dateRange} setDate={setDateRange} />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Report Format</label>
+                        <Select 
+                          value={selectedReportFormat["summary"] || "pdf"}
+                          onValueChange={(value) => setSelectedReportFormat(prev => ({ ...prev, "summary": value }))}
+                        >
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="week">This Week</SelectItem>
-                            <SelectItem value="month">This Month</SelectItem>
-                            <SelectItem value="quarter">This Quarter</SelectItem>
-                            <SelectItem value="year">This Year</SelectItem>
+                            <SelectItem value="pdf">PDF Report</SelectItem>
+                            <SelectItem value="excel">Excel Spreadsheet</SelectItem>
+                            <SelectItem value="csv">CSV Data</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
-                      <Button className="w-full" onClick={() => handleGenerateReport("National Summary")}>
-                        Generate Report
+                      <Button 
+                        className="w-full" 
+                        onClick={() => handleGenerateReport("National Summary")}
+                        disabled={isGenerating["summary"]}
+                      >
+                        {isGenerating["summary"] ? "Generating..." : "Generate Report"}
                       </Button>
                     </div>
                   </CardContent>
@@ -238,20 +230,31 @@ export function GovReports() {
                   <CardContent>
                     <div className="space-y-4">
                       <div className="space-y-2">
-                        <label className="text-sm font-medium">Period</label>
-                        <Select defaultValue="quarter">
+                        <label className="text-sm font-medium">Date Range</label>
+                        <DatePickerWithRange date={dateRange} setDate={setDateRange} />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Report Format</label>
+                        <Select 
+                          value={selectedReportFormat["financial"] || "pdf"}
+                          onValueChange={(value) => setSelectedReportFormat(prev => ({ ...prev, "financial": value }))}
+                        >
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="month">This Month</SelectItem>
-                            <SelectItem value="quarter">This Quarter</SelectItem>
-                            <SelectItem value="year">This Year</SelectItem>
+                            <SelectItem value="pdf">PDF Report</SelectItem>
+                            <SelectItem value="excel">Excel Spreadsheet</SelectItem>
+                            <SelectItem value="csv">CSV Data</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
-                      <Button className="w-full" onClick={() => handleGenerateReport("Financial")}>
-                        Generate Report
+                      <Button 
+                        className="w-full" 
+                        onClick={() => handleGenerateReport("Financial")}
+                        disabled={isGenerating["financial"]}
+                      >
+                        {isGenerating["financial"] ? "Generating..." : "Generate Report"}
                       </Button>
                     </div>
                   </CardContent>
@@ -265,20 +268,31 @@ export function GovReports() {
                   <CardContent>
                     <div className="space-y-4">
                       <div className="space-y-2">
-                        <label className="text-sm font-medium">Period</label>
-                        <Select defaultValue="month">
+                        <label className="text-sm font-medium">Date Range</label>
+                        <DatePickerWithRange date={dateRange} setDate={setDateRange} />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Report Format</label>
+                        <Select 
+                          value={selectedReportFormat["nutrition"] || "pdf"}
+                          onValueChange={(value) => setSelectedReportFormat(prev => ({ ...prev, "nutrition": value }))}
+                        >
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="week">This Week</SelectItem>
-                            <SelectItem value="month">This Month</SelectItem>
-                            <SelectItem value="quarter">This Quarter</SelectItem>
+                            <SelectItem value="pdf">PDF Report</SelectItem>
+                            <SelectItem value="excel">Excel Spreadsheet</SelectItem>
+                            <SelectItem value="csv">CSV Data</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
-                      <Button className="w-full" onClick={() => handleGenerateReport("Nutrition Analysis")}>
-                        Generate Report
+                      <Button 
+                        className="w-full" 
+                        onClick={() => handleGenerateReport("Nutrition Analysis")}
+                        disabled={isGenerating["nutrition"]}
+                      >
+                        {isGenerating["nutrition"] ? "Generating..." : "Generate Report"}
                       </Button>
                     </div>
                   </CardContent>
@@ -292,23 +306,31 @@ export function GovReports() {
                   <CardContent>
                     <div className="space-y-4">
                       <div className="space-y-2">
-                        <label className="text-sm font-medium">District</label>
-                        <Select defaultValue="all">
+                        <label className="text-sm font-medium">Date Range</label>
+                        <DatePickerWithRange date={dateRange} setDate={setDateRange} />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Report Format</label>
+                        <Select 
+                          value={selectedReportFormat["performance"] || "pdf"}
+                          onValueChange={(value) => setSelectedReportFormat(prev => ({ ...prev, "performance": value }))}
+                        >
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="all">All Districts</SelectItem>
-                            <SelectItem value="kigali">Kigali City</SelectItem>
-                            <SelectItem value="eastern">Eastern Province</SelectItem>
-                            <SelectItem value="northern">Northern Province</SelectItem>
-                            <SelectItem value="western">Western Province</SelectItem>
-                            <SelectItem value="southern">Southern Province</SelectItem>
+                            <SelectItem value="pdf">PDF Report</SelectItem>
+                            <SelectItem value="excel">Excel Spreadsheet</SelectItem>
+                            <SelectItem value="csv">CSV Data</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
-                      <Button className="w-full" onClick={() => handleGenerateReport("District Performance")}>
-                        Generate Report
+                      <Button 
+                        className="w-full" 
+                        onClick={() => handleGenerateReport("District Performance")}
+                        disabled={isGenerating["performance"]}
+                      >
+                        {isGenerating["performance"] ? "Generating..." : "Generate Report"}
                       </Button>
                     </div>
                   </CardContent>
@@ -322,20 +344,31 @@ export function GovReports() {
                   <CardContent>
                     <div className="space-y-4">
                       <div className="space-y-2">
-                        <label className="text-sm font-medium">Period</label>
-                        <Select defaultValue="quarter">
+                        <label className="text-sm font-medium">Date Range</label>
+                        <DatePickerWithRange date={dateRange} setDate={setDateRange} />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Report Format</label>
+                        <Select 
+                          value={selectedReportFormat["supplier"] || "pdf"}
+                          onValueChange={(value) => setSelectedReportFormat(prev => ({ ...prev, "supplier": value }))}
+                        >
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="month">This Month</SelectItem>
-                            <SelectItem value="quarter">This Quarter</SelectItem>
-                            <SelectItem value="year">This Year</SelectItem>
+                            <SelectItem value="pdf">PDF Report</SelectItem>
+                            <SelectItem value="excel">Excel Spreadsheet</SelectItem>
+                            <SelectItem value="csv">CSV Data</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
-                      <Button className="w-full" onClick={() => handleGenerateReport("Supplier Evaluation")}>
-                        Generate Report
+                      <Button 
+                        className="w-full" 
+                        onClick={() => handleGenerateReport("Supplier Evaluation")}
+                        disabled={isGenerating["supplier"]}
+                      >
+                        {isGenerating["supplier"] ? "Generating..." : "Generate Report"}
                       </Button>
                     </div>
                   </CardContent>
@@ -349,21 +382,31 @@ export function GovReports() {
                   <CardContent>
                     <div className="space-y-4">
                       <div className="space-y-2">
-                        <label className="text-sm font-medium">Report Type</label>
-                        <Select>
+                        <label className="text-sm font-medium">Date Range</label>
+                        <DatePickerWithRange date={dateRange} setDate={setDateRange} />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Report Format</label>
+                        <Select 
+                          value={selectedReportFormat["custom"] || "pdf"}
+                          onValueChange={(value) => setSelectedReportFormat(prev => ({ ...prev, "custom": value }))}
+                        >
                           <SelectTrigger>
-                            <SelectValue placeholder="Select type" />
+                            <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="delivery">Delivery Analysis</SelectItem>
-                            <SelectItem value="attendance">Student Attendance</SelectItem>
-                            <SelectItem value="waste">Food Waste Analysis</SelectItem>
-                            <SelectItem value="cost">Cost Analysis</SelectItem>
+                            <SelectItem value="pdf">PDF Report</SelectItem>
+                            <SelectItem value="excel">Excel Spreadsheet</SelectItem>
+                            <SelectItem value="csv">CSV Data</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
-                      <Button className="w-full" onClick={() => handleGenerateReport("Custom")}>
-                        Generate Report
+                      <Button 
+                        className="w-full" 
+                        onClick={() => handleGenerateReport("Custom")}
+                        disabled={isGenerating["custom"]}
+                      >
+                        {isGenerating["custom"] ? "Generating..." : "Generate Report"}
                       </Button>
                     </div>
                   </CardContent>

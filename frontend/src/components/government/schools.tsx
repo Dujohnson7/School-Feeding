@@ -1,20 +1,12 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import {  Bell,  LogOut,  Package,  Settings,  User,  Plus,  Search,  Edit,  Trash2,  Loader2,  Eye,
+import {  Package,  Plus,  Search,  Edit,  Trash2,  Loader2,  Eye,
 } from "lucide-react"
 import axios from "axios"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { HeaderActions } from "@/components/shared/header-actions"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -30,9 +22,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
-import { toast } from "@/components/ui/use-toast"
-import { logout } from "@/lib/auth"
-import { useNavigate } from "react-router-dom"
+import { toast } from "sonner"
 
 const API_BASE_URL = "http://localhost:8070/api/school"
 
@@ -104,13 +94,14 @@ const schoolApiService = {
 }
 
 export function GovSchools() {
-  const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState("")
+  const [districtFilter, setDistrictFilter] = useState("all")
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [schools, setSchools] = useState<School[]>([])
   const [provinces, setProvinces] = useState<string[]>([])
   const [availableDistricts, setAvailableDistricts] = useState<District[]>([])
+  const [allDistricts, setAllDistricts] = useState<District[]>([])
   const [banks, setBanks] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
@@ -133,10 +124,25 @@ export function GovSchools() {
     districtId: "",
   })
 
+  const fetchAllDistricts = async () => {
+    try {
+      const allProvinces = await schoolApiService.getProvinces()
+      const districtsPromises = allProvinces.map((province: string) => 
+        schoolApiService.getDistrictsByProvince(province)
+      )
+      const districtsArrays = await Promise.all(districtsPromises)
+      const allDistrictsList = districtsArrays.flat()
+      setAllDistricts(allDistrictsList)
+    } catch (err: any) {
+      console.error('Failed to fetch all districts:', err)
+    }
+  }
+
   useEffect(() => {
     fetchSchools()
     fetchProvinces()
     fetchBanks()
+    fetchAllDistricts()
   }, [])
 
   useEffect(() => {
@@ -154,11 +160,7 @@ export function GovSchools() {
       const data = await schoolService.getAllSchools()
       setSchools(data || [])
     } catch (err: any) {
-      toast({
-        title: "Error",
-        description: "Failed to load schools",
-        variant: "destructive",
-      })
+      toast.error("Failed to load schools")
     } finally {
       setLoading(false)
     }
@@ -170,11 +172,7 @@ export function GovSchools() {
       const provinceValues = Array.isArray(data) ? data.map((p: any) => typeof p === 'string' ? p : p.toString()) : []
       setProvinces(provinceValues)
     } catch (err: any) {
-      toast({
-        title: "Error",
-        description: "Failed to load provinces",
-        variant: "destructive",
-      })
+      toast.error("Failed to load provinces")
     }
   }
 
@@ -193,11 +191,7 @@ export function GovSchools() {
       const bankValues = Array.isArray(data) ? data.map((b: any) => typeof b === 'string' ? b : b.toString()) : []
       setBanks(bankValues)
     } catch (err: any) {
-      toast({
-        title: "Error",
-        description: "Failed to load banks",
-        variant: "destructive",
-      })
+      toast.error("Failed to load banks")
     }
   }
 
@@ -229,22 +223,14 @@ export function GovSchools() {
 
   const handleAddSchool = async () => {
     if (!newSchool.name || !newSchool.directorNames || !newSchool.email || !newSchool.phone || !newSchool.address || !newSchool.student || !newSchool.districtId || !newSchool.bankAccount) {
-      toast({
-        title: "Validation Error",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      })
+      toast.error("Please fill in all required fields")
       return
     }
 
     // Validate and normalize phone number
     const normalizedPhone = normalizePhoneNumber(newSchool.phone)
     if (normalizedPhone.length !== 10 || !/^\d{10}$/.test(normalizedPhone)) {
-      toast({
-        title: "Validation Error",
-        description: "Phone number must be exactly 10 digits (e.g., 0785061721)",
-        variant: "destructive",
-      })
+      toast.error("Phone number must be exactly 10 digits (e.g., 0785061721)")
       return
     }
 
@@ -268,10 +254,7 @@ export function GovSchools() {
       }
 
       await schoolService.registerSchool(schoolPayload)
-      toast({
-        title: "Success",
-        description: "School added successfully",
-      })
+      toast.success("School added successfully")
       setIsAddDialogOpen(false)
       setNewSchool({
         name: "",
@@ -293,11 +276,7 @@ export function GovSchools() {
                           (typeof err.response?.data === 'string' ? err.response.data : JSON.stringify(err.response?.data)) ||
                           err.message || 
                           "Failed to add school"
-      toast({
-        title: "Error",
-        description: typeof errorMessage === 'string' ? errorMessage : "Failed to add school",
-        variant: "destructive",
-      })
+      toast.error(typeof errorMessage === 'string' ? errorMessage : "Failed to add school")
     } finally {
       setIsProcessing(false)
     }
@@ -333,22 +312,14 @@ export function GovSchools() {
 
   const handleUpdateSchool = async () => {
     if (!selectedSchool || !newSchool.name || !newSchool.directorNames || !newSchool.email || !newSchool.phone || !newSchool.address || !newSchool.student || !newSchool.districtId || !newSchool.bankAccount) {
-      toast({
-        title: "Validation Error",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      })
+      toast.error("Please fill in all required fields")
       return
     }
 
     // Validate and normalize phone number
     const normalizedPhone = normalizePhoneNumber(newSchool.phone)
     if (normalizedPhone.length !== 10 || !/^\d{10}$/.test(normalizedPhone)) {
-      toast({
-        title: "Validation Error",
-        description: "Phone number must be exactly 10 digits (e.g., 0785061721)",
-        variant: "destructive",
-      })
+      toast.error("Phone number must be exactly 10 digits (e.g., 0785061721)")
       return
     }
 
@@ -372,10 +343,7 @@ export function GovSchools() {
       }
 
       await schoolService.updateSchool(selectedSchool.id, schoolPayload)
-      toast({
-        title: "Success",
-        description: "School updated successfully",
-      })
+      toast.success("School updated successfully")
       setIsEditDialogOpen(false)
       setSelectedSchool(null)
       setNewSchool({
@@ -398,11 +366,7 @@ export function GovSchools() {
                           (typeof err.response?.data === 'string' ? err.response.data : JSON.stringify(err.response?.data)) ||
                           err.message || 
                           "Failed to update school"
-      toast({
-        title: "Error",
-        description: typeof errorMessage === 'string' ? errorMessage : "Failed to update school",
-        variant: "destructive",
-      })
+      toast.error(typeof errorMessage === 'string' ? errorMessage : "Failed to update school")
     } finally {
       setIsProcessing(false)
     }
@@ -416,34 +380,33 @@ export function GovSchools() {
     try {
       setIsProcessing(true)
       await schoolService.deleteSchool(schoolId)
-      toast({
-        title: "Success",
-        description: "School deleted successfully",
-      })
+      toast.success("School deleted successfully")
       fetchSchools()
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || err.response?.data || "Failed to delete school"
-      toast({
-        title: "Error",
-        description: typeof errorMessage === 'string' ? errorMessage : "Failed to delete school",
-        variant: "destructive",
-      })
+      toast.error(typeof errorMessage === 'string' ? errorMessage : "Failed to delete school")
     } finally {
       setIsProcessing(false)
     }
   }
 
   const filteredSchools = schools.filter(
-    (school) =>
-      school.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      school.directorNames.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      school.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      school.district?.district.toLowerCase().includes(searchTerm.toLowerCase())
+    (school) => {
+      const matchesSearch =
+        school.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        school.directorNames.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        school.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        school.district?.district.toLowerCase().includes(searchTerm.toLowerCase())
+      
+      const matchesDistrict = districtFilter === "all" || school.district?.id === districtFilter
+      
+      return matchesSearch && matchesDistrict
+    }
   )
 
   useEffect(() => {
     setPage(1)
-  }, [searchTerm])
+  }, [searchTerm, districtFilter])
 
   const totalPages = Math.max(1, Math.ceil(filteredSchools.length / pageSize))
   const startIndex = (page - 1) * pageSize
@@ -479,68 +442,53 @@ export function GovSchools() {
           <div className="w-full flex-1">
             <h1 className="text-lg font-semibold">School Management</h1>
           </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon">
-              <Bell className="h-5 w-5" />
-              <span className="sr-only">Notifications</span>
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src="/placeholder.svg" alt="Avatar" />
-                    <AvatarFallback>GO</AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">Government Official</p>
-                    <p className="text-xs leading-none text-muted-foreground">gov@mineduc.gov.rw</p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <User className="mr-2 h-4 w-4" />
-                  <span>Profile</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Settings</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          <HeaderActions role="government" />
         </header>
 
         <main className="flex-1 overflow-auto p-2 sm:p-4 md:p-6 min-w-0">
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex-1 max-w-sm">
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="search"
-                    placeholder="Search schools..."
-                    className="w-full pl-8"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-              </div>
-              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add School
-                  </Button>
-                </DialogTrigger>
+            <Card>
+              <CardHeader>
+                <CardTitle>Schools</CardTitle>
+                <CardDescription>
+                  Manage all schools in the system.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-6 flex flex-col gap-4 md:flex-row">
+                  <div className="flex-1 min-w-0">
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="search"
+                        placeholder="Search schools..."
+                        className="w-full pl-8"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Select value={districtFilter} onValueChange={setDistrictFilter}>
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Filter by district" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Districts</SelectItem>
+                        {allDistricts.map((district) => (
+                          <SelectItem key={district.id} value={district.id}>
+                            {district.district}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Add School
+                        </Button>
+                      </DialogTrigger>
                 <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Add New School</DialogTitle>
@@ -751,17 +699,10 @@ export function GovSchools() {
                     </Button>
                   </DialogFooter>
                 </DialogContent>
-              </Dialog>
-            </div>
+                    </Dialog>
+                  </div>
+                </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Schools</CardTitle>
-                <CardDescription>
-                  Manage all schools in the system.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
                 <div className="rounded-md border">
                   <Table>
                     <TableHeader>
