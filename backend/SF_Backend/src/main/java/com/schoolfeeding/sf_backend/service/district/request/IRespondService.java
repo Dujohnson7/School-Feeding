@@ -12,7 +12,7 @@ public interface IRespondService {
     Orders saveOrders(Orders theOrders);
     Orders updateOrders(Orders theOrders);
     Orders deleteOrders(Orders theOrders);
-    Orders findCurrentOrderBySchool(UUID sId);
+    List<Orders>  findCurrentOrderBySchool(UUID sId);
 
     Orders recieveOrders(Orders theOrders);
 

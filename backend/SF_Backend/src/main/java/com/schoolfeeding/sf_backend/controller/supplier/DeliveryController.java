@@ -8,10 +8,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import java.time.LocalDate;
+import java.util.*;
 
 @RestController
 @RequiredArgsConstructor
@@ -57,6 +55,7 @@ public class DeliveryController {
             if (existOrder != null) {
                 existOrder.setId(UUID.fromString(id));
                 existOrder.setDeliveryStatus(EDelivery.PROCESSING);
+                existOrder.setDeliveryDate(new Date());
                 Orders saveProcess = respondService.updateOrders(existOrder);
                 return ResponseEntity.ok(saveProcess);
             }else  {
@@ -75,6 +74,7 @@ public class DeliveryController {
             if (existOrder != null) {
                 existOrder.setId(UUID.fromString(id));
                 existOrder.setDeliveryStatus(EDelivery.DELIVERED);
+                existOrder.setDeliveryDate(new Date());
                 Orders saveProcess = respondService.updateOrders(existOrder);
                 return ResponseEntity.ok(saveProcess);
             }else  {

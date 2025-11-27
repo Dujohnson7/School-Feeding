@@ -59,11 +59,10 @@ public class RespondServiceImpl implements IRespondService {
         throw new ObjectNotFoundException(Orders.class,"Order Not Found");
     }
 
+
     @Override
-    public Orders findCurrentOrderBySchool(UUID sId) {
-        Orders theOrder = orderRepository.findCurrentOrderBySchoolAndActive(sId, Boolean.TRUE)
-                .orElseThrow(()-> new RuntimeException("Order Not Found"));
-        return theOrder;
+    public List<Orders> findCurrentOrderBySchool(UUID sId) {
+        return orderRepository.findCurrentOrderBySchoolAndActive(sId, Boolean.TRUE);
     }
 
     @Override

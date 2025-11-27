@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { Bell, Edit, LogOut, MoreHorizontal, Plus, Search, Settings, Shield, Trash2, Users } from "lucide-react"
 import axios from "axios"
 import { toast } from "sonner"
+import { logout } from "@/lib/auth"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -97,7 +98,7 @@ const userService = {
   },
 
   getAllItems: async () => {
-    const response = await axios.get("http://localhost:8070/api/items/all")
+    const response = await axios.get("http://localhost:8070/api/item/all")
     return response.data
   },
 
@@ -123,8 +124,8 @@ const userService = {
     }
     
     // Add optional fields if they exist
-    if (userData.district) userPayload.district = userData.district
-    if (userData.school) userPayload.school = userData.school
+    if (userData.district) userPayload.district = { id: userData.district }
+    if (userData.school) userPayload.school = { id: userData.school }
     if (userData.province) userPayload.province = userData.province
     if (userData.companyName) userPayload.companyName = userData.companyName
     if (userData.tinNumber) userPayload.tinNumber = userData.tinNumber
@@ -147,8 +148,8 @@ const userService = {
     }
     
     // Add optional fields if they exist
-    if (userData.district) userPayload.district = userData.district
-    if (userData.school) userPayload.school = userData.school
+    if (userData.district) userPayload.district = { id: userData.district }
+    if (userData.school) userPayload.school = { id: userData.school }
     if (userData.province) userPayload.province = userData.province
     if (userData.companyName) userPayload.companyName = userData.companyName
     if (userData.tinNumber) userPayload.tinNumber = userData.tinNumber
@@ -180,6 +181,7 @@ const userService = {
 }
 
 export function AdminUserManagement() {
+  const navigate = useNavigate()
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -189,6 +191,11 @@ export function AdminUserManagement() {
   const [pageSize, setPageSize] = useState(5)
   const [isAddUserOpen, setIsAddUserOpen] = useState(false)
   const [isEditUserOpen, setIsEditUserOpen] = useState(false)
+
+  const handleLogout = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    await logout(navigate)
+  }
   const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false)
   const [resetPasswordUserId, setResetPasswordUserId] = useState<string | null>(null)
   const [newPassword, setNewPassword] = useState("")
@@ -687,7 +694,7 @@ export function AdminUserManagement() {
     <div className="flex min-h-screen bg-muted/40">
       {/* Main Content */}
       <div className="flex flex-1 flex-col">
-        <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
+        <header className="hidden md:flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
           <Link to="/admin-dashboard" className="lg:hidden">
             <Shield className="h-6 w-6" />
             <span className="sr-only">Home</span>
@@ -725,7 +732,7 @@ export function AdminUserManagement() {
                   <span>Settings</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={handleLogout}>
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Log out</span>
                 </DropdownMenuItem>
@@ -735,7 +742,7 @@ export function AdminUserManagement() {
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto p-4 md:p-6">
+        <main className="flex-1 overflow-auto p-2 sm:p-4 md:p-6 min-w-0">
           <Card>
             <CardHeader>
               <CardTitle>Users</CardTitle>
@@ -743,7 +750,7 @@ export function AdminUserManagement() {
             </CardHeader>
             <CardContent>
               <div className="mb-6 flex flex-col gap-4 md:flex-row">
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <div className="relative">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input

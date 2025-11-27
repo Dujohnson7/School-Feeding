@@ -15,31 +15,66 @@ interface Item {
   unit?: string
 }
 
-interface ApiOrder {
-  id: string
-  requestItem?: {
-    id: string
-    requestItemDetails?: Array<{
-      id: string
-      item: { id: string; name?: string }
-      quantity: number
-    }>
-    created?: string
-    updated?: string
-  }
-  supplier?: {
-    id: string
-    companyName?: string
-    name?: string
-    user?: {
-      id: string
-      name?: string
-    }
-  }
-  deliveryStatus?: string
-  orderPrice?: number
+// Backend Order entity interface (same as orders.tsx)
+interface BackendOrder {
+  id?: string
   created?: string
   updated?: string
+  requestItem?: {
+    id?: string
+    created?: string
+    updated?: string
+    description?: string
+    requestStatus?: string
+    school?: {
+      id?: string
+      name?: string
+      address?: string
+      email?: string
+      phone?: string
+      student?: number
+      directorNames?: string
+      district?: {
+        id?: string
+        province?: string
+        district?: string
+      }
+    }
+    district?: {
+      id?: string
+      province?: string
+      district?: string
+    }
+    requestItemDetails?: Array<{
+      id?: string
+      quantity?: number
+      item?: {
+        id?: string
+        name?: string
+        perStudent?: number
+        description?: string
+      }
+    }>
+  }
+  supplier?: {
+    id?: string
+    names?: string
+    email?: string
+    phone?: string
+    companyName?: string
+    items?: Array<{
+      id?: string
+      name?: string
+      perStudent?: number
+      description?: string
+    }>
+  }
+  deliveryDate?: string | null
+  deliveryStatus?: "APPROVED" | "SCHEDULED" | "PROCESSING" | "DELIVERED" | "CANCELLED"
+  orderPrice?: number
+  orderPayState?: "PENDING" | "PAYED" | "CANCELLED"
+  rating?: number
+  [key: string]: any
 }
 
 interface Delivery {
@@ -64,7 +99,7 @@ export function DeliveryTracking() {
   const [loading, setLoading] = useState(true)
   const [items, setItems] = useState<Item[]>([])
 
-  // Fetch items to map IDs to names
+  // Fetch items to map IDs to names (optional, we'll use supplier items if available)
   useEffect(() => {
     const fetchItems = async () => {
       try {
@@ -75,14 +110,15 @@ export function DeliveryTracking() {
         }
       } catch (err) {
         console.error("Error fetching items:", err)
+        // Continue without items, we'll use supplier items instead
       }
     }
     fetchItems()
   }, [])
 
-  // Fetch current delivery
+  // Fetch current deliveries (returns list of orders not yet delivered)
   useEffect(() => {
-    const fetchCurrentDelivery = async () => {
+    const fetchCurrentDeliveries = async () => {
       const schoolId = localStorage.getItem("schoolId")
       const token = localStorage.getItem("token")
 
@@ -92,6 +128,7 @@ export function DeliveryTracking() {
       }
 
       try {
+        setLoading(true)
         const response = await fetch(`http://localhost:8070/api/track/current/${schoolId}`, {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -100,59 +137,33 @@ export function DeliveryTracking() {
         })
 
         if (response.status === 404) {
-          // No current order found
+          // No current orders found
           setCurrentDeliveries([])
           setLoading(false)
           return
         }
 
         if (!response.ok) {
-          // Try to get error message
-          const contentType = response.headers.get("content-type")
-          let errorMessage = "Failed to fetch current delivery"
-          if (contentType && contentType.includes("application/json")) {
-            try {
-              const errorData = await response.json()
-              errorMessage = errorData?.message || errorData || errorMessage
-            } catch {
-              // Ignore JSON parse errors
-            }
-          } else {
-            try {
-              const errorText = await response.text()
-              if (errorText) errorMessage = errorText
-            } catch {
-              // Ignore text parse errors
-            }
-          }
-          throw new Error(errorMessage)
+          throw new Error("Failed to fetch current deliveries")
         }
 
-        // Handle response that might be JSON or plain text
-        const contentType = response.headers.get("content-type")
-        let order: ApiOrder | null = null
-        if (contentType && contentType.includes("application/json")) {
-          order = await response.json()
-        } else {
-          // If not JSON, might be an error message
-          const text = await response.text()
-          if (text && !text.includes("Order not found")) {
-            throw new Error(text)
-          }
-        }
+        // API returns List<Orders>
+        const orders: BackendOrder[] = await response.json()
 
-        if (order) {
-          const transformed = transformOrderToDelivery(order, items)
-          setCurrentDeliveries(transformed ? [transformed] : [])
+        if (orders && Array.isArray(orders) && orders.length > 0) {
+          const transformed = orders
+            .map((order) => transformOrderToDelivery(order, items))
+            .filter((delivery): delivery is Delivery => delivery !== null)
+          setCurrentDeliveries(transformed)
         } else {
           setCurrentDeliveries([])
         }
       } catch (err: any) {
-        console.error("Error fetching current delivery:", err)
+        console.error("Error fetching current deliveries:", err)
         setCurrentDeliveries([])
         toast({
           title: "Error",
-          description: err?.message || "Failed to load current delivery. Please try again.",
+          description: err?.message || "Failed to load current deliveries. Please try again.",
           variant: "destructive",
         })
       } finally {
@@ -160,9 +171,7 @@ export function DeliveryTracking() {
       }
     }
 
-    if (items.length > 0) {
-      fetchCurrentDelivery()
-    }
+    fetchCurrentDeliveries()
   }, [items])
 
   // Fetch past deliveries
@@ -205,23 +214,17 @@ export function DeliveryTracking() {
           throw new Error(errorMessage)
         }
 
-        // Handle response that might be JSON array or empty
-        const contentType = response.headers.get("content-type")
-        let orders: ApiOrder[] = []
-        if (contentType && contentType.includes("application/json")) {
-          orders = await response.json()
-        } else {
-          // If not JSON, might be empty or error
-          const text = await response.text()
-          if (text && !text.includes("not found")) {
-            console.warn("Unexpected response format:", text)
-          }
-        }
+        // API returns List<Orders> with DELIVERED status
+        const orders: BackendOrder[] = await response.json()
 
-        const transformed = orders
-          .map((order) => transformOrderToDelivery(order, items))
-          .filter((delivery): delivery is Delivery => delivery !== null)
-        setPastDeliveries(transformed)
+        if (orders && Array.isArray(orders)) {
+          const transformed = orders
+            .map((order) => transformOrderToDelivery(order, items))
+            .filter((delivery): delivery is Delivery => delivery !== null)
+          setPastDeliveries(transformed)
+        } else {
+          setPastDeliveries([])
+        }
       } catch (err: any) {
         console.error("Error fetching past deliveries:", err)
         setPastDeliveries([])
@@ -238,37 +241,52 @@ export function DeliveryTracking() {
     }
   }, [items])
 
-  const transformOrderToDelivery = (order: ApiOrder, itemsList: Item[]): Delivery | null => {
-    if (!order) return null
+  const transformOrderToDelivery = (order: BackendOrder, itemsList: Item[]): Delivery | null => {
+    if (!order || !order.id) return null
 
     // Extract items from requestItemDetails
-    const itemsString = order.requestItem?.requestItemDetails
-      ?.map((detail) => {
-        const item = itemsList.find((i) => i.id === detail.item.id)
-        return item?.name || detail.item.name || `Item ${detail.item.id.substring(0, 8)}`
-      })
-      .join(", ") || "No items"
+    const requestItemDetails = order.requestItem?.requestItemDetails || []
+    const items: string[] = []
+
+    // Get item names from supplier's items array by matching IDs (preferred)
+    const supplierItems = order.supplier?.items || []
+    const itemMap = new Map(supplierItems.map(item => [item.id, item.name]))
+
+    // Also create a map from itemsList for fallback
+    const itemsListMap = new Map(itemsList.map(item => [item.id, item.name]))
+
+    requestItemDetails.forEach((detail) => {
+      const itemId = detail.item?.id
+      if (itemId) {
+        // Try supplier items first, then itemsList, then fallback
+        const itemName = itemMap.get(itemId) || itemsListMap.get(itemId) || detail.item?.name || `Item ${itemId.substring(0, 8)}`
+        const quantity = detail.quantity || 0
+        items.push(`${itemName} (${quantity} kg)`)
+      }
+    })
+
+    const itemsString = items.length > 0 ? items.join(", ") : "No items"
 
     // Get supplier name
     const supplierName =
       order.supplier?.companyName ||
-      order.supplier?.name ||
-      order.supplier?.user?.name ||
+      order.supplier?.names ||
       "Unknown Supplier"
 
-    // Map delivery status
-    const deliveryStatus = order.deliveryStatus?.toLowerCase() || "pending"
+    // Map delivery status from enum to frontend status
+    const deliveryStatus = order.deliveryStatus?.toUpperCase() || "SCHEDULED"
     const statusMap: Record<string, string> = {
-      pending: "ordered",
-      processing: "processing",
-      dispatched: "dispatched",
-      delivered: "delivered",
+      APPROVED: "approved",
+      SCHEDULED: "scheduled",
+      PROCESSING: "processing",
+      DELIVERED: "delivered",
+      CANCELLED: "cancelled",
     }
-    const frontendStatus = statusMap[deliveryStatus] || deliveryStatus
+    const frontendStatus = statusMap[deliveryStatus] || deliveryStatus.toLowerCase()
 
     // Format dates
-    const orderedDate = order.requestItem?.created
-      ? new Date(order.requestItem.created).toLocaleDateString("en-US", {
+    const orderedDate = order.requestItem?.created || order.created
+      ? new Date(order.requestItem?.created || order.created || "").toLocaleDateString("en-US", {
           month: "short",
           day: "numeric",
           year: "numeric",
@@ -284,8 +302,8 @@ export function DeliveryTracking() {
       : undefined
 
     const deliveredDate =
-      frontendStatus === "delivered" && order.updated
-        ? new Date(order.updated).toLocaleDateString("en-US", {
+      frontendStatus === "delivered" && order.deliveryDate
+        ? new Date(order.deliveryDate).toLocaleDateString("en-US", {
             month: "short",
             day: "numeric",
             year: "numeric",
@@ -308,7 +326,7 @@ export function DeliveryTracking() {
   }
 
   const buildTimeline = (
-    order: ApiOrder,
+    order: BackendOrder,
     status: string,
     orderedDate: string,
     deliveredDate?: string,
@@ -341,16 +359,8 @@ export function DeliveryTracking() {
     timeline.push({ status: "approved", time: approvedTime, completed: true })
 
     // Processing
-    const processingCompleted = ["processing", "dispatched", "delivered"].includes(status)
-    timeline.push({
-      status: "processing",
-      time: processingCompleted ? approvedTime : "Pending",
-      completed: processingCompleted,
-    })
-
-    // Dispatched
-    const dispatchedCompleted = ["dispatched", "delivered"].includes(status)
-    const dispatchedTime = order.updated
+    const processingCompleted = ["processing", "delivered"].includes(status)
+    const processingTime = order.deliveryStatus === "PROCESSING" && order.updated
       ? new Date(order.updated).toLocaleString("en-US", {
           month: "short",
           day: "numeric",
@@ -358,25 +368,34 @@ export function DeliveryTracking() {
           hour: "numeric",
           minute: "2-digit",
         })
-      : "Pending"
+      : processingCompleted ? approvedTime : "Pending"
     timeline.push({
-      status: "dispatched",
-      time: dispatchedCompleted ? dispatchedTime : `Expected ${estimatedDelivery || "soon"}`,
-      completed: dispatchedCompleted,
+      status: "processing",
+      time: processingCompleted ? processingTime : "Pending",
+      completed: processingCompleted,
     })
 
     // Delivered
     const deliveredCompleted = status === "delivered"
+    const deliveredTime = deliveredCompleted && deliveredDate
+      ? `${deliveredDate} - ${order.deliveryDate ? new Date(order.deliveryDate).toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+        }) : ""}`
+      : deliveredCompleted && order.updated
+      ? new Date(order.updated).toLocaleString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+        })
+      : deliveredCompleted
+      ? "Delivered"
+      : `Expected ${estimatedDelivery || "soon"}`
     timeline.push({
       status: "delivered",
-      time: deliveredCompleted
-        ? deliveredDate
-          ? `${deliveredDate} - ${new Date(order.updated || "").toLocaleTimeString("en-US", {
-              hour: "numeric",
-              minute: "2-digit",
-            })}`
-          : "Delivered"
-        : `Expected ${estimatedDelivery || "soon"}`,
+      time: deliveredTime,
       completed: deliveredCompleted,
     })
 
@@ -389,8 +408,14 @@ export function DeliveryTracking() {
         return <Badge variant="outline">Ordered</Badge>
       case "approved":
         return (
-          <Badge variant="outline" className="bg-blue-100 text-blue-800 hover:bg-blue-100">
+          <Badge variant="outline" className="bg-green-100 text-green-800 hover:bg-green-100">
             Approved
+          </Badge>
+        )
+      case "scheduled":
+        return (
+          <Badge variant="outline" className="bg-blue-100 text-blue-800 hover:bg-blue-100">
+            Scheduled
           </Badge>
         )
       case "processing":
@@ -399,10 +424,10 @@ export function DeliveryTracking() {
             Processing
           </Badge>
         )
-      case "dispatched":
-        return <Badge className="bg-purple-600 hover:bg-purple-700">Dispatched</Badge>
       case "delivered":
         return <Badge className="bg-green-600 hover:bg-green-700">Delivered</Badge>
+      case "cancelled":
+        return <Badge variant="destructive">Cancelled</Badge>
       default:
         return <Badge variant="outline">Unknown</Badge>
     }
@@ -413,7 +438,7 @@ export function DeliveryTracking() {
       {/* Main Content */}
       <div className="flex flex-1 flex-col">
         {/* Header */}
-        <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
+        <header className="hidden md:flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
           <Link to="/school-dashboard" className="flex items-center gap-2">
             <ArrowLeft className="h-4 w-4" />
             <span>Back to Dashboard</span>
@@ -422,7 +447,7 @@ export function DeliveryTracking() {
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto p-4 md:p-6">
+        <main className="flex-1 overflow-auto p-2 sm:p-4 md:p-6 min-w-0">
           <div className="mx-auto max-w-4xl">
             <h1 className="mb-6 text-2xl font-bold">Track Food Deliveries</h1>
 
@@ -505,11 +530,11 @@ export function DeliveryTracking() {
                               <Truck className="h-5 w-5 text-primary" />
                             </div>
                             <div>
-                              <h3 className="text-sm font-medium">Live Tracking</h3>
-                              <p className="text-xs text-muted-foreground">Delivery vehicle is currently in transit</p>
+                              <h3 className="text-sm font-medium">Approve Receiving</h3>
+                              <p className="text-xs text-muted-foreground">Approve the receiving of the delivery</p>
                             </div>
                             <Button className="ml-auto" size="sm">
-                              View Map
+                              Approve
                             </Button>
                           </div>
                         </div>

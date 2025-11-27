@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from "react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import {
   Bell,
   Edit,
@@ -14,6 +14,7 @@ import {
 } from "lucide-react"
 import axios from "axios"
 import { toast } from "sonner"
+import { logout } from "@/lib/auth"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -85,6 +86,7 @@ const stockManagerService = {
 }
 
 export function ManageStockManagers() {
+  const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState("")
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
@@ -93,6 +95,11 @@ export function ManageStockManagers() {
   const [loading, setLoading] = useState(true)
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const handleLogout = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    await logout(navigate)
+  }
   const [newManager, setNewManager] = useState({
     name: "",
     email: "",
@@ -107,6 +114,7 @@ export function ManageStockManagers() {
     const fetchStockManagers = async () => {
       try {
         setLoading(true)
+        setError(null)
         const schoolId = localStorage.getItem("schoolId")
         if (!schoolId) {
           setError("School ID not found")
@@ -115,9 +123,13 @@ export function ManageStockManagers() {
         const data = await stockManagerService.getAllStockManagers(schoolId)
         setStockManagers(data || [])
       } catch (err: any) {
-        console.error("Error fetching stock managers:", err)
-        setError(err.response?.data || "Failed to fetch stock managers")
-        if (err.response?.status !== 404) {
+        // If 404, treat as "no stock managers found" instead of an error
+        if (err.response?.status === 404) {
+          setStockManagers([])
+          setError(null)
+        } else {
+          console.error("Error fetching stock managers:", err)
+          setError(err.response?.data || "Failed to fetch stock managers")
           toast.error("Failed to load stock managers")
         }
       } finally {
@@ -387,11 +399,11 @@ export function ManageStockManagers() {
   }
 
   return (
-    <div className="flex-1">
+    <div className="flex-1 min-w-0">
       {/* Main Content */}
-      <div className="flex flex-1 flex-col">
+      <div className="flex flex-1 flex-col min-w-0">
         {/* Header */}
-        <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
+        <header className="hidden md:flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
           <Link to="/school-dashboard" className="lg:hidden">
             <Users className="h-6 w-6" />
             <span className="sr-only">Home</span>
@@ -430,7 +442,7 @@ export function ManageStockManagers() {
                   <span>Settings</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={handleLogout}>
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Log out</span>
                 </DropdownMenuItem>
@@ -440,7 +452,7 @@ export function ManageStockManagers() {
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto p-4 md:p-6">
+        <main className="flex-1 overflow-auto p-2 sm:p-4 md:p-6 min-w-0">
           <div className="space-y-6">
             {/* Header Actions */}
             <div className="flex items-center justify-between">
@@ -638,7 +650,7 @@ export function ManageStockManagers() {
                       ) : (
                         <TableRow>
                           <TableCell colSpan={6} className="h-24 text-center">
-                            No stock managers found.
+                            {stockManagers.length === 0 ? "No stock manager found" : "No stock managers found matching your search."}
                           </TableCell>
                         </TableRow>
                       )}

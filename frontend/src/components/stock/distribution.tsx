@@ -1,7 +1,9 @@
 
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import { Bell, Calendar, Check, Filter, LogOut, Package, Plus, Search, Settings, User } from "lucide-react"
+import { Bell, Calendar, Check, Filter, LogOut, Package, Plus, Search, Settings, User, Trash2 } from "lucide-react"
+import axios from "axios"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -30,89 +32,150 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 
-interface DistributionRecord {
+interface Item {
   id: string
-  date: string
-  destination: string
-  items: string[]
-  quantities: string[]
-  requestedBy: string
-  status: "pending" | "completed" | "cancelled"
-  notes: string
+  name?: string
+}
+
+interface StockOutItem {
+  id?: string
+  item?: Item
+  quantity?: number
+  unit?: string
+}
+
+interface StockOut {
+  id?: string
+  created?: string
+  updated?: string
+  date?: string
+  destination?: string
+  requestedBy?: string
+  status?: "PENDING" | "COMPLETED" | "CANCELLED" | "pending" | "completed" | "cancelled"
+  notes?: string
+  stockOutItems?: StockOutItem[]
+  school?: { id?: string; name?: string }
+}
+
+const API_BASE_URL = "http://localhost:8070/api/distribute"
+
+const distributionService = {
+  getAllDistributions: async (schoolId: string) => {
+    const response = await axios.get(`${API_BASE_URL}/all/${schoolId}`)
+    return response.data
+  },
+
+  getDistribution: async (id: string) => {
+    const response = await axios.get(`${API_BASE_URL}/${id}`)
+    return response.data
+  },
+
+  createDistribution: async (stockOut: StockOut) => {
+    const response = await axios.post(`${API_BASE_URL}/register`, stockOut)
+    return response.data
+  },
+
+  updateDistribution: async (id: string, stockOut: StockOut) => {
+    const response = await axios.put(`${API_BASE_URL}/update/${id}`, stockOut)
+    return response.data
+  },
+
+  deleteDistribution: async (id: string) => {
+    const response = await axios.delete(`${API_BASE_URL}/delete/${id}`)
+    return response.data
+  },
 }
 
 export function StockDistribution() {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
-  const [selectedDistribution, setSelectedDistribution] = useState<DistributionRecord | null>(null)
+  const [selectedDistribution, setSelectedDistribution] = useState<StockOut | null>(null)
+  const [distributions, setDistributions] = useState<StockOut[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [distributeDialogOpen, setDistributeDialogOpen] = useState(false)
   const [newDistributionOpen, setNewDistributionOpen] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(5)
 
-  // Sample data
-  const distributions: DistributionRecord[] = [
-    {
-      id: "DIST-2025-042",
-      date: "Apr 15, 2025",
-      destination: "Kitchen",
-      items: ["Rice", "Beans", "Vegetables"],
-      quantities: ["25kg", "15kg", "10kg"],
-      requestedBy: "Head Chef",
-      status: "pending",
-      notes: "For lunch preparation",
-    },
-    {
-      id: "DIST-2025-041",
-      date: "Apr 15, 2025",
-      destination: "Kitchen",
-      items: ["Maize", "Oil"],
-      quantities: ["20kg", "5L"],
-      requestedBy: "Head Chef",
-      status: "pending",
-      notes: "For dinner preparation",
-    },
-    {
-      id: "DIST-2025-040",
-      date: "Apr 14, 2025",
-      destination: "Kitchen",
-      items: ["Rice", "Beans", "Vegetables"],
-      quantities: ["25kg", "15kg", "10kg"],
-      requestedBy: "Head Chef",
-      status: "completed",
-      notes: "For lunch preparation",
-    },
-    {
-      id: "DIST-2025-039",
-      date: "Apr 14, 2025",
-      destination: "Kitchen",
-      items: ["Maize", "Oil"],
-      quantities: ["20kg", "5L"],
-      requestedBy: "Head Chef",
-      status: "completed",
-      notes: "For dinner preparation",
-    },
-    {
-      id: "DIST-2025-038",
-      date: "Apr 13, 2025",
-      destination: "Kitchen",
-      items: ["Rice", "Beans", "Vegetables"],
-      quantities: ["25kg", "15kg", "10kg"],
-      requestedBy: "Head Chef",
-      status: "cancelled",
-      notes: "Cancelled due to school closure",
-    },
-  ]
+  // Form state for new distribution
+  const [newDistribution, setNewDistribution] = useState({
+    date: new Date().toISOString().split('T')[0],
+    destination: "",
+    requestedBy: "",
+    notes: "",
+    items: [] as Array<{ itemId: string; quantity: number; unit: string }>
+  })
+  const [availableItems, setAvailableItems] = useState<Item[]>([])
+  const [loadingItems, setLoadingItems] = useState(true)
+
+  // Fetch available items
+  useEffect(() => {
+    const fetchItems = async () => {
+      try {
+        setLoadingItems(true)
+        const response = await axios.get("http://localhost:8070/api/item/all")
+        setAvailableItems(response.data || [])
+      } catch (err: any) {
+        console.error("Error fetching items:", err)
+        toast.error("Failed to load items")
+      } finally {
+        setLoadingItems(false)
+      }
+    }
+    fetchItems()
+  }, [])
+
+  // Fetch distributions on component mount
+  useEffect(() => {
+    const fetchDistributions = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const schoolId = localStorage.getItem("schoolId")
+        if (!schoolId) {
+          setError("School ID not found")
+          return
+        }
+        const data = await distributionService.getAllDistributions(schoolId)
+        setDistributions(Array.isArray(data) ? data : [])
+      } catch (err: any) {
+        console.error("Error fetching distributions:", err)
+        if (err.response?.status === 404) {
+          setDistributions([])
+          setError(null)
+        } else {
+          setError(err.response?.data || "Failed to fetch distributions")
+          toast.error("Failed to load distributions")
+        }
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchDistributions()
+  }, [])
 
   // Filter distributions based on search term and status filter
-  const filteredDistributions = distributions.filter((distribution) => {
-    const matchesSearch =
-      distribution.destination.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      distribution.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      distribution.requestedBy.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      distribution.items.some((item) => item.toLowerCase().includes(searchTerm.toLowerCase()))
+  const filteredDistributions = (Array.isArray(distributions) ? distributions : []).filter((distribution) => {
+    const destination = distribution.destination || ""
+    const id = distribution.id || ""
+    const requestedBy = distribution.requestedBy || ""
+    const items = distribution.stockOutItems?.map(si => si.item?.name || "").join(" ") || ""
 
-    const matchesStatus = statusFilter === "all" || distribution.status === statusFilter
+    const matchesSearch =
+      destination.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      requestedBy.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      items.toLowerCase().includes(searchTerm.toLowerCase())
+
+    const status = distribution.status?.toUpperCase() || ""
+    const normalizedStatus = status === "PENDING" ? "pending" : 
+                            status === "COMPLETED" ? "completed" : 
+                            status === "CANCELLED" ? "cancelled" : status.toLowerCase()
+    
+    const matchesStatus = statusFilter === "all" || normalizedStatus === statusFilter
 
     return matchesSearch && matchesStatus
   })
@@ -138,33 +201,179 @@ export function StockDistribution() {
     return Array.from({ length: end - start + 1 }, (_, i) => start + i)
   }
 
-  const handleDistribute = () => {
-    // In a real app, this would update the distribution status and deduct items from inventory
-    console.log(`Processing distribution ${selectedDistribution?.id}`)
-    setDistributeDialogOpen(false)
+  const handleDistribute = async () => {
+    if (!selectedDistribution || !selectedDistribution.id) return
+
+    try {
+      setIsProcessing(true)
+      const updatedDistribution: StockOut = {
+        ...selectedDistribution,
+        status: "COMPLETED"
+      }
+      await distributionService.updateDistribution(selectedDistribution.id, updatedDistribution)
+      
+      // Refresh the list
+      const schoolId = localStorage.getItem("schoolId")
+      if (schoolId) {
+        const data = await distributionService.getAllDistributions(schoolId)
+        setDistributions(Array.isArray(data) ? data : [])
+      }
+      
+      toast.success("Distribution processed successfully")
+      setDistributeDialogOpen(false)
+      setSelectedDistribution(null)
+    } catch (err: any) {
+      console.error("Error processing distribution:", err)
+      toast.error(err.response?.data || "Failed to process distribution")
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
-  const handleCreateDistribution = () => {
-    // In a real app, this would create a new distribution record
-    console.log("Creating new distribution")
-    setNewDistributionOpen(false)
+  const handleCreateDistribution = async () => {
+    if (!newDistribution.destination || !newDistribution.requestedBy || newDistribution.items.length === 0) {
+      toast.error("Please fill in all required fields and add at least one item")
+      return
+    }
+
+    try {
+      setIsProcessing(true)
+      const schoolId = localStorage.getItem("schoolId")
+      if (!schoolId) {
+        toast.error("School ID not found")
+        return
+      }
+
+      const stockOutPayload: StockOut = {
+        date: newDistribution.date,
+        destination: newDistribution.destination,
+        requestedBy: newDistribution.requestedBy,
+        notes: newDistribution.notes,
+        status: "PENDING",
+        school: { id: schoolId },
+        stockOutItems: newDistribution.items.map(item => ({
+          item: { id: item.itemId },
+          quantity: item.quantity,
+          unit: item.unit
+        }))
+      }
+
+      await distributionService.createDistribution(stockOutPayload)
+      
+      // Refresh the list
+      const data = await distributionService.getAllDistributions(schoolId)
+      setDistributions(data || [])
+      
+      toast.success("Distribution created successfully")
+      setNewDistributionOpen(false)
+      setNewDistribution({
+        date: new Date().toISOString().split('T')[0],
+        destination: "",
+        requestedBy: "",
+        notes: "",
+        items: []
+      })
+    } catch (err: any) {
+      console.error("Error creating distribution:", err)
+      toast.error(err.response?.data || "Failed to create distribution")
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "pending":
+  const handleDeleteDistribution = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this distribution?")) {
+      return
+    }
+
+    try {
+      setIsProcessing(true)
+      await distributionService.deleteDistribution(id)
+      
+      // Refresh the list
+      const schoolId = localStorage.getItem("schoolId")
+      if (schoolId) {
+        const data = await distributionService.getAllDistributions(schoolId)
+        setDistributions(Array.isArray(data) ? data : [])
+      }
+      
+      toast.success("Distribution deleted successfully")
+    } catch (err: any) {
+      console.error("Error deleting distribution:", err)
+      toast.error(err.response?.data || "Failed to delete distribution")
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handleAddItem = () => {
+    setNewDistribution({
+      ...newDistribution,
+      items: [...newDistribution.items, { itemId: "", quantity: 0, unit: "kg" }]
+    })
+  }
+
+  const handleRemoveItem = (index: number) => {
+    setNewDistribution({
+      ...newDistribution,
+      items: newDistribution.items.filter((_, i) => i !== index)
+    })
+  }
+
+  const handleUpdateItem = (index: number, field: string, value: string | number) => {
+    const updatedItems = [...newDistribution.items]
+    updatedItems[index] = { ...updatedItems[index], [field]: value }
+    setNewDistribution({ ...newDistribution, items: updatedItems })
+  }
+
+  const getStatusBadge = (status?: string) => {
+    const normalizedStatus = status?.toUpperCase() || ""
+    switch (normalizedStatus) {
+      case "PENDING":
         return (
           <Badge variant="outline" className="bg-blue-100 text-blue-800 hover:bg-blue-100">
             Pending
           </Badge>
         )
-      case "completed":
+      case "COMPLETED":
         return <Badge className="bg-green-600 hover:bg-green-700">Completed</Badge>
-      case "cancelled":
+      case "CANCELLED":
         return <Badge variant="destructive">Cancelled</Badge>
       default:
         return <Badge variant="outline">Unknown</Badge>
     }
+  }
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return "N/A"
+    try {
+      const date = new Date(dateString)
+      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+    } catch {
+      return dateString
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    )
+  }
+
+  if (error && distributions.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-destructive">Error loading distributions</h2>
+          <p className="text-muted-foreground mt-2">{error}</p>
+          <Button onClick={() => window.location.reload()} className="mt-4">
+            Retry
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -172,7 +381,7 @@ export function StockDistribution() {
       {/* Main Content */}
       <div className="flex flex-1 flex-col">
         {/* Header */}
-        <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
+        <header className="hidden md:flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
           <Link to="/stock-dashboard" className="lg:hidden">
             <Package className="h-6 w-6" />
             <span className="sr-only">Home</span>
@@ -221,7 +430,7 @@ export function StockDistribution() {
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto p-4 md:p-6">
+        <main className="flex-1 overflow-auto p-2 sm:p-4 md:p-6 min-w-0">
           <Card>
             <CardHeader>
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -283,44 +492,64 @@ export function StockDistribution() {
                   </TableHeader>
                   <TableBody>
                     {filteredDistributions.length > 0 ? (
-                      paginatedDistributions.map((distribution) => (
-                        <TableRow key={distribution.id}>
-                          <TableCell className="font-medium">{distribution.id}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center">
-                              <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
-                              {distribution.date}
-                            </div>
-                          </TableCell>
-                          <TableCell>{distribution.destination}</TableCell>
-                          <TableCell>
-                            {distribution.items.map((item, index) => (
-                              <div key={index}>
-                                {item} ({distribution.quantities[index]})
+                      paginatedDistributions.map((distribution) => {
+                        const status = distribution.status?.toUpperCase() || ""
+                        const isPending = status === "PENDING"
+                        return (
+                          <TableRow key={distribution.id}>
+                            <TableCell className="font-medium">{distribution.id?.substring(0, 8)}...</TableCell>
+                            <TableCell>
+                              <div className="flex items-center">
+                                <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
+                                {formatDate(distribution.date || distribution.created)}
                               </div>
-                            ))}
-                          </TableCell>
-                          <TableCell>{distribution.requestedBy}</TableCell>
-                          <TableCell>{getStatusBadge(distribution.status)}</TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedDistribution(distribution)
-                                setDistributeDialogOpen(true)
-                              }}
-                              disabled={distribution.status !== "pending"}
-                            >
-                              {distribution.status === "pending" ? "Process" : "View Details"}
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
+                            </TableCell>
+                            <TableCell>{distribution.destination || "N/A"}</TableCell>
+                            <TableCell>
+                              {distribution.stockOutItems && distribution.stockOutItems.length > 0 ? (
+                                distribution.stockOutItems.map((stockItem, index) => (
+                                  <div key={index} className="text-sm">
+                                    {stockItem.item?.name || "N/A"} ({stockItem.quantity || 0}{stockItem.unit || "kg"})
+                                  </div>
+                                ))
+                              ) : (
+                                <span className="text-sm text-muted-foreground">No items</span>
+                              )}
+                            </TableCell>
+                            <TableCell>{distribution.requestedBy || "N/A"}</TableCell>
+                            <TableCell>{getStatusBadge(distribution.status)}</TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedDistribution(distribution)
+                                    setDistributeDialogOpen(true)
+                                  }}
+                                  disabled={isProcessing}
+                                >
+                                  {isPending ? "Process" : "View Details"}
+                                </Button>
+                                {isPending && (
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => distribution.id && handleDeleteDistribution(distribution.id)}
+                                    disabled={isProcessing}
+                                  >
+                                    Delete
+                                  </Button>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })
                     ) : (
                       <TableRow>
                         <TableCell colSpan={7} className="h-24 text-center">
-                          No distributions found.
+                          {distributions.length === 0 ? "No distribution found" : "No distributions found matching your search."}
                         </TableCell>
                       </TableRow>
                     )}
@@ -395,22 +624,22 @@ export function StockDistribution() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Distribution ID</p>
-                  <p className="font-medium">{selectedDistribution.id}</p>
+                  <p className="font-medium">{selectedDistribution.id?.substring(0, 8)}...</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Date</p>
-                  <p>{selectedDistribution.date}</p>
+                  <p>{formatDate(selectedDistribution.date || selectedDistribution.created)}</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Destination</p>
-                  <p>{selectedDistribution.destination}</p>
+                  <p>{selectedDistribution.destination || "N/A"}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Requested By</p>
-                  <p>{selectedDistribution.requestedBy}</p>
+                  <p>{selectedDistribution.requestedBy || "N/A"}</p>
                 </div>
               </div>
 
@@ -421,32 +650,26 @@ export function StockDistribution() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Item</TableHead>
-                        <TableHead>Requested</TableHead>
-                        <TableHead>Available</TableHead>
-                        <TableHead>To Distribute</TableHead>
+                        <TableHead>Requested Quantity</TableHead>
+                        <TableHead>Status</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {selectedDistribution.items.map((item, index) => (
-                        <TableRow key={index}>
-                          <TableCell>{item}</TableCell>
-                          <TableCell>{selectedDistribution.quantities[index]}</TableCell>
-                          <TableCell>
-                            {item === "Rice" && "1,200kg"}
-                            {item === "Beans" && "850kg"}
-                            {item === "Vegetables" && "120kg"}
-                            {item === "Maize" && "950kg"}
-                            {item === "Oil" && "80L"}
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              type="text"
-                              defaultValue={selectedDistribution.quantities[index]}
-                              className="h-8 w-24"
-                            />
+                      {selectedDistribution.stockOutItems && selectedDistribution.stockOutItems.length > 0 ? (
+                        selectedDistribution.stockOutItems.map((stockItem, index) => (
+                          <TableRow key={index}>
+                            <TableCell>{stockItem.item?.name || "N/A"}</TableCell>
+                            <TableCell>{stockItem.quantity || 0} {stockItem.unit || "kg"}</TableCell>
+                            <TableCell>{getStatusBadge(selectedDistribution.status)}</TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={3} className="text-center text-muted-foreground">
+                            No items
                           </TableCell>
                         </TableRow>
-                      ))}
+                      )}
                     </TableBody>
                   </Table>
                 </div>
@@ -457,19 +680,22 @@ export function StockDistribution() {
                 <Textarea
                   id="notes"
                   placeholder="Add any notes about this distribution"
-                  defaultValue={selectedDistribution.notes}
+                  defaultValue={selectedDistribution.notes || ""}
+                  readOnly
                 />
               </div>
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setDistributeDialogOpen(false)}>
+              <Button variant="outline" onClick={() => setDistributeDialogOpen(false)} disabled={isProcessing}>
                 Cancel
               </Button>
-              <Button onClick={handleDistribute}>
-                <Check className="mr-2 h-4 w-4" />
-                Process Distribution
-              </Button>
+              {selectedDistribution.status?.toUpperCase() === "PENDING" && (
+                <Button onClick={handleDistribute} disabled={isProcessing}>
+                  <Check className="mr-2 h-4 w-4" />
+                  {isProcessing ? "Processing..." : "Process Distribution"}
+                </Button>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -486,12 +712,21 @@ export function StockDistribution() {
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="date">Date</Label>
-                <Input id="date" type="date" />
+                <Label htmlFor="date">Date *</Label>
+                <Input 
+                  id="date" 
+                  type="date" 
+                  value={newDistribution.date}
+                  onChange={(e) => setNewDistribution({ ...newDistribution, date: e.target.value })}
+                  required
+                />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="destination">Destination</Label>
-                <Select>
+                <Label htmlFor="destination">Destination *</Label>
+                <Select 
+                  value={newDistribution.destination}
+                  onValueChange={(value) => setNewDistribution({ ...newDistribution, destination: value })}
+                >
                   <SelectTrigger id="destination">
                     <SelectValue placeholder="Select destination" />
                   </SelectTrigger>
@@ -505,65 +740,125 @@ export function StockDistribution() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="requested-by">Requested By</Label>
-              <Input id="requested-by" placeholder="Name of requester" />
+              <Label htmlFor="requested-by">Requested By *</Label>
+              <Input 
+                id="requested-by" 
+                placeholder="Name of requester"
+                value={newDistribution.requestedBy}
+                onChange={(e) => setNewDistribution({ ...newDistribution, requestedBy: e.target.value })}
+                required
+              />
             </div>
 
             <div className="space-y-2">
-              <Label>Items</Label>
+              <Label>Items *</Label>
               <div className="rounded-md border p-4">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1">
-                      <Select>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select item" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="rice">Rice</SelectItem>
-                          <SelectItem value="beans">Beans</SelectItem>
-                          <SelectItem value="maize">Maize</SelectItem>
-                          <SelectItem value="vegetables">Vegetables</SelectItem>
-                          <SelectItem value="oil">Oil</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Input placeholder="Quantity" className="w-24" />
-                    <div className="w-24">
-                      <Select>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Unit" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="kg">kg</SelectItem>
-                          <SelectItem value="l">L</SelectItem>
-                          <SelectItem value="pcs">pcs</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Button variant="ghost" size="icon">
-                      <Plus className="h-4 w-4" />
+                {loadingItems ? (
+                  <p className="text-sm text-muted-foreground">Loading items...</p>
+                ) : (
+                  <div className="space-y-4">
+                    {newDistribution.items.map((item, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <div className="flex-1">
+                          <Select
+                            value={item.itemId}
+                            onValueChange={(value) => handleUpdateItem(index, "itemId", value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select item" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availableItems.map((availableItem) => (
+                                <SelectItem key={availableItem.id} value={availableItem.id}>
+                                  {availableItem.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <Input 
+                          type="number"
+                          placeholder="Quantity" 
+                          className="w-24"
+                          value={item.quantity || ""}
+                          onChange={(e) => handleUpdateItem(index, "quantity", parseFloat(e.target.value) || 0)}
+                          min="0"
+                          step="0.01"
+                        />
+                        <div className="w-24">
+                          <Select
+                            value={item.unit}
+                            onValueChange={(value) => handleUpdateItem(index, "unit", value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Unit" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="kg">kg</SelectItem>
+                              <SelectItem value="L">L</SelectItem>
+                              <SelectItem value="pcs">pcs</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => handleRemoveItem(index)}
+                          type="button"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full"
+                      onClick={handleAddItem}
+                      type="button"
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add Item
                     </Button>
                   </div>
-                  <Button variant="outline" size="sm" className="w-full">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Item
-                  </Button>
-                </div>
+                )}
               </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="notes">Notes</Label>
-              <Textarea id="notes" placeholder="Add any notes about this distribution" />
+              <Textarea 
+                id="notes" 
+                placeholder="Add any notes about this distribution"
+                value={newDistribution.notes}
+                onChange={(e) => setNewDistribution({ ...newDistribution, notes: e.target.value })}
+              />
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setNewDistributionOpen(false)}>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setNewDistributionOpen(false)
+                setNewDistribution({
+                  date: new Date().toISOString().split('T')[0],
+                  destination: "",
+                  requestedBy: "",
+                  notes: "",
+                  items: []
+                })
+              }}
+              disabled={isProcessing}
+            >
               Cancel
             </Button>
-            <Button onClick={handleCreateDistribution}>Create Distribution</Button>
+            <Button 
+              onClick={handleCreateDistribution}
+              disabled={isProcessing || newDistribution.items.length === 0}
+            >
+              {isProcessing ? "Creating..." : "Create Distribution"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -482,7 +482,7 @@ export function DistrictApprovals() {
       {/* Main Content */}
       <div className="flex flex-1 flex-col">
         {/* Header */}
-        <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
+        <header className="hidden md:flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
           <Link to="/district-dashboard" className="lg:hidden">
             <Package className="h-6 w-6" />
             <span className="sr-only">Home</span>
@@ -531,7 +531,7 @@ export function DistrictApprovals() {
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto p-4 md:p-6">
+        <main className="flex-1 overflow-auto p-2 sm:p-4 md:p-6 min-w-0">
           <Card>
             <CardHeader>
               <CardTitle>Food Requests</CardTitle>

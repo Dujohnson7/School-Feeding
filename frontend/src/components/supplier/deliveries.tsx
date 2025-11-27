@@ -1,7 +1,10 @@
 
 import { useEffect, useState } from "react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { Bell, Calendar, CheckCircle, Clock, Filter, LogOut, MapPin, Search, Settings, Truck, User, XCircle } from "lucide-react"
+import axios from "axios"
+import { toast } from "@/components/ui/use-toast"
+import { logout } from "@/lib/auth"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,96 +23,251 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+
+interface Delivery {
+  id: string
+  school: string
+  address: string
+  items: string[]
+  quantities: string[]
+  orderDate: string
+  deliveryDate: string | null
+  deliveryStatus: "APPROVED" | "SCHEDULED" | "PROCESSING" | "DELIVERED" | "CANCELLED"
+  orderPrice: number
+  district: string
+  contact: string
+}
+
+// Backend Order entity interface (same as orders.tsx)
+interface BackendOrder {
+  id?: string
+  created?: string
+  updated?: string
+  requestItem?: {
+    id?: string
+    created?: string
+    updated?: string
+    description?: string
+    requestStatus?: string
+    school?: {
+      id?: string
+      name?: string
+      address?: string
+      email?: string
+      phone?: string
+      student?: number
+      directorNames?: string
+      district?: {
+        id?: string
+        province?: string
+        district?: string
+      }
+    }
+    district?: {
+      id?: string
+      province?: string
+      district?: string
+    }
+    requestItemDetails?: Array<{
+      id?: string
+      quantity?: number
+      item?: {
+        id?: string
+        name?: string
+        perStudent?: number
+        description?: string
+      }
+    }>
+  }
+  supplier?: {
+    id?: string
+    names?: string
+    email?: string
+    phone?: string
+    companyName?: string
+    items?: Array<{
+      id?: string
+      name?: string
+      perStudent?: number
+      description?: string
+    }>
+  }
+  deliveryDate?: string | null
+  deliveryStatus?: "APPROVED" | "SCHEDULED" | "PROCESSING" | "DELIVERED" | "CANCELLED"
+  orderPrice?: number
+  orderPayState?: "PENDING" | "PAYED" | "CANCELLED"
+  rating?: number
+  [key: string]: any
+}
+
+const API_BASE_URL = "http://localhost:8070/api/supplierDelivery"
+
+const deliveryService = {
+  getDelivery: async (id: string) => {
+    const response = await axios.get(`${API_BASE_URL}/${id}`)
+    return response.data
+  },
+
+  getAllDeliveries: async (supplierId: string) => {
+    const response = await axios.get(`${API_BASE_URL}/all/${supplierId}`)
+    return response.data
+  },
+
+  processOrder: async (id: string) => {
+    const response = await axios.put(`${API_BASE_URL}/processOrder/${id}`)
+    return response.data
+  },
+
+  deliveryOrder: async (id: string) => {
+    const response = await axios.put(`${API_BASE_URL}/deliveryOrder/${id}`)
+    return response.data
+  },
+}
+
+// Helper function to map backend order to frontend delivery
+const mapBackendOrderToDelivery = (backendOrder: BackendOrder): Delivery => {
+  const formatDate = (dateString?: string | null) => {
+    if (!dateString) return "N/A"
+    try {
+      const date = new Date(dateString)
+      return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    } catch {
+      return dateString
+    }
+  }
+
+  const mapDeliveryStatus = (deliveryStatus?: string): Delivery["deliveryStatus"] => {
+    if (!deliveryStatus) return "SCHEDULED"
+    const statusUpper = deliveryStatus.toUpperCase()
+    if (statusUpper === "APPROVED") return "APPROVED"
+    if (statusUpper === "SCHEDULED") return "SCHEDULED"
+    if (statusUpper === "PROCESSING") return "PROCESSING"
+    if (statusUpper === "DELIVERED") return "DELIVERED"
+    if (statusUpper === "CANCELLED" || statusUpper === "CANCELED") return "CANCELLED"
+    return "SCHEDULED"
+  }
+
+  // Extract items and quantities from requestItemDetails
+  const requestItemDetails = backendOrder.requestItem?.requestItemDetails || []
+  const items: string[] = []
+  const quantities: string[] = []
+
+  // Get item names from supplier's items array by matching IDs
+  const supplierItems = backendOrder.supplier?.items || []
+  const itemMap = new Map(supplierItems.map(item => [item.id, item.name]))
+
+  requestItemDetails.forEach((detail) => {
+    const itemId = detail.item?.id
+    const itemName = itemId ? (itemMap.get(itemId) || `Item ${itemId}`) : "Unknown Item"
+    const quantity = detail.quantity || 0
+    
+    items.push(itemName)
+    quantities.push(`${quantity} kg`)
+  })
+
+  const school = backendOrder.requestItem?.school
+  const district = backendOrder.requestItem?.district || backendOrder.requestItem?.school?.district
+
+  return {
+    id: backendOrder.id || "",
+    school: school?.name || "Unknown School",
+    address: school?.address || "Address not available",
+    items: items.length > 0 ? items : ["No items"],
+    quantities: quantities.length > 0 ? quantities : ["N/A"],
+    orderDate: formatDate(backendOrder.created),
+    deliveryDate: backendOrder.deliveryDate ?? null,
+    deliveryStatus: mapDeliveryStatus(backendOrder.deliveryStatus),
+    orderPrice: backendOrder.orderPrice || 0,
+    district: district?.district || "Unknown",
+    contact: school?.phone || school?.email || "+250 XXX XXX XXX",
+  }
+}
 
 export function SupplierDeliveries() {
+  const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
+  const [activeTab, setActiveTab] = useState("all")
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(5)
+  const [deliveries, setDeliveries] = useState<Delivery[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null)
+  const [detailsOpen, setDetailsOpen] = useState(false)
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
 
-  const deliveries = [
-    {
-      id: "DEL-2025-089",
-      orderId: "ORD-2025-156",
-      school: "Kigali Primary School",
-      address: "KN 4 Ave, Nyarugenge, Kigali",
-      items: "Rice (500kg), Beans (200kg), Cooking Oil (50L)",
-      scheduledDate: "2025-04-15",
-      scheduledTime: "08:00 AM",
-      status: "scheduled",
-      driver: "Jean Baptiste",
-      vehicle: "RAD 123 A",
-      contact: "+250 788 123 456",
-    },
-    {
-      id: "DEL-2025-088",
-      orderId: "ORD-2025-155",
-      school: "Nyamirambo Secondary",
-      address: "KG 15 St, Nyamirambo, Kigali",
-      items: "Maize Flour (300kg), Salt (25kg), Sugar (100kg)",
-      scheduledDate: "2025-04-14",
-      scheduledTime: "09:30 AM",
-      status: "delivered",
-      driver: "Marie Claire",
-      vehicle: "RAD 456 B",
-      contact: "+250 788 654 321",
-      deliveredAt: "2025-04-14 09:45 AM",
-    },
-    {
-      id: "DEL-2025-087",
-      orderId: "ORD-2025-154",
-      school: "Remera High School",
-      address: "KG 7 Ave, Remera, Kigali",
-      items: "Fresh Vegetables (150kg), Meat (80kg)",
-      scheduledDate: "2025-04-13",
-      scheduledTime: "10:00 AM",
-      status: "in-transit",
-      driver: "Paul Kagame",
-      vehicle: "RAD 789 C",
-      contact: "+250 788 987 654",
-    },
-    {
-      id: "DEL-2025-086",
-      orderId: "ORD-2025-153",
-      school: "Gasabo Primary",
-      address: "KG 12 St, Gasabo, Kigali",
-      items: "Milk (200L), Bread (500 loaves), Eggs (1000 pieces)",
-      scheduledDate: "2025-04-12",
-      scheduledTime: "07:30 AM",
-      status: "delivered",
-      driver: "Agnes Uwimana",
-      vehicle: "RAD 321 D",
-      contact: "+250 788 111 222",
-      deliveredAt: "2025-04-12 07:45 AM",
-    },
-    {
-      id: "DEL-2025-085",
-      orderId: "ORD-2025-152",
-      school: "Kimisagara Primary",
-      address: "KG 3 Ave, Kimisagara, Kigali",
-      items: "Fresh Meat (120kg), Spices (15kg)",
-      scheduledDate: "2025-04-11",
-      scheduledTime: "11:00 AM",
-      status: "cancelled",
-      driver: "Eric Nzeyimana",
-      vehicle: "RAD 555 E",
-      contact: "+250 788 333 444",
-      cancelReason: "School requested postponement",
-    },
-  ]
+  const handleLogout = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    await logout(navigate)
+  }
 
+  // Fetch deliveries from API
+  useEffect(() => {
+    const fetchDeliveries = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+
+        // Get supplier ID from localStorage (userId from login)
+        const supplierId = localStorage.getItem("userId")
+
+        if (!supplierId) {
+          throw new Error("User ID not found. Please login again.")
+        }
+
+        const backendOrders: BackendOrder[] = await deliveryService.getAllDeliveries(supplierId)
+        
+        if (backendOrders && Array.isArray(backendOrders)) {
+          const mappedDeliveries = backendOrders.map(mapBackendOrderToDelivery)
+          setDeliveries(mappedDeliveries)
+        } else {
+          setDeliveries([])
+        }
+      } catch (err: any) {
+        // Handle 404 as empty result (no deliveries found)
+        if (err.response?.status === 404) {
+          setDeliveries([])
+          setError(null)
+        } else {
+          console.error("Error fetching deliveries:", err)
+          const errorMessage = err.response?.data?.message || err.message || "Failed to fetch deliveries"
+          setError(errorMessage)
+          toast({
+            title: "Error",
+            description: errorMessage,
+            variant: "destructive",
+          })
+          setDeliveries([])
+        }
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchDeliveries()
+  }, [])
+
+  // Filter deliveries based on search term, status filter, and active tab
   const filteredDeliveries = deliveries.filter((delivery) => {
     const matchesSearch =
       delivery.school.toLowerCase().includes(searchTerm.toLowerCase()) ||
       delivery.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      delivery.driver.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === "all" || delivery.status === statusFilter
-    return matchesSearch && matchesStatus
+      delivery.items.some((item) => item.toLowerCase().includes(searchTerm.toLowerCase()))
+
+    const matchesStatus = statusFilter === "all" || delivery.deliveryStatus.toLowerCase() === statusFilter.toLowerCase()
+
+    const matchesTab =
+      activeTab === "all" ||
+      delivery.deliveryStatus.toUpperCase() === activeTab.toUpperCase()
+
+    return matchesSearch && matchesStatus && matchesTab
   })
 
   useEffect(() => {
     setPage(1)
-  }, [searchTerm, statusFilter])
+  }, [searchTerm, statusFilter, activeTab])
 
   const totalPages = Math.max(1, Math.ceil(filteredDeliveries.length / pageSize))
   const startIndex = (page - 1) * pageSize
@@ -129,14 +287,28 @@ export function SupplierDeliveries() {
   }
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "delivered":
+    switch (status.toUpperCase()) {
+      case "APPROVED":
+        return (
+          <Badge variant="outline" className="bg-green-100 text-green-800 hover:bg-green-100">
+            Approved
+          </Badge>
+        )
+      case "SCHEDULED":
+        return (
+          <Badge variant="outline" className="bg-blue-100 text-blue-800 hover:bg-blue-100">
+            Scheduled
+          </Badge>
+        )
+      case "PROCESSING":
+        return (
+          <Badge variant="outline" className="bg-amber-100 text-amber-800 hover:bg-amber-100">
+            Processing
+          </Badge>
+        )
+      case "DELIVERED":
         return <Badge className="bg-green-600 hover:bg-green-700">Delivered</Badge>
-      case "in-transit":
-        return <Badge className="bg-blue-600 hover:bg-blue-700">In Transit</Badge>
-      case "scheduled":
-        return <Badge className="bg-purple-600 hover:bg-purple-700">Scheduled</Badge>
-      case "cancelled":
+      case "CANCELLED":
         return <Badge variant="destructive">Cancelled</Badge>
       default:
         return <Badge variant="outline">Unknown</Badge>
@@ -144,23 +316,85 @@ export function SupplierDeliveries() {
   }
 
   const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "delivered":
+    switch (status.toUpperCase()) {
+      case "DELIVERED":
         return <CheckCircle className="h-4 w-4 text-green-600" />
-      case "in-transit":
-        return <Truck className="h-4 w-4 text-blue-600" />
-      case "scheduled":
-        return <Clock className="h-4 w-4 text-purple-600" />
-      case "cancelled":
+      case "PROCESSING":
+        return <Truck className="h-4 w-4 text-amber-600" />
+      case "SCHEDULED":
+      case "APPROVED":
+        return <Clock className="h-4 w-4 text-blue-600" />
+      case "CANCELLED":
         return <XCircle className="h-4 w-4 text-red-600" />
       default:
         return <Clock className="h-4 w-4 text-gray-600" />
     }
   }
 
-  const handleUpdateStatus = (deliveryId: string, newStatus: string) => {
-    console.log(`Updating delivery ${deliveryId} to ${newStatus}`)
-    // Here you would typically make an API call to update the status
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('en-RW', {
+      style: 'currency',
+      currency: 'RWF',
+      minimumFractionDigits: 0,
+    }).format(price)
+  }
+
+  const handleProcessOrder = async (deliveryId: string) => {
+    try {
+      setUpdatingStatus(deliveryId)
+      await deliveryService.processOrder(deliveryId)
+      toast({
+        title: "Success",
+        description: "Delivery status updated to Processing",
+      })
+      // Refresh deliveries
+      const supplierId = localStorage.getItem("userId")
+      if (supplierId) {
+        const backendOrders: BackendOrder[] = await deliveryService.getAllDeliveries(supplierId)
+        if (backendOrders && Array.isArray(backendOrders)) {
+          const mappedDeliveries = backendOrders.map(mapBackendOrderToDelivery)
+          setDeliveries(mappedDeliveries)
+        }
+      }
+    } catch (err: any) {
+      console.error("Error processing order:", err)
+      toast({
+        title: "Error",
+        description: err.response?.data?.message || err.message || "Failed to update delivery status",
+        variant: "destructive",
+      })
+    } finally {
+      setUpdatingStatus(null)
+    }
+  }
+
+  const handleDeliverOrder = async (deliveryId: string) => {
+    try {
+      setUpdatingStatus(deliveryId)
+      await deliveryService.deliveryOrder(deliveryId)
+      toast({
+        title: "Success",
+        description: "Delivery marked as Delivered",
+      })
+      // Refresh deliveries
+      const supplierId = localStorage.getItem("userId")
+      if (supplierId) {
+        const backendOrders: BackendOrder[] = await deliveryService.getAllDeliveries(supplierId)
+        if (backendOrders && Array.isArray(backendOrders)) {
+          const mappedDeliveries = backendOrders.map(mapBackendOrderToDelivery)
+          setDeliveries(mappedDeliveries)
+        }
+      }
+    } catch (err: any) {
+      console.error("Error delivering order:", err)
+      toast({
+        title: "Error",
+        description: err.response?.data?.message || err.message || "Failed to update delivery status",
+        variant: "destructive",
+      })
+    } finally {
+      setUpdatingStatus(null)
+    }
   }
 
   return (
@@ -168,7 +402,7 @@ export function SupplierDeliveries() {
       {/* Main Content */}
       <div className="flex flex-1 flex-col">
         {/* Header */}
-        <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
+        <header className="hidden md:flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
           <Link to="/supplier-dashboard" className="lg:hidden">
             <Truck className="h-6 w-6" />
             <span className="sr-only">Home</span>
@@ -193,8 +427,8 @@ export function SupplierDeliveries() {
               <DropdownMenuContent className="w-56" align="end" forceMount>
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">Fresh Foods Ltd</p>
-                    <p className="text-xs leading-none text-muted-foreground">supplier@freshfoods.rw</p>
+                    <p className="text-sm font-medium leading-none">Supplier</p>
+                    <p className="text-xs leading-none text-muted-foreground">supplier@kigalifoods.rw</p>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
@@ -207,7 +441,7 @@ export function SupplierDeliveries() {
                   <span>Settings</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={handleLogout}>
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Log out</span>
                 </DropdownMenuItem>
@@ -217,16 +451,17 @@ export function SupplierDeliveries() {
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto p-4 md:p-6">
-          <Tabs defaultValue="all" className="w-full">
+        <main className="flex-1 overflow-auto p-2 sm:p-4 md:p-6 min-w-0">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="mb-6">
               <TabsTrigger value="all">All Deliveries</TabsTrigger>
               <TabsTrigger value="scheduled">Scheduled</TabsTrigger>
-              <TabsTrigger value="in-transit">In Transit</TabsTrigger>
+              <TabsTrigger value="processing">Processing</TabsTrigger>
               <TabsTrigger value="delivered">Delivered</TabsTrigger>
+              <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="all" className="space-y-6">
+            <TabsContent value={activeTab} className="space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle>Delivery Management</CardTitle>
@@ -257,8 +492,9 @@ export function SupplierDeliveries() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">All Status</SelectItem>
+                          <SelectItem value="approved">Approved</SelectItem>
                           <SelectItem value="scheduled">Scheduled</SelectItem>
-                          <SelectItem value="in-transit">In Transit</SelectItem>
+                          <SelectItem value="processing">Processing</SelectItem>
                           <SelectItem value="delivered">Delivered</SelectItem>
                           <SelectItem value="cancelled">Cancelled</SelectItem>
                         </SelectContent>
@@ -266,88 +502,116 @@ export function SupplierDeliveries() {
                     </div>
                   </div>
 
-                  <div className="rounded-md border">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Delivery ID</TableHead>
-                          <TableHead>School</TableHead>
-                          <TableHead>Items</TableHead>
-                          <TableHead>Scheduled</TableHead>
-                          <TableHead>Driver</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredDeliveries.length > 0 ? (
-                          paginatedDeliveries.map((delivery) => (
-                            <TableRow key={delivery.id}>
-                              <TableCell className="font-medium">{delivery.id}</TableCell>
-                              <TableCell>
-                                <div className="space-y-1">
-                                  <p className="font-medium">{delivery.school}</p>
-                                  <p className="text-xs text-muted-foreground flex items-center">
-                                    <MapPin className="mr-1 h-3 w-3" />
-                                    {delivery.address}
-                                  </p>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="max-w-xs">
-                                  <p className="text-sm truncate">{delivery.items}</p>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center">
-                                  <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
-                                  <div>
-                                    <p className="text-sm">{delivery.scheduledDate}</p>
-                                    <p className="text-xs text-muted-foreground">{delivery.scheduledTime}</p>
+                  {loading ? (
+                    <div className="flex items-center justify-center h-24">
+                      <p className="text-muted-foreground">Loading deliveries...</p>
+                    </div>
+                  ) : error ? (
+                    <div className="flex items-center justify-center h-24">
+                      <p className="text-destructive">{error}</p>
+                    </div>
+                  ) : (
+                    <div className="rounded-md border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Delivery ID</TableHead>
+                            <TableHead>School</TableHead>
+                            <TableHead>Items</TableHead>
+                            <TableHead>Order Date</TableHead>
+                            <TableHead>Delivery Date</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredDeliveries.length > 0 ? (
+                            paginatedDeliveries.map((delivery) => (
+                              <TableRow key={delivery.id}>
+                                <TableCell className="font-medium">{delivery.id}</TableCell>
+                                <TableCell>
+                                  <div className="space-y-1">
+                                    <p className="font-medium">{delivery.school}</p>
+                                    <p className="text-xs text-muted-foreground flex items-center">
+                                      <MapPin className="mr-1 h-3 w-3" />
+                                      {delivery.address}
+                                    </p>
                                   </div>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="space-y-1">
-                                  <p className="text-sm font-medium">{delivery.driver}</p>
-                                  <p className="text-xs text-muted-foreground">{delivery.vehicle}</p>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-2">
-                                  {getStatusIcon(delivery.status)}
-                                  {getStatusBadge(delivery.status)}
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <div className="flex justify-end gap-2">
-                                  {delivery.status === "scheduled" && (
-                                    <Button size="sm" onClick={() => handleUpdateStatus(delivery.id, "in-transit")}>
-                                      Start Delivery
-                                    </Button>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="max-w-xs">
+                                    <p className="text-sm">{delivery.items.join(", ")}</p>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex items-center">
+                                    <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
+                                    <div>
+                                      <p className="text-sm">{delivery.orderDate}</p>
+                                    </div>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  {delivery.deliveryDate ? (
+                                    <div className="flex items-center">
+                                      <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
+                                      <p className="text-sm">{new Date(delivery.deliveryDate).toLocaleDateString()}</p>
+                                    </div>
+                                  ) : (
+                                    <p className="text-sm text-muted-foreground">Not delivered</p>
                                   )}
-                                  {delivery.status === "in-transit" && (
-                                    <Button size="sm" onClick={() => handleUpdateStatus(delivery.id, "delivered")}>
-                                      Mark Delivered
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex items-center gap-2">
+                                    {getStatusIcon(delivery.deliveryStatus)}
+                                    {getStatusBadge(delivery.deliveryStatus)}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <div className="flex justify-end gap-2">
+                                    {delivery.deliveryStatus === "SCHEDULED" && (
+                                      <Button 
+                                        size="sm" 
+                                        onClick={() => handleProcessOrder(delivery.id)}
+                                        disabled={updatingStatus === delivery.id}
+                                      >
+                                        {updatingStatus === delivery.id ? "Processing..." : "Start Processing"}
+                                      </Button>
+                                    )}
+                                    {delivery.deliveryStatus === "PROCESSING" && (
+                                      <Button 
+                                        size="sm" 
+                                        onClick={() => handleDeliverOrder(delivery.id)}
+                                        disabled={updatingStatus === delivery.id}
+                                      >
+                                        {updatingStatus === delivery.id ? "Updating..." : "Mark Delivered"}
+                                      </Button>
+                                    )}
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm"
+                                      onClick={() => {
+                                        setSelectedDelivery(delivery)
+                                        setDetailsOpen(true)
+                                      }}
+                                    >
+                                      View Details
                                     </Button>
-                                  )}
-                                  <Button variant="outline" size="sm">
-                                    View Details
-                                  </Button>
-                                </div>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          ) : (
+                            <TableRow>
+                              <TableCell colSpan={7} className="h-24 text-center">
+                                No data available
                               </TableCell>
                             </TableRow>
-                          ))
-                        ) : (
-                          <TableRow>
-                            <TableCell colSpan={7} className="h-24 text-center">
-                              No deliveries found.
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
                   <div className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                       <span className="text-sm">
@@ -401,113 +665,97 @@ export function SupplierDeliveries() {
                 </CardContent>
               </Card>
             </TabsContent>
-
-            <TabsContent value="scheduled" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Scheduled Deliveries</CardTitle>
-                  <CardDescription>Deliveries scheduled for upcoming dates</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {deliveries
-                      .filter((d) => d.status === "scheduled")
-                      .map((delivery) => (
-                        <div key={delivery.id} className="flex items-center justify-between rounded-lg border p-4">
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                              <Clock className="h-4 w-4 text-purple-600" />
-                              <span className="font-medium">{delivery.school}</span>
-                              <Badge className="bg-purple-600 hover:bg-purple-700">Scheduled</Badge>
-                            </div>
-                            <p className="text-sm text-muted-foreground">{delivery.items}</p>
-                            <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                              <span>
-                                📅 {delivery.scheduledDate} at {delivery.scheduledTime}
-                              </span>
-                              <span>
-                                🚛 {delivery.driver} - {delivery.vehicle}
-                              </span>
-                            </div>
-                          </div>
-                          <Button onClick={() => handleUpdateStatus(delivery.id, "in-transit")}>Start Delivery</Button>
-                        </div>
-                      ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="in-transit" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>In Transit Deliveries</CardTitle>
-                  <CardDescription>Deliveries currently on the way</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {deliveries
-                      .filter((d) => d.status === "in-transit")
-                      .map((delivery) => (
-                        <div key={delivery.id} className="flex items-center justify-between rounded-lg border p-4">
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                              <Truck className="h-4 w-4 text-blue-600" />
-                              <span className="font-medium">{delivery.school}</span>
-                              <Badge className="bg-blue-600 hover:bg-blue-700">In Transit</Badge>
-                            </div>
-                            <p className="text-sm text-muted-foreground">{delivery.items}</p>
-                            <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                              <span>📞 {delivery.contact}</span>
-                              <span>
-                                🚛 {delivery.driver} - {delivery.vehicle}
-                              </span>
-                            </div>
-                          </div>
-                          <Button onClick={() => handleUpdateStatus(delivery.id, "delivered")}>Mark Delivered</Button>
-                        </div>
-                      ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="delivered" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Delivered Orders</CardTitle>
-                  <CardDescription>Successfully completed deliveries</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {deliveries
-                      .filter((d) => d.status === "delivered")
-                      .map((delivery) => (
-                        <div key={delivery.id} className="flex items-center justify-between rounded-lg border p-4">
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                              <CheckCircle className="h-4 w-4 text-green-600" />
-                              <span className="font-medium">{delivery.school}</span>
-                              <Badge className="bg-green-600 hover:bg-green-700">Delivered</Badge>
-                            </div>
-                            <p className="text-sm text-muted-foreground">{delivery.items}</p>
-                            <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                              <span>✅ Delivered: {delivery.deliveredAt}</span>
-                              <span>
-                                🚛 {delivery.driver} - {delivery.vehicle}
-                              </span>
-                            </div>
-                          </div>
-                          <Button variant="outline">View Receipt</Button>
-                        </div>
-                      ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
           </Tabs>
         </main>
       </div>
+
+      {/* Delivery Details Dialog */}
+      {selectedDelivery && (
+        <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Delivery Details</DialogTitle>
+              <DialogDescription>Review the details of this delivery</DialogDescription>
+            </DialogHeader>
+
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Delivery ID</p>
+                  <p className="font-medium">{selectedDelivery.id}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Order Date</p>
+                  <p>{selectedDelivery.orderDate}</p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">School</p>
+                <p>{selectedDelivery.school}</p>
+              </div>
+
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Address</p>
+                <p>{selectedDelivery.address}</p>
+              </div>
+
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">District</p>
+                <p>{selectedDelivery.district}</p>
+              </div>
+
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Contact</p>
+                <p>{selectedDelivery.contact}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Order Price</p>
+                  <p className="font-medium">{formatPrice(selectedDelivery.orderPrice)}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Delivery Status</p>
+                  <div className="mt-1">{getStatusBadge(selectedDelivery.deliveryStatus)}</div>
+                </div>
+              </div>
+
+              {selectedDelivery.deliveryDate && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Delivery Date</p>
+                  <p>{new Date(selectedDelivery.deliveryDate).toLocaleString()}</p>
+                </div>
+              )}
+
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Items</p>
+                <div className="mt-1 space-y-1">
+                  {selectedDelivery.items.map((item, index) => (
+                    <div key={index} className="flex justify-between">
+                      <span>{item}</span>
+                      <span>{selectedDelivery.quantities[index]}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-md bg-muted p-3">
+                <p className="text-sm font-medium">Delivery Instructions</p>
+                <p className="text-sm text-muted-foreground">
+                  Deliver to the school kitchen entrance. Contact the school administrator or Stock keeper to confirm receive delivery.
+                </p>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button onClick={() => setDetailsOpen(false)} className="w-full">
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 }

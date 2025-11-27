@@ -52,11 +52,11 @@ export function GovAnalytics() {
   }
 
   return (
-    <div className="flex-1">
+    <div className="flex-1 min-w-0">
       {/* Main Content */}
-      <div className="flex flex-1 flex-col">
+      <div className="flex flex-1 flex-col min-w-0">
         {/* Header */}
-        <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
+        <header className="hidden md:flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
           <Link to="/gov-dashboard" className="lg:hidden">
             <BarChart3 className="h-6 w-6" />
             <span className="sr-only">Home</span>
@@ -105,7 +105,7 @@ export function GovAnalytics() {
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto p-4 md:p-6">
+        <main className="flex-1 overflow-auto p-2 sm:p-4 md:p-6 min-w-0">
           <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center">
             <div className="flex-1">
               <h2 className="text-2xl font-bold">School Feeding Program Analytics</h2>

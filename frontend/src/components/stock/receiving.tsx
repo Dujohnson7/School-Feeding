@@ -2,6 +2,8 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Bell, Calendar, Check, Filter, LogOut, Package, Plus, Search, Settings, User, X } from "lucide-react"
+import axios from "axios"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -30,89 +32,116 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 
-interface DeliveryItem {
-  id: string
-  orderNumber: string
-  supplier: string
-  items: string[]
-  quantities: string[]
-  expectedDate: string
-  status: "pending" | "received" | "partial" | "rejected"
-  notes: string
+interface Order {
+  id?: string
+  created?: string
+  updated?: string
+  deliveryDate?: string
+  deliveryStatus?: "APPROVED" | "SCHEDULED" | "PROCESSING" | "DELIVERED" | "CANCELLED"
+  supplier?: {
+    id?: string
+    companyName?: string
+    names?: string
+  }
+  requestItem?: {
+    id?: string
+    requestItemDetails?: Array<{
+      id?: string
+      quantity?: number
+      item?: {
+        id?: string
+        name?: string
+        unit?: string
+      }
+    }>
+  }
+}
+
+const API_BASE_URL = "http://localhost:8070/api/receiving"
+
+const receivingService = {
+  getAllReceiving: async (schoolId: string) => {
+    const response = await axios.get(`${API_BASE_URL}/all/${schoolId}`)
+    return response.data
+  },
+
+  receiveOrder: async (id: string) => {
+    const response = await axios.put(`${API_BASE_URL}/receivingOrder/${id}`)
+    return response.data
+  },
 }
 
 export function StockReceiving() {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
-  const [selectedDelivery, setSelectedDelivery] = useState<DeliveryItem | null>(null)
+  const [selectedDelivery, setSelectedDelivery] = useState<Order | null>(null)
+  const [deliveries, setDeliveries] = useState<Order[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [isProcessing, setIsProcessing] = useState(false)
   const [receiveDialogOpen, setReceiveDialogOpen] = useState(false)
   const [newDeliveryOpen, setNewDeliveryOpen] = useState(false)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(5)
 
-  // Sample data
-  const deliveries: DeliveryItem[] = [
-    {
-      id: "DEL-2025-042",
-      orderNumber: "ORD-2025-042",
-      supplier: "Kigali Foods Ltd",
-      items: ["Rice", "Beans"],
-      quantities: ["200kg", "100kg"],
-      expectedDate: "Apr 16, 2025",
-      status: "pending",
-      notes: "Delivery scheduled for morning arrival",
-    },
-    {
-      id: "DEL-2025-041",
-      orderNumber: "ORD-2025-041",
-      supplier: "Fresh Farms Rwanda",
-      items: ["Vegetables", "Fruits"],
-      quantities: ["80kg", "50kg"],
-      expectedDate: "Apr 17, 2025",
-      status: "pending",
-      notes: "Perishable items, prepare cold storage",
-    },
-    {
-      id: "DEL-2025-040",
-      orderNumber: "ORD-2025-040",
-      supplier: "Rwanda Harvest Co.",
-      items: ["Maize", "Potatoes"],
-      quantities: ["150kg", "100kg"],
-      expectedDate: "Apr 15, 2025",
-      status: "received",
-      notes: "All items received in good condition",
-    },
-    {
-      id: "DEL-2025-039",
-      orderNumber: "ORD-2025-039",
-      supplier: "Nyabihu Dairy Products",
-      items: ["Milk"],
-      quantities: ["100L"],
-      expectedDate: "Apr 15, 2025",
-      status: "partial",
-      notes: "Only 50L received due to supply shortage",
-    },
-    {
-      id: "DEL-2025-038",
-      orderNumber: "ORD-2025-038",
-      supplier: "Eastern Grains Suppliers",
-      items: ["Rice", "Beans", "Oil"],
-      quantities: ["100kg", "50kg", "20L"],
-      expectedDate: "Apr 14, 2025",
-      status: "rejected",
-      notes: "Items rejected due to quality issues",
-    },
-  ]
+  // Fetch deliveries on component mount
+  useEffect(() => {
+    const fetchDeliveries = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const schoolId = localStorage.getItem("schoolId")
+        if (!schoolId) {
+          setError("School ID not found")
+          return
+        }
+        const data = await receivingService.getAllReceiving(schoolId)
+        setDeliveries(Array.isArray(data) ? data : [])
+      } catch (err: any) {
+        console.error("Error fetching deliveries:", err)
+        if (err.response?.status === 404) {
+          setDeliveries([])
+          setError(null)
+        } else {
+          setError(err.response?.data || "Failed to fetch deliveries")
+          toast.error("Failed to load deliveries")
+        }
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchDeliveries()
+  }, [])
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return "N/A"
+    try {
+      const date = new Date(dateString)
+      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+    } catch {
+      return dateString
+    }
+  }
 
   // Filter deliveries based on search term and status filter
-  const filteredDeliveries = deliveries.filter((delivery) => {
-    const matchesSearch =
-      delivery.supplier.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      delivery.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      delivery.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      delivery.items.some((item) => item.toLowerCase().includes(searchTerm.toLowerCase()))
+  const filteredDeliveries = (Array.isArray(deliveries) ? deliveries : []).filter((delivery) => {
+    const supplierName = delivery.supplier?.companyName || delivery.supplier?.names || ""
+    const deliveryId = delivery.id || ""
+    const items = delivery.requestItem?.requestItemDetails?.map(d => d.item?.name || "").join(" ") || ""
 
-    const matchesStatus = statusFilter === "all" || delivery.status === statusFilter
+    const matchesSearch =
+      supplierName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      deliveryId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      items.toLowerCase().includes(searchTerm.toLowerCase())
+
+    const deliveryStatus = delivery.deliveryStatus?.toUpperCase() || ""
+    const normalizedStatus = deliveryStatus === "SCHEDULED" || deliveryStatus === "APPROVED" ? "pending" :
+                             deliveryStatus === "DELIVERED" ? "received" :
+                             deliveryStatus === "PROCESSING" ? "partial" :
+                             deliveryStatus === "CANCELLED" ? "rejected" : "pending"
+    
+    const matchesStatus = statusFilter === "all" || normalizedStatus === statusFilter
 
     return matchesSearch && matchesStatus
   })
@@ -138,10 +167,51 @@ export function StockReceiving() {
     return Array.from({ length: end - start + 1 }, (_, i) => start + i)
   }
 
-  const handleReceiveDelivery = () => {
-    // In a real app, this would update the delivery status and add items to inventory
-    console.log(`Receiving delivery ${selectedDelivery?.id}`)
-    setReceiveDialogOpen(false)
+  const handleReceiveDelivery = async () => {
+    if (!selectedDelivery || !selectedDelivery.id) return
+
+    try {
+      setIsProcessing(true)
+      await receivingService.receiveOrder(selectedDelivery.id)
+      
+      // Refresh the list
+      const schoolId = localStorage.getItem("schoolId")
+      if (schoolId) {
+        const data = await receivingService.getAllReceiving(schoolId)
+        setDeliveries(Array.isArray(data) ? data : [])
+      }
+      
+      toast.success("Order received successfully")
+      setReceiveDialogOpen(false)
+      setSelectedDelivery(null)
+    } catch (err: any) {
+      console.error("Error receiving order:", err)
+      toast.error(err.response?.data || "Failed to receive order")
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    )
+  }
+
+  if (error && deliveries.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-destructive">Error loading deliveries</h2>
+          <p className="text-muted-foreground mt-2">{error}</p>
+          <Button onClick={() => window.location.reload()} className="mt-4">
+            Retry
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   const handleCreateDelivery = () => {
@@ -178,7 +248,7 @@ export function StockReceiving() {
       {/* Main Content */}
       <div className="flex flex-1 flex-col">
         {/* Header */}
-        <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
+        <header className="hidden md:flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
           <Link to="/stock-dashboard" className="lg:hidden">
             <Package className="h-6 w-6" />
             <span className="sr-only">Home</span>
@@ -227,7 +297,7 @@ export function StockReceiving() {
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto p-4 md:p-6">
+        <main className="flex-1 overflow-auto p-2 sm:p-4 md:p-6 min-w-0">
           <Card>
             <CardHeader>
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -286,44 +356,57 @@ export function StockReceiving() {
                   </TableHeader>
                   <TableBody>
                     {filteredDeliveries.length > 0 ? (
-                      paginatedDeliveries.map((delivery) => (
-                        <TableRow key={delivery.id}>
-                          <TableCell className="font-medium">{delivery.id}</TableCell>
-                          <TableCell>{delivery.orderNumber}</TableCell>
-                          <TableCell>{delivery.supplier}</TableCell>
-                          <TableCell>
-                            {delivery.items.map((item, index) => (
-                              <div key={index}>
-                                {item} ({delivery.quantities[index]})
+                      paginatedDeliveries.map((delivery) => {
+                        const deliveryStatus = delivery.deliveryStatus?.toUpperCase() || ""
+                        const normalizedStatus = deliveryStatus === "SCHEDULED" || deliveryStatus === "APPROVED" ? "pending" :
+                                                 deliveryStatus === "DELIVERED" ? "received" :
+                                                 deliveryStatus === "PROCESSING" ? "partial" :
+                                                 deliveryStatus === "CANCELLED" ? "rejected" : "pending"
+                        const canReceive = normalizedStatus === "pending"
+                        
+                        return (
+                          <TableRow key={delivery.id}>
+                            <TableCell className="font-medium">{delivery.id?.substring(0, 8)}...</TableCell>
+                            <TableCell>{delivery.id?.substring(0, 8)}...</TableCell>
+                            <TableCell>{delivery.supplier?.companyName || delivery.supplier?.names || "N/A"}</TableCell>
+                            <TableCell>
+                              {delivery.requestItem?.requestItemDetails && delivery.requestItem.requestItemDetails.length > 0 ? (
+                                delivery.requestItem.requestItemDetails.map((detail, index) => (
+                                  <div key={index} className="text-sm">
+                                    {detail.item?.name || "N/A"} ({detail.quantity || 0}{detail.item?.unit || "kg"})
+                                  </div>
+                                ))
+                              ) : (
+                                <span className="text-sm text-muted-foreground">No items</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center">
+                                <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
+                                {formatDate(delivery.deliveryDate || delivery.created)}
                               </div>
-                            ))}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center">
-                              <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
-                              {delivery.expectedDate}
-                            </div>
-                          </TableCell>
-                          <TableCell>{getStatusBadge(delivery.status)}</TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedDelivery(delivery)
-                                setReceiveDialogOpen(true)
-                              }}
-                              disabled={delivery.status === "received" || delivery.status === "rejected"}
-                            >
-                              {delivery.status === "pending" ? "Receive" : "View Details"}
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
+                            </TableCell>
+                            <TableCell>{getStatusBadge(normalizedStatus)}</TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedDelivery(delivery)
+                                  setReceiveDialogOpen(true)
+                                }}
+                                disabled={isProcessing || !canReceive}
+                              >
+                                {canReceive ? "Receive" : "View Details"}
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })
                     ) : (
                       <TableRow>
                         <TableCell colSpan={7} className="h-24 text-center">
-                          No deliveries found.
+                          {deliveries.length === 0 ? "No delivery found" : "No deliveries found matching your search."}
                         </TableCell>
                       </TableRow>
                     )}

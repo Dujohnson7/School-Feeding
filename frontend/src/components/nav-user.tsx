@@ -1,5 +1,6 @@
 
 import { BadgeCheck, Bell, ChevronsUpDown, CreditCard, LogOut, Sparkles } from "lucide-react"
+import { useNavigate } from "react-router-dom"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -12,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar"
+import { logout } from "@/lib/auth"
 
 export function NavUser({
   user,
@@ -22,7 +24,13 @@ export function NavUser({
     avatar: string
   }
 }) {
+  const navigate = useNavigate()
   const { isMobile } = useSidebar()
+
+  const handleLogout = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    await logout(navigate)
+  }
 
   return (
     <SidebarMenu>
@@ -85,7 +93,7 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={handleLogout}>
               <LogOut />
               Log out
             </DropdownMenuItem>

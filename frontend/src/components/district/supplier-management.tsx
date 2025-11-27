@@ -96,13 +96,20 @@ export function SupplierManagement() {
     const fetchSuppliers = async () => {
       try {
         setLoading(true)
+        setError(null)
         const districtId = localStorage.getItem("districtId")
         const data = await supplierService.getAllSuppliers(districtId || undefined)
         setSuppliers(data || [])
       } catch (err: any) {
-        console.error("Error fetching suppliers:", err)
-        setError(err.response?.data || "Failed to fetch suppliers")
-        toast.error("Failed to load suppliers")
+        // If 404, treat as "no suppliers found" instead of an error
+        if (err.response?.status === 404) {
+          setSuppliers([])
+          setError(null)
+        } else {
+          console.error("Error fetching suppliers:", err)
+          setError(err.response?.data || "Failed to fetch suppliers")
+          toast.error("Failed to load suppliers")
+        }
       } finally {
         setLoading(false)
       }
@@ -236,7 +243,7 @@ export function SupplierManagement() {
       {/* Main Content */}
       <div className="flex flex-1 flex-col">
         {/* Header */}
-        <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
+        <header className="hidden md:flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
           <Link to="/district-dashboard" className="lg:hidden">
             <Package className="h-6 w-6" />
             <span className="sr-only">Home</span>
@@ -285,7 +292,7 @@ export function SupplierManagement() {
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto p-4 md:p-6">
+        <main className="flex-1 overflow-auto p-2 sm:p-4 md:p-6 min-w-0">
           <Card>
             <CardHeader>
               <CardTitle>Suppliers</CardTitle>
@@ -398,7 +405,7 @@ export function SupplierManagement() {
                     ) : (
                       <TableRow>
                         <TableCell colSpan={9} className="h-24 text-center">
-                          No suppliers found matching your search.
+                          {suppliers.length === 0 ? "No supplier found" : "No suppliers found matching your search."}
                         </TableCell>
                       </TableRow>
                     )}

@@ -39,6 +39,7 @@ export function AddSupplier() {
     contactPerson: "",
     email: "",
     phone: "",
+    password: "",
     address: "",
     tinNumber: "",
     bankAccount: "",
@@ -56,7 +57,7 @@ export function AddSupplier() {
     const fetchItems = async () => {
       try {
         setLoadingItems(true)
-        const response = await axios.get(`${API_BASE_URL}/items/all`)
+        const response = await axios.get(`${API_BASE_URL}/item/all`)
         setItems(response.data || [])
       } catch (err: any) {
         console.error("Error fetching items:", err)
@@ -86,9 +87,15 @@ export function AddSupplier() {
     e.preventDefault()
     
     // Validation
-    if (!formData.companyName || !formData.email || !formData.phone || !formData.address || 
-        !formData.tinNumber || !formData.bankName || !formData.bankAccount) {
+    if (!formData.companyName || !formData.email || !formData.phone || !formData.password || 
+        !formData.address || !formData.tinNumber || !formData.bankName || !formData.bankAccount || !formData.contactPerson) {
       toast.error("Please fill in all required fields")
+      return
+    }
+
+    // Validate TIN Number is a valid number
+    if (!formData.tinNumber || formData.tinNumber.trim() === "") {
+      toast.error("TIN Number is required")
       return
     }
 
@@ -101,19 +108,41 @@ export function AddSupplier() {
       setLoading(true)
       const districtId = localStorage.getItem("districtId")
       
+      if (!districtId) {
+        toast.error("District ID not found. Please log in again.")
+        setLoading(false)
+        return
+      }
+      
+      // Map bank name from kebab-case to display format (matching admin pattern)
+      const mapBankName = (bankName: string): string => {
+        const bankMap: Record<string, string> = {
+          "bank-of-kigali": "Bank of Kigali",
+          "equity-bank": "Equity Bank",
+          "gt-bank": "GT Bank",
+          "cogebanque": "Cogebanque",
+          "urwego-bank": "Urwego Bank",
+          "access-bank": "Access Bank",
+        }
+        return bankMap[bankName] || bankName
+      }
+      
       const supplierPayload = {
+        // Users fields (inherited from Users entity)
+        names: formData.contactPerson,
+        email: formData.email,
+        phone: formData.phone,
+        password: formData.password,
+        role: "SUPPLIER",
+        district: { id: districtId },
+        userStatus: true,
+        // Supplier-specific fields
         companyName: formData.companyName,
         tinNumber: formData.tinNumber,
         address: formData.address,
-        bankName: formData.bankName,
+        bankName: mapBankName(formData.bankName),
         bankAccount: formData.bankAccount,
-        district: districtId ? { id: districtId } : null,
-        items: formData.items.map(itemId => ({ id: itemId })),
-        // Additional fields if needed by backend
-        email: formData.email,
-        phone: formData.phone,
-        contactPerson: formData.contactPerson,
-        description: formData.description,
+        items: formData.items.map(itemId => ({ id: itemId }))
       }
 
       const response = await axios.post(`${API_BASE_URL}/supplier/register`, supplierPayload)
@@ -126,6 +155,7 @@ export function AddSupplier() {
         contactPerson: "",
         email: "",
         phone: "",
+        password: "",
         address: "",
         tinNumber: "",
         bankAccount: "",
@@ -150,7 +180,7 @@ export function AddSupplier() {
       {/* Main Content */}
       <div className="flex flex-1 flex-col">
         {/* Header */}
-        <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
+        <header className="hidden md:flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
           <Link to="/district-dashboard" className="lg:hidden">
             <Plus className="h-6 w-6" />
             <span className="sr-only">Home</span>
@@ -199,7 +229,7 @@ export function AddSupplier() {
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto p-4 md:p-6">
+        <main className="flex-1 overflow-auto p-2 sm:p-4 md:p-6 min-w-0">
           <div className="mx-auto max-w-4xl space-y-6">
             <Card>
               <CardHeader>
@@ -222,6 +252,7 @@ export function AddSupplier() {
                           onChange={(e) => handleInputChange("companyName", e.target.value)}
                           placeholder="Enter company name"
                           required
+                          maxLength={255}
                         />
                       </div>
                       <div className="space-y-2">
@@ -232,6 +263,7 @@ export function AddSupplier() {
                           onChange={(e) => handleInputChange("tinNumber", e.target.value)}
                           placeholder="Enter TIN number"
                           required
+                          maxLength={50}
                         />
                       </div>
                       <div className="space-y-2">
@@ -242,6 +274,7 @@ export function AddSupplier() {
                           onChange={(e) => handleInputChange("address", e.target.value)}
                           placeholder="Enter business address"
                           required
+                          maxLength={255}
                         />
                       </div>
                     </div>
@@ -253,7 +286,11 @@ export function AddSupplier() {
                         onChange={(e) => handleInputChange("description", e.target.value)}
                         placeholder="Brief description of the company and services"
                         rows={3}
+                        maxLength={500}
                       />
+                      <p className="text-xs text-muted-foreground">
+                        {formData.description.length}/500 characters
+                      </p>
                     </div>
                   </div>
 
@@ -269,6 +306,7 @@ export function AddSupplier() {
                           onChange={(e) => handleInputChange("contactPerson", e.target.value)}
                           placeholder="Enter contact person name"
                           required
+                          maxLength={255}
                         />
                       </div>
                       <div className="space-y-2">
@@ -279,6 +317,7 @@ export function AddSupplier() {
                           onChange={(e) => handleInputChange("phone", e.target.value)}
                           placeholder="Enter phone number"
                           required
+                          maxLength={20}
                         />
                       </div>
                       <div className="space-y-2 md:col-span-2">
@@ -289,6 +328,18 @@ export function AddSupplier() {
                           value={formData.email}
                           onChange={(e) => handleInputChange("email", e.target.value)}
                           placeholder="Enter email address"
+                          required
+                          maxLength={255}
+                        />
+                      </div>
+                      <div className="space-y-2 md:col-span-2">
+                        <Label htmlFor="password">Password *</Label>
+                        <Input
+                          id="password"
+                          type="password"
+                          value={formData.password}
+                          onChange={(e) => handleInputChange("password", e.target.value)}
+                          placeholder="Enter password (min 6 characters)"
                           required
                         />
                       </div>
@@ -326,6 +377,7 @@ export function AddSupplier() {
                           onChange={(e) => handleInputChange("bankAccount", e.target.value)}
                           placeholder="Enter bank account number"
                           required
+                          maxLength={50}
                         />
                       </div>
                     </div>

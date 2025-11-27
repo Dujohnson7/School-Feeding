@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { Bell, Calendar, Download, FileText, Home, LogOut, Search, Settings, Shield, Users, X } from "lucide-react"
 import { format, subDays } from "date-fns"
 import { DateRange } from "react-day-picker"
+import { logout } from "@/lib/auth"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -34,9 +35,15 @@ interface AuditLog {
 }
 
 export function AdminAuditLogs() {
+  const navigate = useNavigate()
   const API_URL = "http://localhost:8070/api/audit"
 
   const [auditLogsList, setAuditLogsList] = useState<AuditLog[]>([])
+
+  const handleLogout = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    await logout(navigate)
+  }
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedAction, setSelectedAction] = useState("all")
@@ -260,7 +267,7 @@ export function AdminAuditLogs() {
 
   return (
     <div className="flex-1 min-w-0">
-      <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
+      <header className="hidden md:flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
         <Link to="/admin-dashboard" className="lg:hidden">
           <Shield className="h-6 w-6" />
           <span className="sr-only">Home</span>
@@ -291,12 +298,12 @@ export function AdminAuditLogs() {
               <DropdownMenuItem>Settings</DropdownMenuItem>
               <DropdownMenuItem>Support</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Log out</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleLogout}>Log out</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </header>
-      <main className="flex-1 p-4 lg:p-6 overflow-hidden">
+      <main className="flex-1 p-2 sm:p-4 lg:p-6 overflow-auto min-w-0">
         <div className="flex flex-col gap-4 h-full">
           <Card className="h-full flex flex-col">
             <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-2">

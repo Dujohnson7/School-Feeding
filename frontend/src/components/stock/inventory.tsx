@@ -2,6 +2,8 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { AlertTriangle, ArrowUpDown, Bell, Download, Filter, Package, Plus, Search, Settings, User, LogOut } from "lucide-react"
+import axios from "axios"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -29,125 +31,107 @@ import {
 import { Label } from "@/components/ui/label"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 
-interface InventoryItem {
-  id: string
-  name: string
-  category: string
-  quantity: number
-  unit: string
-  batchNumber: string
-  receivedDate: string
-  expiryDate: string
-  location: string
-  status: "normal" | "low" | "critical" | "expired"
+interface Stock {
+  id?: string
+  created?: string
+  updated?: string
+  quantity?: number
+  batchNumber?: string
+  receivedDate?: string
+  expiryDate?: string
+  location?: string
+  item?: {
+    id?: string
+    name?: string
+    category?: string
+    unit?: string
+  }
+  school?: {
+    id?: string
+    name?: string
+  }
+}
+
+const API_BASE_URL = "http://localhost:8070/api/inventory"
+
+const inventoryService = {
+  getAllInventory: async (schoolId: string) => {
+    const response = await axios.get(`${API_BASE_URL}/all/${schoolId}`)
+    return response.data
+  },
 }
 
 export function StockInventory() {
   const [searchTerm, setSearchTerm] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
-  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null)
+  const [selectedItem, setSelectedItem] = useState<Stock | null>(null)
+  const [inventoryItems, setInventoryItems] = useState<Stock[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [adjustDialogOpen, setAdjustDialogOpen] = useState(false)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(5)
 
-  // Sample data
-  const inventoryItems: InventoryItem[] = [
-    {
-      id: "INV-001",
-      name: "Rice",
-      category: "grains",
-      quantity: 1200,
-      unit: "kg",
-      batchNumber: "R2025-042",
-      receivedDate: "Apr 7, 2025",
-      expiryDate: "Oct 7, 2025",
-      location: "Warehouse A, Shelf 1",
-      status: "normal",
-    },
-    {
-      id: "INV-002",
-      name: "Beans",
-      category: "legumes",
-      quantity: 850,
-      unit: "kg",
-      batchNumber: "B2025-038",
-      receivedDate: "Apr 5, 2025",
-      expiryDate: "Oct 5, 2025",
-      location: "Warehouse A, Shelf 2",
-      status: "normal",
-    },
-    {
-      id: "INV-003",
-      name: "Maize",
-      category: "grains",
-      quantity: 950,
-      unit: "kg",
-      batchNumber: "M2025-040",
-      receivedDate: "Apr 6, 2025",
-      expiryDate: "Oct 6, 2025",
-      location: "Warehouse A, Shelf 3",
-      status: "normal",
-    },
-    {
-      id: "INV-004",
-      name: "Vegetables",
-      category: "produce",
-      quantity: 120,
-      unit: "kg",
-      batchNumber: "V2025-038",
-      receivedDate: "Apr 15, 2025",
-      expiryDate: "Apr 27, 2025",
-      location: "Cold Storage, Section B",
-      status: "low",
-    },
-    {
-      id: "INV-005",
-      name: "Oil",
-      category: "condiments",
-      quantity: 80,
-      unit: "L",
-      batchNumber: "O2025-035",
-      receivedDate: "Apr 3, 2025",
-      expiryDate: "May 13, 2025",
-      location: "Warehouse B, Shelf 1",
-      status: "low",
-    },
-    {
-      id: "INV-006",
-      name: "Salt",
-      category: "condiments",
-      quantity: 30,
-      unit: "kg",
-      batchNumber: "S2025-032",
-      receivedDate: "Apr 1, 2025",
-      expiryDate: "Apr 1, 2026",
-      location: "Warehouse B, Shelf 2",
-      status: "critical",
-    },
-    {
-      id: "INV-007",
-      name: "Milk",
-      category: "dairy",
-      quantity: 50,
-      unit: "L",
-      batchNumber: "M2025-042",
-      receivedDate: "Apr 15, 2025",
-      expiryDate: "Apr 20, 2025",
-      location: "Cold Storage, Section A",
-      status: "critical",
-    },
-  ]
+  // Fetch inventory on component mount
+  useEffect(() => {
+    const fetchInventory = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const schoolId = localStorage.getItem("schoolId")
+        if (!schoolId) {
+          setError("School ID not found")
+          return
+        }
+        const data = await inventoryService.getAllInventory(schoolId)
+        setInventoryItems(Array.isArray(data) ? data : [])
+      } catch (err: any) {
+        console.error("Error fetching inventory:", err)
+        if (err.response?.status === 404) {
+          setInventoryItems([])
+          setError(null)
+        } else {
+          setError(err.response?.data || "Failed to fetch inventory")
+          toast.error("Failed to load inventory")
+        }
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchInventory()
+  }, [])
+
+  // Helper function to determine status based on quantity and expiry date
+  const getItemStatus = (item: Stock): "normal" | "low" | "critical" | "expired" => {
+    if (!item.quantity) return "critical"
+    
+    const quantity = item.quantity
+    const expiryDate = item.expiryDate ? new Date(item.expiryDate) : null
+    const today = new Date()
+    
+    if (expiryDate && expiryDate < today) return "expired"
+    if (quantity < 50) return "critical"
+    if (quantity < 100) return "low"
+    return "normal"
+  }
 
   // Filter inventory items based on search term and filters
-  const filteredItems = inventoryItems.filter((item) => {
-    const matchesSearch =
-      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.batchNumber.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredItems = (Array.isArray(inventoryItems) ? inventoryItems : []).filter((item) => {
+    const itemName = item.item?.name || ""
+    const itemId = item.id || ""
+    const batchNumber = item.batchNumber || ""
+    const category = item.item?.category || ""
 
-    const matchesCategory = categoryFilter === "all" || item.category === categoryFilter
-    const matchesStatus = statusFilter === "all" || item.status === statusFilter
+    const matchesSearch =
+      itemName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      itemId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      batchNumber.toLowerCase().includes(searchTerm.toLowerCase())
+
+    const matchesCategory = categoryFilter === "all" || category === categoryFilter
+    const itemStatus = getItemStatus(item)
+    const matchesStatus = statusFilter === "all" || itemStatus === statusFilter
 
     return matchesSearch && matchesCategory && matchesStatus
   })
@@ -175,8 +159,40 @@ export function StockInventory() {
 
   const handleAdjustStock = () => {
     // In a real app, this would update the inventory item quantity
-    console.log(`Adjusting stock for ${selectedItem?.name}`)
+    console.log(`Adjusting stock for ${selectedItem?.item?.name}`)
     setAdjustDialogOpen(false)
+  }
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return "N/A"
+    try {
+      const date = new Date(dateString)
+      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+    } catch {
+      return dateString
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    )
+  }
+
+  if (error && inventoryItems.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-destructive">Error loading inventory</h2>
+          <p className="text-muted-foreground mt-2">{error}</p>
+          <Button onClick={() => window.location.reload()} className="mt-4">
+            Retry
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   const getStatusBadge = (status: string) => {
@@ -213,7 +229,7 @@ export function StockInventory() {
       {/* Main Content */}
       <div className="flex flex-1 flex-col">
         {/* Header */}
-        <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
+        <header className="hidden md:flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
           <Link to="/stock-dashboard" className="lg:hidden">
             <Package className="h-6 w-6" />
             <span className="sr-only">Home</span>
@@ -262,7 +278,7 @@ export function StockInventory() {
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto p-4 md:p-6">
+        <main className="flex-1 overflow-auto p-2 sm:p-4 md:p-6 min-w-0">
           <Card>
             <CardHeader>
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -353,40 +369,50 @@ export function StockInventory() {
                   </TableHeader>
                   <TableBody>
                     {filteredItems.length > 0 ? (
-                      paginatedItems.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell className="font-medium">{item.id}</TableCell>
-                          <TableCell>{item.name}</TableCell>
-                          <TableCell className="capitalize">{item.category}</TableCell>
-                          <TableCell className="text-right">
-                            {item.quantity} {item.unit}
-                          </TableCell>
-                          <TableCell>{item.batchNumber}</TableCell>
-                          <TableCell>
-                            {item.expiryDate}
-                            {new Date(item.expiryDate) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) && (
-                              <AlertTriangle className="ml-2 inline h-4 w-4 text-amber-500" />
-                            )}
-                          </TableCell>
-                          <TableCell>{getStatusBadge(item.status)}</TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedItem(item)
-                                setAdjustDialogOpen(true)
-                              }}
-                            >
-                              Adjust
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
+                      paginatedItems.map((item) => {
+                        const itemStatus = getItemStatus(item)
+                        const expiryDate = item.expiryDate ? new Date(item.expiryDate) : null
+                        const isExpiringSoon = expiryDate && expiryDate <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+                        
+                        return (
+                          <TableRow key={item.id}>
+                            <TableCell className="font-medium">{item.id?.substring(0, 8)}...</TableCell>
+                            <TableCell>{item.item?.name || "N/A"}</TableCell>
+                            <TableCell className="capitalize">{item.item?.category || "N/A"}</TableCell>
+                            <TableCell className="text-right">
+                              {item.quantity || 0} {item.item?.unit || "kg"}
+                            </TableCell>
+                            <TableCell>{item.batchNumber || "N/A"}</TableCell>
+                            <TableCell>
+                              {formatDate(item.receivedDate)}
+                            </TableCell>
+                            <TableCell>
+                              {formatDate(item.expiryDate)}
+                              {isExpiringSoon && (
+                                <AlertTriangle className="ml-2 inline h-4 w-4 text-amber-500" />
+                              )}
+                            </TableCell>
+                            <TableCell>{item.location || "N/A"}</TableCell>
+                            <TableCell>{getStatusBadge(itemStatus)}</TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedItem(item)
+                                  setAdjustDialogOpen(true)
+                                }}
+                              >
+                                Adjust
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={8} className="h-24 text-center">
-                          No inventory items found.
+                        <TableCell colSpan={10} className="h-24 text-center">
+                          {inventoryItems.length === 0 ? "No inventory found" : "No inventory items found matching your search."}
                         </TableCell>
                       </TableRow>
                     )}

@@ -31,6 +31,9 @@ import GovDashboard from '@/components/government/dashboard'
 import GovAnalytics from '@/pages/gov-analytics/page'
 import GovBudget from '@/pages/gov-budget/page'
 import GovReports from '@/pages/gov-reports/page'
+import GovSchools from '@/components/government/schools'
+import GovDistricts from '@/components/government/districts'
+import GovItems from '@/components/government/items'
 
 // School pages
 import SchoolDashboard from '@/components/school/dashboard'
@@ -85,6 +88,9 @@ function App() {
           {/* Government Routes */}
           <Route path="/gov-dashboard" element={<ProtectedRoute><RoleLayout role="government"><GovDashboard /></RoleLayout></ProtectedRoute>} />
           <Route path="/gov-profile" element={<ProtectedRoute><RoleLayout role="government"><Profile /></RoleLayout></ProtectedRoute>} />
+          <Route path="/gov-schools" element={<ProtectedRoute><RoleLayout role="government"><GovSchools /></RoleLayout></ProtectedRoute>} />
+          <Route path="/gov-districts" element={<ProtectedRoute><RoleLayout role="government"><GovDistricts /></RoleLayout></ProtectedRoute>} />
+          <Route path="/gov-items" element={<ProtectedRoute><RoleLayout role="government"><GovItems /></RoleLayout></ProtectedRoute>} />
           <Route path="/gov-analytics" element={<ProtectedRoute><RoleLayout role="government"><GovAnalytics /></RoleLayout></ProtectedRoute>} />
           <Route path="/gov-budget" element={<ProtectedRoute><RoleLayout role="government"><GovBudget /></RoleLayout></ProtectedRoute>} />
           <Route path="/gov-reports" element={<ProtectedRoute><RoleLayout role="government"><GovReports /></RoleLayout></ProtectedRoute>} />

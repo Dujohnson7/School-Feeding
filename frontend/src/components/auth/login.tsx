@@ -104,6 +104,7 @@ export function Login() {
           school: data?.school ?? null,
         }),
       )
+      localStorage.setItem("userId", data?.id || "")
       localStorage.setItem("role", roleFromApi || "")
       localStorage.setItem("districtId", data?.district?.id || "")
       localStorage.setItem("schoolId", data?.school?.id || "")

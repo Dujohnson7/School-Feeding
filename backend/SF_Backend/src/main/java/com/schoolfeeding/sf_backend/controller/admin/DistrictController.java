@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -19,7 +20,7 @@ import java.util.UUID;
 public class DistrictController {
 
     private final IDistrictService districtService;
-    @GetMapping({"","/"})
+    @GetMapping({"","/all"})
     public ResponseEntity<List<District>> getAllDistricts() {
         try {
             List<District> districtList = districtService.findAllDistrictsAndState(Boolean.TRUE);
@@ -91,16 +92,34 @@ public class DistrictController {
     }
 
 
-    @GetMapping("/districts-by-province")
+    @GetMapping("/province")
     @ResponseBody
-    public ResponseEntity<List<District>> getDistrictsByProvince(@RequestParam EProvince province) {
+    public ResponseEntity<List<EProvince>> getProvince() {
         try {
-            List<District> districts = districtService.findDistrictsByProvinceAndState(province, Boolean.TRUE);
-            return ResponseEntity.ok(districts);
+            List<EProvince> provinceList = Arrays.asList(EProvince.values());
+            return ResponseEntity.ok(provinceList);
         } catch (Exception ex) {
             return ResponseEntity.badRequest().build();
         }
     }
+
+
+
+    @GetMapping("/districts-by-province")
+    @ResponseBody
+    public ResponseEntity<List<EDistrict>> getDistrictsByProvince(@RequestParam EProvince province) {
+        try {
+            List<EDistrict> filteredDistricts = Arrays.stream(EDistrict.values())
+                    .filter(d -> d.getProvince().equals(province))
+                    .toList();
+
+            return ResponseEntity.ok(filteredDistricts);
+        } catch (Exception ex) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+
 
 
 }

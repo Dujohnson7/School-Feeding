@@ -27,19 +27,18 @@ public class TrackDeliveryController {
 
 
     @GetMapping("/current/{id}")
-    public ResponseEntity<?> getCurrentOrder(@PathVariable String id) {
+    public ResponseEntity<List<Orders>> getCurrentOrder(@PathVariable String id) {
         try {
-            Orders theCurrentOrder = respondService.findCurrentOrderBySchool(UUID.fromString(id));
-            if (!Objects.isNull(theCurrentOrder)) {
+            List<Orders> theCurrentOrder =  respondService.findCurrentOrderBySchool(UUID.fromString(id));
+            if (theCurrentOrder != null && !theCurrentOrder.isEmpty()) {
                 return ResponseEntity.ok(theCurrentOrder);
             } else {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Order not found");
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Collections.emptyList());
             }
         } catch (Exception ex) {
-            return ResponseEntity.badRequest().body("Error Order: " + ex.getMessage());
+            return ResponseEntity.badRequest().body(Collections.emptyList());
         }
     }
-
 
 
     @GetMapping("/patDeliveries/{sId}")

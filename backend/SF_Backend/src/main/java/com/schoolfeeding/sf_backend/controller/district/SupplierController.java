@@ -3,6 +3,7 @@ package com.schoolfeeding.sf_backend.controller.district;
 import com.schoolfeeding.sf_backend.domain.entity.Item;
 import com.schoolfeeding.sf_backend.domain.entity.Supplier;
 import com.schoolfeeding.sf_backend.service.district.supplier.ISupplierService;
+import com.schoolfeeding.sf_backend.service.gov.item.IItemService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +19,7 @@ import java.util.UUID;
 public class SupplierController {
 
     private final ISupplierService supplierService;
+    private final IItemService itemService;
 
     @GetMapping({"","/all"})
     public ResponseEntity<List<Supplier>> getAllSuppliers (){
@@ -121,6 +123,18 @@ public class SupplierController {
 
         } catch (Exception ex) {
             return ResponseEntity.badRequest().body("Error Supplier: " + ex.getMessage());
+        }
+    }
+
+
+    @GetMapping("/items")
+    public ResponseEntity<?> getItems() {
+        try {
+            List<Item> itemList = itemService.findAllByActive(Boolean.TRUE);
+            return ResponseEntity.ok(itemList);
+
+        }catch (Exception ex){
+            return  ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 

@@ -201,7 +201,7 @@ export function RequestFoodForm() {
       {/* Main Content */}
       <div className="flex flex-1 flex-col">
         {/* Header */}
-        <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
+        <header className="hidden md:flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
           <Link to="/school-dashboard" className="flex items-center gap-2">
             <ArrowLeft className="h-4 w-4" />
             <span>Back to Dashboard</span>
@@ -210,7 +210,7 @@ export function RequestFoodForm() {
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-auto p-4 md:p-6">
+        <main className="flex-1 overflow-auto p-2 sm:p-4 md:p-6 min-w-0">
           {submitted ? (
             <Card className="mx-auto max-w-2xl">
               <CardHeader>

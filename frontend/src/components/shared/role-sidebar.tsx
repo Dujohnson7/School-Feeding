@@ -1,7 +1,8 @@
-import { Link, useLocation } from "react-router-dom"
+import { Link, useLocation, useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { LogOut } from "lucide-react"
 import { RoleKey, roleMenus } from "../shared/role-menus"
+import { logout } from "@/lib/auth"
 
 interface RoleSidebarProps {
   role: RoleKey
@@ -10,7 +11,14 @@ interface RoleSidebarProps {
 
 export default function RoleSidebar({ role, onNavigate }: RoleSidebarProps) {
   const { pathname } = useLocation()
+  const navigate = useNavigate()
   const items = roleMenus[role]
+
+  const handleLogout = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    if (onNavigate) onNavigate()
+    await logout(navigate)
+  }
 
   return (
     <div className="flex h-full w-64 flex-col bg-primary text-primary-foreground">
@@ -42,15 +50,14 @@ export default function RoleSidebar({ role, onNavigate }: RoleSidebarProps) {
         </nav>
       </div>
       <div className="mt-auto p-4">
-        <Link to="/login" onClick={onNavigate}>
-          <Button
-            variant="outline"
-            className="w-full justify-start gap-2 bg-primary-foreground/10 text-primary-foreground"
-          >
-            <LogOut className="h-4 w-4" />
-            <span>Log out</span>
-          </Button>
-        </Link>
+        <Button
+          variant="outline"
+          className="w-full justify-start gap-2 bg-primary-foreground/10 text-primary-foreground"
+          onClick={handleLogout}
+        >
+          <LogOut className="h-4 w-4" />
+          <span>Log out</span>
+        </Button>
       </div>
     </div>
   )

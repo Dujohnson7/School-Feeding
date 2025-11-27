@@ -1,4 +1,4 @@
-import { Home, Users, FileText, Settings, Truck, Building2, ClipboardList, Package, Warehouse, BarChart3, Shield } from "lucide-react"
+import { Home, Users, FileText, Settings, Truck, Building2, ClipboardList, Package, Warehouse, BarChart3, Shield, School, MapPin, ShoppingCart } from "lucide-react"
 
 export type RoleKey = "admin" | "district" | "government" | "school" | "stock" | "supplier"
 
@@ -38,6 +38,9 @@ export const roleMenus: Record<RoleKey, { title: string; url: string; icon: any 
   ],
   government: [
     { title: "Dashboard", url: "/gov-dashboard", icon: Home },
+    { title: "Schools", url: "/gov-schools", icon: School },
+    { title: "Districts", url: "/gov-districts", icon: MapPin },
+    { title: "Items", url: "/gov-items", icon: ShoppingCart },
     { title: "Analytics", url: "/gov-analytics", icon: BarChart3 },
     { title: "Budget", url: "/gov-budget", icon: FileText },
     { title: "Reports", url: "/gov-reports", icon: FileText },

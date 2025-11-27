@@ -18,8 +18,8 @@ public interface IOrderRepository extends JpaRepository<Orders, UUID> {
 
 
     Optional<Orders> findOrderByIdAndActive(UUID id, Boolean active);
-    @Query("SELECT o FROM Orders o WHERE o.requestItem.school.id = :sId AND o.active = :active ORDER BY o.id DESC LIMIT 1")
-    Optional<Orders> findCurrentOrderBySchoolAndActive(@Param("sId") UUID sId, @Param("active") Boolean active);
+    @Query("SELECT o FROM Orders o WHERE o.requestItem.school.id = :sId AND o.active = :active AND o.deliveryStatus != 'DELIVERED' ORDER BY o.id DESC")
+    List<Orders> findCurrentOrderBySchoolAndActive(@Param("sId") UUID sId, @Param("active") Boolean active);
 
     List<Orders> findAllBySupplierIdAndActive(UUID supplierId, Boolean active);
     List<Orders> findBySupplierIdAndDeliveryStatusAndActive(UUID supplierId, EDelivery deliveryStatus, Boolean active);

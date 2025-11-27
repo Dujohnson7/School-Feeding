@@ -428,14 +428,14 @@ export function RequestFoodList() {
   }
 
   return (
-    <div className="flex-1">
-      <div className="flex-1 flex flex-col">
-        <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
+    <div className="flex-1 min-w-0">
+      <div className="flex-1 flex flex-col min-w-0">
+        <header className="hidden md:flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
           <h1 className="text-lg font-semibold">Food Requests</h1>
           <div className="ml-auto"></div>
         </header>
 
-        <main className="flex-1 overflow-auto p-4 md:p-6">
+        <main className="flex-1 overflow-auto p-2 sm:p-4 md:p-6 min-w-0">
           <div className="space-y-6">
             {/* Food Requests Table */}
             <Card>
