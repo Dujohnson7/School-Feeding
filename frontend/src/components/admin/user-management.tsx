@@ -1,20 +1,13 @@
 import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
 import { Edit, MoreHorizontal, Plus, Search, Settings, Shield, Trash2 } from "lucide-react"
-import axios from "axios"
+import apiClient from "@/lib/axios"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, } from "@/components/ui/dropdown-menu"
 import { HeaderActions } from "@/components/shared/header-actions"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -44,15 +37,15 @@ interface User {
   address?: string
   bankName?: string
   bankAccount?: string
-  items?: string[] // Array of item IDs for suppliers
+  items?: string[]  
 }
 
-const API_BASE_URL = "http://localhost:8070/api/users"
+// API_BASE_URL removed - using apiClient from @/lib/axios instead
 
 interface District {
   id: string
-  district: string // EDistrict enum value (e.g., "GASABO")
-  province: string // EProvince enum value (e.g., "KIGALI")
+  district: string  
+  province: string  
   active?: boolean
   created?: string
   updated?: string
@@ -75,52 +68,50 @@ interface Item {
 
 const userService = {
   getAllUsers: async () => {
-    const response = await axios.get(`${API_BASE_URL}/all`)
+    const response = await apiClient.get(`/users/all`)
     return response.data
   },
 
   getProvinces: async () => {
-    const response = await axios.get(`${API_BASE_URL}/province`)
+    const response = await apiClient.get(`/users/province`)
     return response.data
   },
 
   getDistrictsByProvince: async (province: string) => {
-    const response = await axios.get(`${API_BASE_URL}/districts-by-province`, {
+    const response = await apiClient.get(`/users/districts-by-province`, {
       params: { province }
     })
     return response.data
   },
 
-  getSchoolsByDistrict: async (districtEnum: string) => {
-    // districtEnum is the EDistrict enum value (e.g., "GASABO")
-    const response = await axios.get(`${API_BASE_URL}/schoolByDistrict`, {
+  getSchoolsByDistrict: async (districtEnum: string) => { 
+    const response = await apiClient.get(`/users/schoolByDistrict`, {
       params: { district: districtEnum }
     })
     return response.data
   },
 
   getBanks: async () => {
-    const response = await axios.get(`${API_BASE_URL}/bankName`)
+    const response = await apiClient.get(`/users/bankName`)
     return response.data
   },
 
   getAllItems: async () => {
-    const response = await axios.get("http://localhost:8070/api/item/all")
+    const response = await apiClient.get(`/item/all`)
     return response.data
   },
 
   registerSupplier: async (supplierData: any) => {
-    const response = await axios.post("http://localhost:8070/api/supplier/register", supplierData)
+    const response = await apiClient.post("/supplier/register", supplierData)
     return response.data
   },
 
   updateSupplier: async (id: string, supplierData: any) => {
-    const response = await axios.put(`http://localhost:8070/api/supplier/update/${id}`, supplierData)
+    const response = await apiClient.put(`/supplier/update/${id}`, supplierData)
     return response.data
   },
 
   createUser: async (userData: Omit<User, 'id'>) => {
-    // Map the form data to match backend User entity
     const userPayload: any = {
       names: userData.name,
       email: userData.email,
@@ -130,7 +121,6 @@ const userService = {
       userStatus: userData.userStatus === 'active' || userData.userStatus === true
     }
     
-    // Add optional fields if they exist
     if (userData.district) userPayload.district = { id: userData.district }
     if (userData.school) userPayload.school = { id: userData.school }
     if (userData.province) userPayload.province = userData.province
@@ -140,12 +130,11 @@ const userService = {
     if (userData.bankName) userPayload.bankName = userData.bankName
     if (userData.bankAccount) userPayload.bankAccount = userData.bankAccount
     
-    const response = await axios.post(`${API_BASE_URL}/register`, userPayload)
+    const response = await apiClient.post(`/users/register`, userPayload)
     return response.data
   },
 
   updateUser: async (id: string, userData: Partial<User>) => {
-    // Map the form data to match backend User entity
     const userPayload: any = {
       names: userData.name,
       email: userData.email,
@@ -154,7 +143,6 @@ const userService = {
       userStatus: userData.userStatus === 'active' || userData.userStatus === true
     }
     
-    // Add optional fields if they exist
     if (userData.district) userPayload.district = { id: userData.district }
     if (userData.school) userPayload.school = { id: userData.school }
     if (userData.province) userPayload.province = userData.province
@@ -164,12 +152,12 @@ const userService = {
     if (userData.bankName) userPayload.bankName = userData.bankName
     if (userData.bankAccount) userPayload.bankAccount = userData.bankAccount
     
-    const response = await axios.put(`${API_BASE_URL}/update/${id}`, userPayload)
+    const response = await apiClient.put(`/users/update/${id}`, userPayload)
     return response.data
   },
 
   changePassword: async (id: string, newPassword: string) => {
-    const response = await axios.put(`${API_BASE_URL}/changePassword/${id}`, { 
+    const response = await apiClient.put(`/users/changePassword/${id}`, { 
       id,
       password: newPassword 
     })
@@ -177,12 +165,12 @@ const userService = {
   },
 
   suspendUser: async (id: string) => {
-    const response = await axios.put(`${API_BASE_URL}/suspend/${id}`)
+    const response = await apiClient.put(`/users/suspend/${id}`)
     return response.data
   },
 
   deleteUser: async (id: string) => {
-    const response = await axios.delete(`${API_BASE_URL}/delete/${id}`)
+    const response = await apiClient.delete(`/users/delete/${id}`)
     return response.data
   }
 }
@@ -204,7 +192,6 @@ export function AdminUserManagement() {
   const [editingUserId, setEditingUserId] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
 
-  // Data for dropdowns
   const [provinces, setProvinces] = useState<string[]>([])
   const [districts, setDistricts] = useState<District[]>([])
   const [schools, setSchools] = useState<School[]>([])
@@ -247,7 +234,6 @@ export function AdminUserManagement() {
 
     const fetchInitialData = async () => {
       try {
-        // Fetch provinces, banks, and items on component mount
         const [provincesData, banksData, itemsData] = await Promise.all([
           userService.getProvinces(),
           userService.getBanks(),
@@ -265,14 +251,12 @@ export function AdminUserManagement() {
     fetchInitialData()
   }, [])
 
-  // Fetch districts when province changes
   useEffect(() => {
     const fetchDistricts = async () => {
       if (newUser.province) {
         try {
           const districtsData = await userService.getDistrictsByProvince(newUser.province)
           setDistricts(districtsData)
-          // Reset district and school when province changes
           setNewUser(prev => ({ ...prev, district: "", school: "" }))
         } catch (err) {
           console.error('Failed to fetch districts:', err)
@@ -287,18 +271,15 @@ export function AdminUserManagement() {
     fetchDistricts()
   }, [newUser.province])
 
-  // Fetch schools when district changes
   useEffect(() => {
     const fetchSchools = async () => {
       if (newUser.district && newUser.province) {
         try {
-          // Find the district enum value from the districts list
           const selectedDistrict = districts.find(d => d.id === newUser.district)
           if (selectedDistrict) {
             const schoolsData = await userService.getSchoolsByDistrict(selectedDistrict.district)
             setSchools(schoolsData)
           }
-          // Reset school when district changes
           setNewUser(prev => ({ ...prev, school: "" }))
         } catch (err) {
           console.error('Failed to fetch schools:', err)
@@ -361,7 +342,6 @@ export function AdminUserManagement() {
       setIsProcessing(true)
       const createdUser = await userService.createUser(newUser)
       
-      // If role is SUPPLIER, also register supplier with items
       if (newUser.role === "SUPPLIER" && createdUser.id) {
         try {
           const selectedDistrict = districts.find(d => d.id === newUser.district)
@@ -378,11 +358,9 @@ export function AdminUserManagement() {
           await userService.registerSupplier(supplierPayload)
         } catch (supplierErr) {
           console.error('Error registering supplier:', supplierErr)
-          // Continue even if supplier registration fails
         }
       }
       
-      // Map the backend response to our frontend User type
       const mappedUser = {
         ...createdUser,
         id: createdUser.id,
@@ -422,9 +400,7 @@ export function AdminUserManagement() {
     const user = users.find(u => u.id === userId)
     if (user) {
       setEditingUserId(userId)
-      // Extract province - could be string or from district object
       const userProvince = user.province || (typeof user.district === 'object' ? user.district?.province : null) || ""
-      // Extract district ID - could be string (ID) or from district object
       const userDistrict = typeof user.district === 'string' 
         ? user.district 
         : (typeof user.district === 'object' ? user.district?.id : null) || ""
@@ -437,7 +413,7 @@ export function AdminUserManagement() {
         phone: user.phone || "",
         district: userDistrict,
         school: userSchool,
-        password: "", // Don't pre-fill password
+        password: "", 
         userStatus: user.userStatus === true || user.userStatus === 'active' ? 'active' : 'inactive',
         province: userProvince,
         tinNumber: user.tinNumber || "",
@@ -448,13 +424,12 @@ export function AdminUserManagement() {
         items: user.items || []
       })
       
-      // If supplier, fetch supplier items
       if (user.role === "SUPPLIER" && userId) {
         try {
-          const suppliersResponse = await axios.get(`http://localhost:8070/api/supplier/all`)
+          const suppliersResponse = await apiClient.get(`/supplier/all`)
           const supplier = suppliersResponse.data.find((s: any) => s.user?.id === userId)
           if (supplier) {
-            const itemsResponse = await axios.get(`http://localhost:8070/api/supplier/items/${supplier.id}`)
+            const itemsResponse = await apiClient.get(`/supplier/items/${supplier.id}`)
             const supplierItems = itemsResponse.data.map((item: Item) => item.id)
             setNewUser(prev => ({ ...prev, items: supplierItems }))
           }
@@ -463,7 +438,6 @@ export function AdminUserManagement() {
         }
       }
       
-      // Fetch districts if province exists
       if (userProvince) {
         try {
           const districtsData = await userService.getDistrictsByProvince(userProvince)
@@ -473,7 +447,6 @@ export function AdminUserManagement() {
         }
       }
       
-      // Fetch schools if district exists
       if (userDistrict && userProvince) {
         try {
           const districtsData = await userService.getDistrictsByProvince(userProvince)
@@ -503,11 +476,9 @@ export function AdminUserManagement() {
       setIsProcessing(true)
       const updatedUser = await userService.updateUser(editingUserId, newUser)
       
-      // If role is SUPPLIER, also update supplier with items
       if (newUser.role === "SUPPLIER" && editingUserId) {
         try {
-          // First, get the supplier to find its ID
-          const suppliersResponse = await axios.get(`http://localhost:8070/api/supplier/all`)
+          const suppliersResponse = await apiClient.get(`/supplier/all`)
           const supplier = suppliersResponse.data.find((s: any) => s.user?.id === editingUserId)
           
           if (supplier) {
@@ -524,7 +495,6 @@ export function AdminUserManagement() {
             }
             await userService.updateSupplier(supplier.id, supplierPayload)
           } else {
-            // Supplier doesn't exist, create it
             const selectedDistrict = districts.find(d => d.id === newUser.district)
             const supplierPayload = {
               user: { id: editingUserId },
@@ -540,11 +510,9 @@ export function AdminUserManagement() {
           }
         } catch (supplierErr) {
           console.error('Error updating supplier:', supplierErr)
-          // Continue even if supplier update fails
         }
       }
       
-      // Map the backend response to our frontend User type
       const mappedUser = {
         ...updatedUser,
         id: updatedUser.id,
@@ -623,8 +591,8 @@ export function AdminUserManagement() {
       switch (action) {
         case 'Edit':
           handleEditUser(userId)
-          setIsProcessing(false) // Reset since we're opening a dialog
-          return // Exit early since we're opening a dialog
+          setIsProcessing(false) 
+          return 
 
         case 'Suspend':
           await userService.suspendUser(userId)
@@ -653,8 +621,8 @@ export function AdminUserManagement() {
         case 'Reset Password':
           setResetPasswordUserId(userId)
           setIsResetPasswordOpen(true)
-          setIsProcessing(false) // Reset since we're opening a dialog
-          return // Exit early since we're opening a dialog
+          setIsProcessing(false) 
+          return 
       }
     } catch (error: any) {
       console.error(`Error ${action.toLowerCase()} user:`, error)

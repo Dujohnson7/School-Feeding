@@ -16,4 +16,6 @@ public interface IDistrictRepository extends JpaRepository<District, UUID> {
     List<District> findDistrictByProvinceAndActive(EProvince province,  Boolean active);
 
     List<District> findDistrictByActive(Boolean active);
+
+    long countAllByActive(Boolean active);
 }

@@ -2,9 +2,9 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { Check, Home, Package, Plus, Truck } from "lucide-react"
-import axios from "axios"
+import apiClient from "@/lib/axios"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -21,8 +21,6 @@ interface Item {
   name: string
   category?: string
 }
-
-const API_BASE_URL = "http://localhost:8070/api"
 
 export function AddSupplier() {
   const [formData, setFormData] = useState({
@@ -48,7 +46,7 @@ export function AddSupplier() {
     const fetchItems = async () => {
       try {
         setLoadingItems(true)
-        const response = await axios.get(`${API_BASE_URL}/item/all`)
+        const response = await apiClient.get(`/item/all`)
         setItems(response.data || [])
       } catch (err: any) {
         console.error("Error fetching items:", err)
@@ -136,7 +134,7 @@ export function AddSupplier() {
         items: formData.items.map(itemId => ({ id: itemId }))
       }
 
-      const response = await axios.post(`${API_BASE_URL}/supplier/register`, supplierPayload)
+      const response = await apiClient.post(`/supplier/register`, supplierPayload)
       
       toast.success("Supplier registered successfully")
       

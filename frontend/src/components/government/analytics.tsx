@@ -1,7 +1,9 @@
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
 import { BarChart3, Download, Home, PieChart, TrendingUp, User } from "lucide-react"
+import apiClient from "@/lib/axios"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,37 +18,160 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Progress } from "@/components/ui/progress"
 
+interface AnalyticsStats {
+  totalSchools: number
+  studentsFed: number
+  deliverySuccessRate: number
+  budgetUtilization: number
+}
+
+interface RegionParticipation {
+  name: string
+  percent: number
+}
+
+interface DeliveryPerformance {
+  name: string
+  percent: number
+}
+
+interface NutritionCompliance {
+  name: string
+  percent: number
+}
+
+interface SchoolEnrollment {
+  name: string
+  participation: number
+}
+
+interface SchoolPerformanceMetrics {
+  schoolType: string
+  onTimeDelivery: number
+}
+
+interface BudgetAllocation {
+  category: string
+  amount: string
+  percentage: number
+}
+
+interface BudgetUtilization {
+  province: string
+  percentage: number
+}
+
 export function GovAnalytics() {
   const [period, setPeriod] = useState("month")
   const [district, setDistrict] = useState("all")
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState<AnalyticsStats>({
+    totalSchools: 0,
+    studentsFed: 0,
+    deliverySuccessRate: 0,
+    budgetUtilization: 0,
+  })
+  const [regionParticipation, setRegionParticipation] = useState<RegionParticipation[]>([])
+  const [deliveryPerformance, setDeliveryPerformance] = useState<DeliveryPerformance[]>([])
+  const [nutritionComplianceReqs, setNutritionComplianceReqs] = useState<NutritionCompliance[]>([])
+  const [schoolEnrollment, setSchoolEnrollment] = useState<SchoolEnrollment[]>([])
+  const [schoolPerformanceMetrics, setSchoolPerformanceMetrics] = useState<SchoolPerformanceMetrics[]>([])
+  const [budgetAllocation, setBudgetAllocation] = useState<BudgetAllocation[]>([])
+  const [budgetUtilization, setBudgetUtilization] = useState<BudgetUtilization[]>([])
+  const [overallBudgetUtilization, setOverallBudgetUtilization] = useState(0)
+  const [totalSpent, setTotalSpent] = useState("RWF 0")
 
-  // Overview progress data (matching the provided visuals)
-  const regionParticipation = [
-    { name: "Kigali Primary Schools", percent: 98 },
-    { name: "Eastern Province Schools", percent: 95 },
-    { name: "Northern Province Schools", percent: 92 },
-    { name: "Western Province Schools", percent: 89 },
-    { name: "Southern Province Schools", percent: 94 },
-  ]
+  useEffect(() => {
+    fetchAnalyticsData()
+  }, [period, district])
 
-  const deliveryPerformance = [
-    { name: "Primary Schools", percent: 96 },
-    { name: "Secondary Schools", percent: 93 },
-    { name: "Technical Schools", percent: 89 },
-  ]
+  const fetchAnalyticsData = async () => {
+    try {
+      setLoading(true)
 
-  const nutritionComplianceReqs = [
-    { name: "Protein Requirements", percent: 96 },
-    { name: "Carbohydrate Balance", percent: 94 },
-    { name: "Vitamin Content", percent: 92 },
-    { name: "Mineral Content", percent: 89 },
-    { name: "Caloric Requirements", percent: 98 },
-  ]
+      // Fetch analytics statistics
+      const statsResponse = await apiClient.get(
+        `/government/analytics/stats?period=${period}${district !== "all" ? `&district=${district}` : ""}`
+      )
+      if (statsResponse.data) {
+        setStats(statsResponse.data)
+      }
+
+      // Fetch region participation
+      const participationResponse = await apiClient.get(
+        `/government/analytics/region-participation?period=${period}${district !== "all" ? `&district=${district}` : ""}`
+      )
+      if (participationResponse.data) {
+        setRegionParticipation(participationResponse.data)
+      }
+
+      // Fetch delivery performance
+      const deliveryResponse = await apiClient.get(
+        `/government/analytics/delivery-performance?period=${period}${district !== "all" ? `&district=${district}` : ""}`
+      )
+      if (deliveryResponse.data) {
+        setDeliveryPerformance(deliveryResponse.data)
+      }
+
+      // Fetch nutrition compliance
+      const nutritionResponse = await apiClient.get(
+        `/government/analytics/nutrition-compliance?period=${period}${district !== "all" ? `&district=${district}` : ""}`
+      )
+      if (nutritionResponse.data) {
+        setNutritionComplianceReqs(nutritionResponse.data)
+      }
+
+      // Fetch school enrollment
+      const enrollmentResponse = await apiClient.get(
+        `/government/analytics/school-enrollment?period=${period}${district !== "all" ? `&district=${district}` : ""}`
+      )
+      if (enrollmentResponse.data) {
+        setSchoolEnrollment(enrollmentResponse.data)
+      }
+
+      // Fetch school performance metrics
+      const performanceResponse = await apiClient.get(
+        `/government/analytics/school-performance?period=${period}${district !== "all" ? `&district=${district}` : ""}`
+      )
+      if (performanceResponse.data) {
+        setSchoolPerformanceMetrics(performanceResponse.data)
+      }
+
+      // Fetch budget allocation
+      const budgetAllocResponse = await apiClient.get(
+        `/government/analytics/budget-allocation?period=${period}${district !== "all" ? `&district=${district}` : ""}`
+      )
+      if (budgetAllocResponse.data) {
+        setBudgetAllocation(budgetAllocResponse.data)
+      }
+
+      // Fetch budget utilization
+      const budgetUtilResponse = await apiClient.get(
+        `/government/analytics/budget-utilization?period=${period}${district !== "all" ? `&district=${district}` : ""}`
+      )
+      if (budgetUtilResponse.data) {
+        if (budgetUtilResponse.data.overallUtilization) {
+          setOverallBudgetUtilization(budgetUtilResponse.data.overallUtilization)
+        }
+        if (budgetUtilResponse.data.totalSpent) {
+          setTotalSpent(budgetUtilResponse.data.totalSpent)
+        }
+        if (budgetUtilResponse.data.provinces) {
+          setBudgetUtilization(budgetUtilResponse.data.provinces)
+        }
+      }
+    } catch (error: any) {
+      console.error("Error fetching analytics data:", error)
+      toast.error("Failed to load analytics data. Please refresh the page.")
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleExport = (format: string) => {
     // In a real app, this would generate and download a report
     console.log(`Exporting data in ${format} format`)
-    alert(`Data would be exported as ${format.toUpperCase()} in a real application`)
+    toast.info(`Data would be exported as ${format.toUpperCase()} in a real application`)
   }
 
   return (
@@ -128,8 +253,10 @@ export function GovAnalytics() {
                     <Home className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">180</div>
-                    <p className="text-xs text-muted-foreground">+12 from last month</p>
+                    <div className="text-2xl font-bold">{loading ? "..." : stats.totalSchools}</div>
+                    <p className="text-xs text-muted-foreground">
+                      {loading ? "Loading..." : "Current period"}
+                    </p>
                   </CardContent>
                 </Card>
                 <Card>
@@ -138,8 +265,12 @@ export function GovAnalytics() {
                     <User className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">45,231</div>
-                    <p className="text-xs text-muted-foreground">+2,345 from last month</p>
+                    <div className="text-2xl font-bold">
+                      {loading ? "..." : stats.studentsFed.toLocaleString()}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {loading ? "Loading..." : "Current period"}
+                    </p>
                   </CardContent>
                 </Card>
                 <Card>
@@ -148,8 +279,10 @@ export function GovAnalytics() {
                     <TrendingUp className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">93%</div>
-                    <p className="text-xs text-muted-foreground">+2% from last month</p>
+                    <div className="text-2xl font-bold">{loading ? "..." : `${stats.deliverySuccessRate}%`}</div>
+                    <p className="text-xs text-muted-foreground">
+                      {loading ? "Loading..." : "Current period"}
+                    </p>
                   </CardContent>
                 </Card>
                 <Card>
@@ -158,8 +291,10 @@ export function GovAnalytics() {
                     <PieChart className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">87%</div>
-                    <p className="text-xs text-muted-foreground">+5% from last month</p>
+                    <div className="text-2xl font-bold">{loading ? "..." : `${stats.budgetUtilization}%`}</div>
+                    <p className="text-xs text-muted-foreground">
+                      {loading ? "Loading..." : "Current period"}
+                    </p>
                   </CardContent>
                 </Card>
               </div>
@@ -172,15 +307,21 @@ export function GovAnalytics() {
                   </CardHeader>
                   <CardContent className="h-80">
                     <div className="space-y-4">
-                      {regionParticipation.map((r) => (
-                        <div key={r.name}>
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm">{r.name}</span>
-                            <span className="text-sm font-medium">{r.percent}% participation</span>
+                      {loading && regionParticipation.length === 0 ? (
+                        <div className="text-sm text-muted-foreground">Loading...</div>
+                      ) : regionParticipation.length === 0 ? (
+                        <div className="text-sm text-muted-foreground">No data available</div>
+                      ) : (
+                        regionParticipation.map((r) => (
+                          <div key={r.name}>
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm">{r.name}</span>
+                              <span className="text-sm font-medium">{r.percent}% participation</span>
+                            </div>
+                            <Progress value={r.percent} className="h-2" />
                           </div>
-                          <Progress value={r.percent} className="h-2" />
-                        </div>
-                      ))}
+                        ))
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -192,15 +333,21 @@ export function GovAnalytics() {
                   </CardHeader>
                   <CardContent className="h-80">
                     <div className="space-y-6">
-                      {deliveryPerformance.map((d) => (
-                        <div key={d.name}>
-                          <div className="flex justify-between text-xs">
-                            <span>{d.name}</span>
-                            <span>{d.percent}%</span>
+                      {loading && deliveryPerformance.length === 0 ? (
+                        <div className="text-sm text-muted-foreground">Loading...</div>
+                      ) : deliveryPerformance.length === 0 ? (
+                        <div className="text-sm text-muted-foreground">No data available</div>
+                      ) : (
+                        deliveryPerformance.map((d) => (
+                          <div key={d.name}>
+                            <div className="flex justify-between text-xs">
+                              <span>{d.name}</span>
+                              <span>{d.percent}%</span>
+                            </div>
+                            <Progress value={d.percent} className="h-3" />
                           </div>
-                          <Progress value={d.percent} className="h-3" />
-                        </div>
-                      ))}
+                        ))
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -214,15 +361,21 @@ export function GovAnalytics() {
                   </CardHeader>
                   <CardContent className="h-80">
                     <div className="space-y-4">
-                      {nutritionComplianceReqs.map((n) => (
-                        <div key={n.name}>
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm">{n.name}</span>
-                            <span className="text-sm">{n.percent}%</span>
+                      {loading && nutritionComplianceReqs.length === 0 ? (
+                        <div className="text-sm text-muted-foreground">Loading...</div>
+                      ) : nutritionComplianceReqs.length === 0 ? (
+                        <div className="text-sm text-muted-foreground">No data available</div>
+                      ) : (
+                        nutritionComplianceReqs.map((n) => (
+                          <div key={n.name}>
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm">{n.name}</span>
+                              <span className="text-sm">{n.percent}%</span>
+                            </div>
+                            <Progress value={n.percent} className="h-2" />
                           </div>
-                          <Progress value={n.percent} className="h-2" />
-                        </div>
-                      ))}
+                        ))
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -240,35 +393,21 @@ export function GovAnalytics() {
                   </CardHeader>
                   <CardContent className="h-80">
                     <div className="space-y-4">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm">Kigali Primary Schools</span>
-                        <span className="text-sm font-medium">98% participation</span>
-                      </div>
-                      <Progress value={98} className="h-2" />
-
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm">Eastern Province Schools</span>
-                        <span className="text-sm font-medium">95% participation</span>
-                      </div>
-                      <Progress value={95} className="h-2" />
-
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm">Northern Province Schools</span>
-                        <span className="text-sm font-medium">92% participation</span>
-                      </div>
-                      <Progress value={92} className="h-2" />
-
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm">Western Province Schools</span>
-                        <span className="text-sm font-medium">89% participation</span>
-                      </div>
-                      <Progress value={89} className="h-2" />
-
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm">Southern Province Schools</span>
-                        <span className="text-sm font-medium">94% participation</span>
-                      </div>
-                      <Progress value={94} className="h-2" />
+                      {loading && schoolEnrollment.length === 0 ? (
+                        <div className="text-sm text-muted-foreground">Loading...</div>
+                      ) : schoolEnrollment.length === 0 ? (
+                        <div className="text-sm text-muted-foreground">No data available</div>
+                      ) : (
+                        schoolEnrollment.map((school) => (
+                          <div key={school.name}>
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm">{school.name}</span>
+                              <span className="text-sm font-medium">{school.participation}% participation</span>
+                            </div>
+                            <Progress value={school.participation} className="h-2" />
+                          </div>
+                        ))
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -280,38 +419,24 @@ export function GovAnalytics() {
                   </CardHeader>
                   <CardContent className="h-80">
                     <div className="space-y-6">
-                      <div>
-                        <h4 className="text-sm font-medium mb-2">Primary Schools</h4>
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-xs">
-                            <span>On-time delivery</span>
-                            <span>96%</span>
+                      {loading && schoolPerformanceMetrics.length === 0 ? (
+                        <div className="text-sm text-muted-foreground">Loading...</div>
+                      ) : schoolPerformanceMetrics.length === 0 ? (
+                        <div className="text-sm text-muted-foreground">No data available</div>
+                      ) : (
+                        schoolPerformanceMetrics.map((school) => (
+                          <div key={school.schoolType}>
+                            <h4 className="text-sm font-medium mb-2">{school.schoolType}</h4>
+                            <div className="space-y-2">
+                              <div className="flex justify-between text-xs">
+                                <span>On-time delivery</span>
+                                <span>{school.onTimeDelivery}%</span>
+                              </div>
+                              <Progress value={school.onTimeDelivery} className="h-3" />
+                            </div>
                           </div>
-                          <Progress value={96} className="h-3" /> 
-                        </div>
-                      </div>
-
-                      <div>
-                        <h4 className="text-sm font-medium mb-2">Secondary Schools</h4>
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-xs">
-                            <span>On-time delivery</span>
-                            <span>93%</span>
-                          </div>
-                          <Progress value={93} className="h-3" /> 
-                        </div>
-                      </div>
-
-                      <div>
-                        <h4 className="text-sm font-medium mb-2">Technical Schools</h4>
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-xs">
-                            <span>On-time delivery</span>
-                            <span>89%</span>
-                          </div>
-                          <Progress value={89} className="h-3" /> 
-                        </div>
-                      </div>
+                        ))
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -328,45 +453,23 @@ export function GovAnalytics() {
                   </CardHeader>
                   <CardContent className="h-80">
                     <div className="space-y-4">
-                      <div>
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="text-sm font-medium">Food Procurement</span>
-                          <span className="text-sm">RWF 1.56B (65%)</span>
-                        </div>
-                        <Progress value={65} className="h-2" />
-                      </div>
-
-                      <div>
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="text-sm font-medium">Transportation</span>
-                          <span className="text-sm">RWF 360M (15%)</span>
-                        </div>
-                        <Progress value={15} className="h-2" />
-                      </div>
-
-                      <div>
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="text-sm font-medium">Staff & Operations</span>
-                          <span className="text-sm">RWF 240M (10%)</span>
-                        </div>
-                        <Progress value={10} className="h-2" />
-                      </div>
-
-                      <div>
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="text-sm font-medium">Infrastructure</span>
-                          <span className="text-sm">RWF 168M (7%)</span>
-                        </div>
-                        <Progress value={7} className="h-2" />
-                      </div>
-
-                      <div>
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="text-sm font-medium">Other Expenses</span>
-                          <span className="text-sm">RWF 72M (3%)</span>
-                        </div>
-                        <Progress value={3} className="h-2" />
-                      </div>
+                      {loading && budgetAllocation.length === 0 ? (
+                        <div className="text-sm text-muted-foreground">Loading...</div>
+                      ) : budgetAllocation.length === 0 ? (
+                        <div className="text-sm text-muted-foreground">No data available</div>
+                      ) : (
+                        budgetAllocation.map((budget) => (
+                          <div key={budget.category}>
+                            <div className="flex justify-between items-center mb-2">
+                              <span className="text-sm font-medium">{budget.category}</span>
+                              <span className="text-sm">
+                                {budget.amount} ({budget.percentage}%)
+                              </span>
+                            </div>
+                            <Progress value={budget.percentage} className="h-2" />
+                          </div>
+                        ))
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -380,51 +483,35 @@ export function GovAnalytics() {
                     <div className="space-y-4">
                       <div className="grid grid-cols-2 gap-4 text-center">
                         <div className="p-4 bg-blue-50 rounded-lg">
-                          <div className="text-2xl font-bold text-blue-600">87%</div>
+                          <div className="text-2xl font-bold text-blue-600">
+                            {loading ? "..." : `${overallBudgetUtilization}%`}
+                          </div>
                           <div className="text-xs text-muted-foreground">Overall Utilization</div>
                         </div>
                         <div className="p-4 bg-green-50 rounded-lg">
-                          <div className="text-2xl font-bold text-green-600">RWF 2.09B</div>
+                          <div className="text-2xl font-bold text-green-600">
+                            {loading ? "..." : totalSpent}
+                          </div>
                           <div className="text-xs text-muted-foreground">Spent to Date</div>
                         </div>
                       </div>
 
                       <div className="space-y-3">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm">Kigali City</span>
-                          <div className="flex items-center gap-2">
-                            <Progress value={92} className="h-2 w-20" />
-                            <span className="text-xs">92%</span>
-                          </div>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm">Eastern Province</span>
-                          <div className="flex items-center gap-2">
-                            <Progress value={89} className="h-2 w-20" />
-                            <span className="text-xs">89%</span>
-                          </div>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm">Northern Province</span>
-                          <div className="flex items-center gap-2">
-                            <Progress value={85} className="h-2 w-20" />
-                            <span className="text-xs">85%</span>
-                          </div>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm">Western Province</span>
-                          <div className="flex items-center gap-2">
-                            <Progress value={83} className="h-2 w-20" />
-                            <span className="text-xs">83%</span>
-                          </div>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm">Southern Province</span>
-                          <div className="flex items-center gap-2">
-                            <Progress value={86} className="h-2 w-20" />
-                            <span className="text-xs">86%</span>
-                          </div>
-                        </div>
+                        {loading && budgetUtilization.length === 0 ? (
+                          <div className="text-sm text-muted-foreground">Loading...</div>
+                        ) : budgetUtilization.length === 0 ? (
+                          <div className="text-sm text-muted-foreground">No data available</div>
+                        ) : (
+                          budgetUtilization.map((item, index) => (
+                            <div key={index} className="flex justify-between items-center">
+                              <span className="text-sm">{item.province}</span>
+                              <div className="flex items-center gap-2">
+                                <Progress value={item.percentage} className="h-2 w-20" />
+                                <span className="text-xs">{item.percentage}%</span>
+                              </div>
+                            </div>
+                          ))
+                        )}
                       </div>
                     </div>
                   </CardContent>

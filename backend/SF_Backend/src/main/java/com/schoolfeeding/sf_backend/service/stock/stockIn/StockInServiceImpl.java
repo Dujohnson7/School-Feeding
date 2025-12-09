@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -50,5 +51,16 @@ public class StockInServiceImpl implements IStockInService {
     @Override
     public List<StockIn> findAllBySchoolIdAndActive(UUID schoolId) {
         return stockInRepository.findAllBySchoolIdAndActive(schoolId, Boolean.TRUE);
+    }
+
+    @Override
+    public List<StockIn> getExpiredProducts() {
+        return stockInRepository.findExpiredProducts();
+    }
+
+    @Override
+    public List<StockIn> getProductsExpiringSoon(int days) {
+        LocalDate future = LocalDate.now().plusDays(days);
+        return stockInRepository.findProductsExpiringSoon(java.sql.Date.valueOf(future));
     }
 }

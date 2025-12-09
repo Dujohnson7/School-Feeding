@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Package, Search } from "lucide-react"
-import axios from "axios"
+import apiClient from "@/lib/axios"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -91,16 +91,14 @@ interface BackendOrder {
   [key: string]: any // Allow for additional fields from backend
 }
 
-const API_BASE_URL = "http://localhost:8070/api/supplierOrder"
-
 const orderService = {
   getOrder: async (id: string) => {
-    const response = await axios.get(`${API_BASE_URL}/${id}`)
+    const response = await apiClient.get(`/supplierOrder/${id}`)
     return response.data
   },
 
   getAllOrders: async (supplierId: string) => {
-    const response = await axios.get(`${API_BASE_URL}/all/${supplierId}`)
+    const response = await apiClient.get(`/supplierOrder/all/${supplierId}`)
     return response.data
   },
 }

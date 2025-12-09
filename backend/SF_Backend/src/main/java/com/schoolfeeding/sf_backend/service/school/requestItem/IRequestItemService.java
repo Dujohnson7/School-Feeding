@@ -19,4 +19,8 @@ public interface IRequestItemService {
     List<RequestItem> findRequestItemsByRequestStatusAndState(ERequest requestStatus, Boolean state);
     List<RequestItem> findRequestItemsByDistrictIdAndRequestStatusAndState(UUID districtId,ERequest requestStatus, Boolean state);
     List<RequestItem> findRequestItemsBySchoolIdAndRequestStatusAndState(UUID schoolId,ERequest requestStatus, Boolean state);
+    long countAllByRequestStatusAndActive(ERequest requestStatus, Boolean active);
+    long countAllRequestItemsByDistrictAndRequestStatus(UUID districtId, ERequest requestStatus);
+
+
 }

@@ -154,4 +154,9 @@ public class UserServiceImpl implements IUsersService {
     public List<Users> findUsersBySchoolAndRoleAndState(UUID schoolId, ERole role, Boolean state) {
         return usersRepository.findUsersBySchool_IdAndRoleAndActive(schoolId, role, Boolean.TRUE);
     }
+
+    @Override
+    public long countAllUser(Boolean active) {
+        return usersRepository.countUsersByActive(active);
+    }
 }

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import {  Package,  Plus,  Search,  Edit,  Trash2,  Loader2,  Eye,
 } from "lucide-react"
-import axios from "axios"
+import apiClient from "@/lib/axios"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -23,8 +23,6 @@ import {
 } from "@/components/ui/dialog"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 import { toast } from "sonner"
-
-const API_BASE_URL = "http://localhost:8070/api/school"
 
 interface District {
   id: string
@@ -49,46 +47,46 @@ interface School {
 
 const schoolService = {
   getAllSchools: async () => {
-    const response = await axios.get(`${API_BASE_URL}/all`)
+    const response = await apiClient.get(`/school/all`)
     return response.data
   },
 
   getSchool: async (id: string) => {
-    const response = await axios.get(`${API_BASE_URL}/${id}`)
+    const response = await apiClient.get(`/school/${id}`)
     return response.data
   },
 
   registerSchool: async (schoolData: any) => {
-    const response = await axios.post(`${API_BASE_URL}/register`, schoolData)
+    const response = await apiClient.post(`/school/register`, schoolData)
     return response.data
   },
 
   updateSchool: async (id: string, schoolData: any) => {
-    const response = await axios.put(`${API_BASE_URL}/update/${id}`, schoolData)
+    const response = await apiClient.put(`/school/update/${id}`, schoolData)
     return response.data
   },
 
   deleteSchool: async (id: string) => {
-    const response = await axios.delete(`${API_BASE_URL}/delete/${id}`)
+    const response = await apiClient.delete(`/school/delete/${id}`)
     return response.data
   },
 }
 
 const schoolApiService = {
   getProvinces: async () => {
-    const response = await axios.get(`${API_BASE_URL}/province`)
+    const response = await apiClient.get(`/school/province`)
     return response.data
   },
 
   getDistrictsByProvince: async (province: string) => {
-    const response = await axios.get(`${API_BASE_URL}/districts-by-province`, {
+    const response = await apiClient.get(`/school/districts-by-province`, {
       params: { province }
     })
     return response.data
   },
 
   getBanks: async () => {
-    const response = await axios.get(`${API_BASE_URL}/bankName`)
+    const response = await apiClient.get(`/school/bankName`)
     return response.data
   },
 }

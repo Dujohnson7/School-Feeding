@@ -21,6 +21,7 @@ public interface IRequestItemRepository extends JpaRepository<RequestItem, UUID>
     Optional<RequestItem> findRequestItemBySchool_IdAndRequestStatusAndActiveOrderByCreatedByDesc(UUID schoolId, ERequest requestStatus, Boolean active);
     long countRequestItemsByRequestStatusAndActive(ERequest requestStatus, Boolean active);
     long countRequestItemsByDistrictIdAndActive(UUID districtId, Boolean active);
+    long countRequestItemsByDistrictIdAndRequestStatusAndActive(UUID districtId, ERequest requestStatus, Boolean active);
     long countRequestItemsByRequestStatusAndActiveAndCreatedBetween(ERequest requestStatus, Boolean active, Date start, Date end);
 
 }

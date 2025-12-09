@@ -8,7 +8,7 @@ import {
   Trash2,
   Loader2,
 } from "lucide-react"
-import axios from "axios"
+import apiClient from "@/lib/axios"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -30,8 +30,6 @@ import {
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 import { toast } from "sonner"
 
-const API_BASE_URL = "http://localhost:8070/api/district"
-
 interface District {
   id: string
   province: string
@@ -43,39 +41,39 @@ interface District {
 
 const districtService = {
   getAllDistricts: async () => {
-    const response = await axios.get(`${API_BASE_URL}/all`)
+    const response = await apiClient.get(`/district/all`)
     return response.data
   },
 
   getDistrict: async (id: string) => {
-    const response = await axios.get(`${API_BASE_URL}/${id}`)
+    const response = await apiClient.get(`/district/${id}`)
     return response.data
   },
 
   getProvinces: async () => {
-    const response = await axios.get(`${API_BASE_URL}/province`)
+    const response = await apiClient.get(`/district/province`)
     return response.data
   },
 
   getDistrictsByProvince: async (province: string) => {
-    const response = await axios.get(`${API_BASE_URL}/districts-by-province`, {
+    const response = await apiClient.get(`/district/districts-by-province`, {
       params: { province }
     })
     return response.data
   },
 
   registerDistrict: async (districtData: any) => {
-    const response = await axios.post(`${API_BASE_URL}/register`, districtData)
+    const response = await apiClient.post(`/district/register`, districtData)
     return response.data
   },
 
   updateDistrict: async (id: string, districtData: any) => {
-    const response = await axios.put(`${API_BASE_URL}/update/${id}`, districtData)
+    const response = await apiClient.put(`/district/update/${id}`, districtData)
     return response.data
   },
 
   deleteDistrict: async (id: string) => {
-    const response = await axios.delete(`${API_BASE_URL}/delete/${id}`)
+    const response = await apiClient.delete(`/district/delete/${id}`)
     return response.data
   },
 }

@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Calendar, Check, Filter, Package, Plus, Search, X, Eye, Star } from "lucide-react"
-import axios from "axios"
+import apiClient from "@/lib/axios"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -60,16 +60,14 @@ interface Order {
   }
 }
 
-const API_BASE_URL = "http://localhost:8070/api/receiving"
-
 const receivingService = {
   getAllReceiving: async (schoolId: string) => {
-    const response = await axios.get(`${API_BASE_URL}/all/${schoolId}`)
+    const response = await apiClient.get(`/receiving/all/${schoolId}`)
     return response.data
   },
 
   receiveOrder: async (id: string, rating: number) => {
-    const response = await axios.put(`${API_BASE_URL}/receivingOrder/${id}?rating=${rating}`)
+    const response = await apiClient.put(`/receiving/receivingOrder/${id}?rating=${rating}`)
     return response.data
   },
 }

@@ -1,13 +1,25 @@
 
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import { ArrowLeft, Check, Clock, Loader2, Truck } from "lucide-react"
+import { ArrowLeft, Check, Clock, Loader2, Truck, Star } from "lucide-react"
+import apiClient from "@/lib/axios"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
 interface Item {
   id: string
@@ -90,6 +102,14 @@ interface Delivery {
     time: string
     completed: boolean
   }>
+  originalOrder?: BackendOrder // Store original order data for dialog
+}
+
+const receivingService = {
+  receiveOrder: async (id: string, rating: number) => {
+    const response = await apiClient.put(`/receiving/receivingOrder/${id}?rating=${rating}`, {})
+    return response.data
+  },
 }
 
 export function DeliveryTracking() {
@@ -98,16 +118,17 @@ export function DeliveryTracking() {
   const [pastDeliveries, setPastDeliveries] = useState<Delivery[]>([])
   const [loading, setLoading] = useState(true)
   const [items, setItems] = useState<Item[]>([])
+  const [selectedOrder, setSelectedOrder] = useState<BackendOrder | null>(null)
+  const [receiveDialogOpen, setReceiveDialogOpen] = useState(false)
+  const [rating, setRating] = useState(0)
+  const [isProcessing, setIsProcessing] = useState(false)
 
   // Fetch items to map IDs to names (optional, we'll use supplier items if available)
   useEffect(() => {
     const fetchItems = async () => {
       try {
-        const response = await fetch("http://localhost:8070/api/item/all")
-        if (response.ok) {
-          const data = await response.json()
-          setItems(data)
-        }
+        const response = await apiClient.get("/item/all")
+        setItems(response.data)
       } catch (err) {
         console.error("Error fetching items:", err)
         // Continue without items, we'll use supplier items instead
@@ -120,40 +141,27 @@ export function DeliveryTracking() {
   useEffect(() => {
     const fetchCurrentDeliveries = async () => {
       const schoolId = localStorage.getItem("schoolId")
-      const token = localStorage.getItem("token")
 
-      if (!schoolId || !token) {
+      if (!schoolId) {
         setLoading(false)
         return
       }
 
       try {
         setLoading(true)
-        const response = await fetch(`http://localhost:8070/api/track/current/${schoolId}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        })
-
-        if (response.status === 404) {
-          // No current orders found
-          setCurrentDeliveries([])
-          setLoading(false)
-          return
-        }
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch current deliveries")
-        }
+        const response = await apiClient.get(`/track/current/${schoolId}`)
 
         // API returns List<Orders>
-        const orders: BackendOrder[] = await response.json()
+        const orders: BackendOrder[] = response.data
 
         if (orders && Array.isArray(orders) && orders.length > 0) {
           const transformed = orders
             .map((order) => transformOrderToDelivery(order, items))
             .filter((delivery): delivery is Delivery => delivery !== null)
+          // Store original order data with each delivery
+          transformed.forEach((delivery, index) => {
+            delivery.originalOrder = orders[index]
+          })
           setCurrentDeliveries(transformed)
         } else {
           setCurrentDeliveries([])
@@ -174,49 +182,24 @@ export function DeliveryTracking() {
   useEffect(() => {
     const fetchPastDeliveries = async () => {
       const schoolId = localStorage.getItem("schoolId")
-      const token = localStorage.getItem("token")
 
-      if (!schoolId || !token) {
+      if (!schoolId) {
         return
       }
 
       try {
-        const response = await fetch(`http://localhost:8070/api/track/patDeliveries/${schoolId}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        })
-
-        if (!response.ok) {
-          // Try to get error message
-          const contentType = response.headers.get("content-type")
-          let errorMessage = "Failed to fetch past deliveries"
-          if (contentType && contentType.includes("application/json")) {
-            try {
-              const errorData = await response.json()
-              errorMessage = errorData?.message || errorData || errorMessage
-            } catch {
-              // Ignore JSON parse errors
-            }
-          } else {
-            try {
-              const errorText = await response.text()
-              if (errorText) errorMessage = errorText
-            } catch {
-              // Ignore text parse errors
-            }
-          }
-          throw new Error(errorMessage)
-        }
-
+        const response = await apiClient.get(`/track/patDeliveries/${schoolId}`)
         // API returns List<Orders> with DELIVERED status
-        const orders: BackendOrder[] = await response.json()
+        const orders: BackendOrder[] = response.data
 
         if (orders && Array.isArray(orders)) {
           const transformed = orders
             .map((order) => transformOrderToDelivery(order, items))
             .filter((delivery): delivery is Delivery => delivery !== null)
+          // Store original order data with each delivery
+          transformed.forEach((delivery, index) => {
+            delivery.originalOrder = orders[index]
+          })
           setPastDeliveries(transformed)
         } else {
           setPastDeliveries([])
@@ -425,6 +408,77 @@ export function DeliveryTracking() {
     }
   }
 
+  // Helper function to get item name from supplier items array
+  const getItemName = (order: BackendOrder, itemId?: string) => {
+    if (!itemId || !order.supplier?.items) return "N/A"
+    const item = order.supplier.items.find(i => i.id === itemId)
+    return item?.name || "N/A"
+  }
+
+  // Helper function to get item unit from supplier items array
+  const getItemUnit = (order: BackendOrder, itemId?: string) => {
+    if (!itemId || !order.supplier?.items) return "kg"
+    const item = order.supplier.items.find(i => i.id === itemId)
+    // Default to "kg" as unit property may not exist in supplier items
+    return "kg"
+  }
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return "N/A"
+    try {
+      const date = new Date(dateString)
+      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+    } catch {
+      return dateString
+    }
+  }
+
+  const handleReceiveDelivery = async () => {
+    if (!selectedOrder || !selectedOrder.id) return
+    if (rating === 0) {
+      toast.error("Please provide a rating before receiving the order")
+      return
+    }
+
+    try {
+      setIsProcessing(true)
+      await receivingService.receiveOrder(selectedOrder.id, rating)
+      
+      // Refresh the current deliveries list
+      const schoolId = localStorage.getItem("schoolId")
+
+      if (schoolId) {
+        try {
+          const response = await apiClient.get(`/track/current/${schoolId}`)
+          const orders: BackendOrder[] = response.data
+          if (orders && Array.isArray(orders) && orders.length > 0) {
+            const transformed = orders
+              .map((order) => transformOrderToDelivery(order, items))
+              .filter((delivery): delivery is Delivery => delivery !== null)
+            transformed.forEach((delivery, index) => {
+              delivery.originalOrder = orders[index]
+            })
+            setCurrentDeliveries(transformed)
+          } else {
+            setCurrentDeliveries([])
+          }
+        } catch (err) {
+          console.error("Error refreshing deliveries:", err)
+        }
+      }
+      
+      toast.success("Order received successfully")
+      setReceiveDialogOpen(false)
+      setSelectedOrder(null)
+      setRating(0)
+    } catch (err: any) {
+      console.error("Error receiving order:", err)
+      toast.error(err.response?.data || err.message || "Failed to receive order")
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
   return (
     <div className="flex-1">
       {/* Main Content */}
@@ -516,20 +570,33 @@ export function DeliveryTracking() {
                           </div>
                         </div>
 
-                        <div className="rounded-lg border p-4">
-                          <div className="flex items-center gap-4">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                              <Truck className="h-5 w-5 text-primary" />
+                        {(delivery.status === "scheduled" || delivery.status === "processing") && (
+                          <div className="rounded-lg border p-4">
+                            <div className="flex items-center gap-4">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                                <Truck className="h-5 w-5 text-primary" />
+                              </div>
+                              <div>
+                                <h3 className="text-sm font-medium">Approve Receiving</h3>
+                                <p className="text-xs text-muted-foreground">Approve the receiving of the delivery</p>
+                              </div>
+                              <Button 
+                                className="ml-auto" 
+                                size="sm"
+                                onClick={() => {
+                                  if (delivery.originalOrder) {
+                                    setSelectedOrder(delivery.originalOrder)
+                                    setRating(0)
+                                    setReceiveDialogOpen(true)
+                                  }
+                                }}
+                                disabled={isProcessing}
+                              >
+                                Approve
+                              </Button>
                             </div>
-                            <div>
-                              <h3 className="text-sm font-medium">Approve Receiving</h3>
-                              <p className="text-xs text-muted-foreground">Approve the receiving of the delivery</p>
-                            </div>
-                            <Button className="ml-auto" size="sm">
-                              Approve
-                            </Button>
                           </div>
-                        </div>
+                        )}
                       </CardContent>
                     </Card>
                   ))
@@ -632,6 +699,121 @@ export function DeliveryTracking() {
           </div>
         </main>
       </div>
+
+      {/* Receive Delivery Dialog */}
+      {selectedOrder && (
+        <Dialog open={receiveDialogOpen} onOpenChange={setReceiveDialogOpen}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Approve Receiving</DialogTitle>
+              <DialogDescription>Verify and receive incoming delivery items. Please rate the supplier before confirming receipt.</DialogDescription>
+            </DialogHeader>
+
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Order ID</p>
+                  <p className="font-medium">{selectedOrder.id}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Supplier</p>
+                  <p className="font-medium">{selectedOrder.supplier?.companyName || selectedOrder.supplier?.names || "N/A"}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Delivery Date</p>
+                  <p>{formatDate(selectedOrder.deliveryDate || selectedOrder.created)}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Order Price</p>
+                  <p className="font-medium">{selectedOrder.orderPrice ? `RWF ${selectedOrder.orderPrice.toLocaleString()}` : "N/A"}</p>
+                </div>
+              </div>
+
+              <div className="mt-2">
+                <p className="mb-2 text-sm font-medium">Order Items</p>
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Item Name</TableHead>
+                        <TableHead>Expected Quantity</TableHead>
+                        <TableHead>Unit</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedOrder.requestItem?.requestItemDetails && selectedOrder.requestItem.requestItemDetails.length > 0 ? (
+                        selectedOrder.requestItem.requestItemDetails.map((detail, index) => (
+                          <TableRow key={index}>
+                            <TableCell>{getItemName(selectedOrder, detail.item?.id)}</TableCell>
+                            <TableCell>{detail.quantity || 0}</TableCell>
+                            <TableCell>{getItemUnit(selectedOrder, detail.item?.id)}</TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={3} className="text-center text-muted-foreground">
+                            No items found
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="rating">Rate Supplier *</Label>
+                <div className="flex items-center gap-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setRating(star)}
+                      className="focus:outline-none"
+                    >
+                      <Star
+                        className={`h-8 w-8 transition-colors ${
+                          star <= rating
+                            ? "fill-amber-400 text-amber-400"
+                            : "fill-gray-300 text-gray-300 hover:fill-amber-200 hover:text-amber-200"
+                        }`}
+                      />
+                    </button>
+                  ))}
+                  {rating > 0 && (
+                    <span className="ml-2 text-sm text-muted-foreground">({rating}/5)</span>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">Click on a star to rate the supplier for this delivery</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="notes">Notes (Optional)</Label>
+                <Textarea
+                  id="notes"
+                  placeholder="Add any notes about this delivery"
+                />
+              </div>
+            </div>
+
+            <DialogFooter className="flex justify-between sm:justify-between">
+              <Button variant="outline" onClick={() => {
+                setReceiveDialogOpen(false)
+                setRating(0)
+              }}>
+                Cancel
+              </Button>
+              <Button onClick={handleReceiveDelivery} disabled={isProcessing || rating === 0}>
+                <Check className="mr-2 h-4 w-4" />
+                {isProcessing ? "Processing..." : "Confirm Receipt"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 }

@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { ArrowUpDown, Download, Filter, Package, Search } from "lucide-react"
-import axios from "axios"
+import apiClient from "@/lib/axios"
 import { toast } from "sonner"
 import { format } from "date-fns"
 
@@ -52,11 +52,9 @@ interface Stock {
   }
 }
 
-const API_BASE_URL = "http://localhost:8070/api/inventory"
-
 const inventoryService = {
   getAllInventory: async (schoolId: string) => {
-    const response = await axios.get(`${API_BASE_URL}/all/${schoolId}`)
+    const response = await apiClient.get(`/inventory/all/${schoolId}`)
     return response.data
   },
 }
@@ -114,7 +112,7 @@ export function StockInventory() {
         const schoolId = localStorage.getItem("schoolId")
         if (!schoolId) return
         
-        const response = await axios.get(`http://localhost:8070/api/distribute/all/${schoolId}`)
+        const response = await apiClient.get(`/distribute/all/${schoolId}`)
         setDistributions(Array.isArray(response.data) ? response.data : [])
       } catch (err) {
         console.error("Error fetching distributions:", err)

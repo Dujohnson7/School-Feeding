@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { Edit, Plus, Search, Trash2 } from "lucide-react"
 import { Link } from "react-router-dom"
+import apiClient from "@/lib/axios"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -67,11 +68,8 @@ export function RequestFoodList() {
   useEffect(() => {
     const fetchItems = async () => {
       try {
-        const response = await fetch("http://localhost:8070/api/item/all")
-        if (response.ok) {
-          const data = await response.json()
-          setItems(data)
-        }
+        const response = await apiClient.get("/item/all")
+        setItems(response.data)
       } catch (err) {
         console.error("Error fetching items:", err)
       }
@@ -82,29 +80,19 @@ export function RequestFoodList() {
   useEffect(() => {
     const fetchRequests = async () => {
       const schoolId = localStorage.getItem("schoolId")
-      const token = localStorage.getItem("token")
 
-      if (!schoolId || !token) {
+      if (!schoolId) {
         setLoading(false)
         return
       }
 
       try {
         setLoading(true)
-        const response = await fetch(
-          `http://localhost:8070/api/requestRequestItem/schoolRequest/${schoolId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
+        const response = await apiClient.get(
+          `/requestRequestItem/schoolRequest/${schoolId}`
         )
 
-        if (!response.ok) {
-          throw new Error("Failed to fetch requests")
-        }
-
-        const data: ApiRequestItem[] = await response.json()
+        const data: ApiRequestItem[] = response.data
  
         const transformedRequests: FoodRequest[] = data.map((request) => {
           const requestItems = request.requestItemDetails.map((detail) => {
@@ -252,25 +240,11 @@ export function RequestFoodList() {
     setEditLoading(true)
 
     try {
-      const response = await fetch(
-        `http://localhost:8070/api/requestRequestItem/update/${selectedRequest.id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(requestPayload),
-        }
+      const response = await apiClient.put(
+        `/requestRequestItem/update/${selectedRequest.id}`,
+        requestPayload
       )
-
-      const data = await response.json().catch(() => null)
-
-      if (!response.ok) {
-        const errorMessage =
-          data?.message || data?.error || response.statusText || "Failed to update request"
-        throw new Error(errorMessage)
-      }
+      const data = response.data
 
       toast.success("Food request updated successfully.")
  
@@ -320,26 +294,10 @@ export function RequestFoodList() {
   const handleDeleteRequest = async () => {
     if (!selectedRequest) return
 
-    const token = localStorage.getItem("token")
-    if (!token) {
-      toast.error("Authentication required. Please log in again.")
-      return
-    }
-
     try {
-      const response = await fetch(
-        `http://localhost:8070/api/requestRequestItem/delete/${selectedRequest.id}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+      await apiClient.delete(
+        `/requestRequestItem/delete/${selectedRequest.id}`
       )
-
-      if (!response.ok) {
-        throw new Error("Failed to delete request")
-      }
 
       toast.success("Food request deleted successfully.")
 

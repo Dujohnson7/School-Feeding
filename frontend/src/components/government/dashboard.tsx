@@ -1,8 +1,10 @@
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
 import { BarChart3, Building2, DollarSign, Home, MapPinCheck, Users, FileText } from "lucide-react"
 import PageHeader from "@/components/shared/page-header"
+import apiClient from "@/lib/axios"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -18,115 +20,168 @@ import {
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 
+interface GovStats {
+  totalSchools: string
+  studentsFedDaily: string
+  districtsCovered: string
+  programBudget: string
+}
+
+interface DistrictData {
+  name: string
+  schools: number
+  students: number
+  coverage: number
+  budget: number
+}
+
+interface NationalOverview {
+  name: string
+  value: number
+}
+
+interface MonthlyFoodDistribution {
+  month: string
+  tons: number
+}
+
+interface KPI {
+  name: string
+  value: number
+}
+
+interface Alert {
+  title: string
+  desc: string
+  severity: "High" | "Medium" | "Info"
+}
+
+interface TopDistrict {
+  name: string
+  meta: string
+  status: string
+}
+
+interface Milestone {
+  title: string
+  date: string
+  days: number
+}
+
+interface RecentActivity {
+  id: number
+  action: string
+  timestamp: string
+  type: string
+}
+
 export function GovDashboard() {
   const [selectedPeriod, setSelectedPeriod] = useState("month")
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState<GovStats>({
+    totalSchools: "0",
+    studentsFedDaily: "0",
+    districtsCovered: "0",
+    programBudget: "RWF 0",
+  })
+  const [districts, setDistricts] = useState<DistrictData[]>([])
+  const [nationalOverview, setNationalOverview] = useState<NationalOverview[]>([])
+  const [monthlyFoodDistribution, setMonthlyFoodDistribution] = useState<MonthlyFoodDistribution[]>([])
+  const [kpis, setKpis] = useState<KPI[]>([])
+  const [alerts, setAlerts] = useState<Alert[]>([])
+  const [topDistricts, setTopDistricts] = useState<TopDistrict[]>([])
+  const [milestones, setMilestones] = useState<Milestone[]>([])
+  const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([])
 
-  const stats = [
+  useEffect(() => {
+    fetchDashboardData()
+  }, [selectedPeriod])
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true)
+
+      // Fetch dashboard statistics
+      const statsResponse = await apiClient.get(`/government/dashboard/stats?period=${selectedPeriod}`)
+      if (statsResponse.data) {
+        setStats(statsResponse.data)
+      }
+
+      // Fetch district performance
+      const districtsResponse = await apiClient.get(`/government/dashboard/districts?period=${selectedPeriod}`)
+      if (districtsResponse.data) {
+        setDistricts(districtsResponse.data)
+      }
+
+      // Fetch national overview
+      const overviewResponse = await apiClient.get(`/government/dashboard/national-overview?period=${selectedPeriod}`)
+      if (overviewResponse.data) {
+        setNationalOverview(overviewResponse.data)
+      }
+
+      // Fetch monthly food distribution
+      const distributionResponse = await apiClient.get(`/government/dashboard/monthly-distribution?period=${selectedPeriod}`)
+      if (distributionResponse.data) {
+        setMonthlyFoodDistribution(distributionResponse.data)
+      }
+
+      // Fetch KPIs
+      const kpisResponse = await apiClient.get(`/government/dashboard/kpis?period=${selectedPeriod}`)
+      if (kpisResponse.data) {
+        setKpis(kpisResponse.data)
+      }
+
+      // Fetch alerts
+      const alertsResponse = await apiClient.get(`/government/dashboard/alerts`)
+      if (alertsResponse.data) {
+        setAlerts(alertsResponse.data)
+      }
+
+      // Fetch top districts
+      const topDistrictsResponse = await apiClient.get(`/government/dashboard/top-districts`)
+      if (topDistrictsResponse.data) {
+        setTopDistricts(topDistrictsResponse.data)
+      }
+
+      // Fetch milestones
+      const milestonesResponse = await apiClient.get(`/government/dashboard/milestones`)
+      if (milestonesResponse.data) {
+        setMilestones(milestonesResponse.data)
+      }
+
+      // Fetch recent activities
+      const activitiesResponse = await apiClient.get(`/government/dashboard/recent-activities`)
+      if (activitiesResponse.data) {
+        setRecentActivities(activitiesResponse.data)
+      }
+    } catch (error: any) {
+      console.error("Error fetching dashboard data:", error)
+      toast.error("Failed to load dashboard data. Please refresh the page.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const statsConfig = [
     {
       title: "Total Schools",
-      value: "1,247",
+      key: "totalSchools" as keyof GovStats,
       icon: Building2,
     },
     {
       title: "Students Fed Daily",
-      value: "342,156",
+      key: "studentsFedDaily" as keyof GovStats,
       icon: Users,
     },
     {
       title: "Districts Covered",
-      value: "30",
+      key: "districtsCovered" as keyof GovStats,
       icon: MapPinCheck,
     },
     {
       title: "Program Budget",
-      value: "RWF 2.4B",
+      key: "programBudget" as keyof GovStats,
       icon: DollarSign,
-    },
-  ]
-
-  const districts = [
-    { name: "Kigali City", schools: 342, students: 156789, coverage: 98, budget: 450000000 },
-    { name: "Eastern Province", schools: 678, students: 298456, coverage: 95, budget: 520000000 },
-    { name: "Northern Province", schools: 523, students: 234567, coverage: 92, budget: 410000000 },
-    { name: "Western Province", schools: 612, students: 267890, coverage: 94, budget: 480000000 },
-    { name: "Southern Province", schools: 692, students: 287976, coverage: 96, budget: 580000000 },
-  ]
-
-  const nationalOverview = [
-    { name: "Kigali City", value: 98 },
-    { name: "Northern Province", value: 92 },
-    { name: "Southern Province", value: 94 },
-    { name: "Eastern Province", value: 95 },
-    { name: "Western Province", value: 89 },
-  ]
-
-  const monthlyFoodDistribution = [
-    { month: "Jan", tons: 120 },
-    { month: "Feb", tons: 160 },
-    { month: "Mar", tons: 180 },
-    { month: "Apr", tons: 170 },
-    { month: "May", tons: 150 },
-    { month: "Jun", tons: 140 },
-    { month: "Jul", tons: 165 },
-    { month: "Aug", tons: 155 },
-    { month: "Sep", tons: 175 },
-    { month: "Oct", tons: 185 },
-    { month: "Nov", tons: 190 },
-    { month: "Dec", tons: 195 },
-  ]
-
-  const kpis = [
-    { name: "Nutrition Standards Compliance", value: 96 },
-    { name: "On-time Delivery Rate", value: 93 },
-    { name: "Budget Utilization", value: 87 },
-    { name: "School Participation", value: 99 },
-    { name: "Supplier Performance", value: 91 },
-  ]
-
-  const alerts = [
-    { title: "Budget Alert", desc: "Eastern Province exceeding budget", severity: "High" as const },
-    { title: "Delivery Delay", desc: "15 schools affected in Kigali", severity: "Medium" as const },
-    { title: "New Supplier", desc: "Application pending approval", severity: "Info" as const },
-  ]
-
-  const topDistricts = [
-    { name: "Nyarugenge", meta: "42 schools, 98% efficiency", status: "Excellent" },
-    { name: "Gasabo", meta: "58 schools, 97% efficiency", status: "Excellent" },
-    { name: "Kicukiro", meta: "35 schools, 96% efficiency", status: "Excellent" },
-    { name: "Rwamagana", meta: "28 schools, 95% efficiency", status: "Good" },
-  ]
-
-  const milestones = [
-    { title: "Q1 Report Due", date: "Apr 30, 2025", days: 7 },
-    { title: "Budget Review", date: "May 15, 2025", days: 22 },
-    { title: "Supplier Evaluation", date: "Jun 1, 2025", days: 39 },
-    { title: "Annual Conference", date: "Jul 20, 2025", days: 88 },
-  ]
-
-  const recentActivities = [
-    {
-      id: 1,
-      action: "Budget allocation approved for Q2 2025",
-      timestamp: "2 hours ago",
-      type: "budget",
-    },
-    {
-      id: 2,
-      action: "New supplier registered in Eastern Province",
-      timestamp: "4 hours ago",
-      type: "supplier",
-    },
-    {
-      id: 3,
-      action: "Monthly nutrition report generated",
-      timestamp: "6 hours ago",
-      type: "report",
-    },
-    {
-      id: 4,
-      action: "District performance review completed",
-      timestamp: "1 day ago",
-      type: "review",
     },
   ]
 
@@ -151,18 +206,16 @@ export function GovDashboard() {
           <div className="space-y-6">
             {/* Stats Cards */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              {stats.map((stat, index) => (
+              {statsConfig.map((stat, index) => (
                 <Card key={index}>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
                     <stat.icon className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{stat.value}</div>
+                    <div className="text-2xl font-bold">{loading ? "..." : stats[stat.key]}</div>
                     <p className="text-xs text-muted-foreground">
-                      <span className={stat.changeType === "positive" ? "text-green-600" : "text-red-600"}>
-                        {stat.change}
-                      </span>{" "} 
+                      {loading ? "Loading..." : "Current period"}
                     </p>
                   </CardContent>
                 </Card>
@@ -179,30 +232,43 @@ export function GovDashboard() {
                 <CardContent>
                   <div className="grid gap-6">
                     <div className="grid gap-4">
-                      {nationalOverview.map((p) => (
-                        <div key={p.name} className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <p className="text-sm font-medium leading-none">{p.name}</p>
-                            <span className="text-xs text-muted-foreground">{p.value}%</span>
+                      {loading && nationalOverview.length === 0 ? (
+                        <div className="text-sm text-muted-foreground">Loading...</div>
+                      ) : nationalOverview.length === 0 ? (
+                        <div className="text-sm text-muted-foreground">No data available</div>
+                      ) : (
+                        nationalOverview.map((p) => (
+                          <div key={p.name} className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <p className="text-sm font-medium leading-none">{p.name}</p>
+                              <span className="text-xs text-muted-foreground">{p.value}%</span>
+                            </div>
+                            <Progress value={p.value} className="h-2" />
                           </div>
-                          <Progress value={p.value} className="h-2" />
-                        </div>
-                      ))}
+                        ))
+                      )}
                     </div>
 
                     {/* Monthly Food Distribution */}
                     <div className="space-y-2">
                       <p className="text-sm font-medium leading-none">Monthly Food Distribution (Tons)</p>
                       <div className="mt-2 flex h-40 items-end gap-2">
-                        {monthlyFoodDistribution.map((m) => {
-                          const h = Math.max(10, Math.min(100, (m.tons / 200) * 100))
-                          return (
-                            <div key={m.month} className="flex flex-1 flex-col items-center gap-1">
-                              <div className="w-full rounded-t-sm bg-primary/90" style={{ height: `${h}%` }} />
-                              <span className="text-[10px] text-muted-foreground">{m.month}</span>
-                            </div>
-                          )
-                        })}
+                        {loading && monthlyFoodDistribution.length === 0 ? (
+                          <div className="text-sm text-muted-foreground w-full text-center">Loading...</div>
+                        ) : monthlyFoodDistribution.length === 0 ? (
+                          <div className="text-sm text-muted-foreground w-full text-center">No data available</div>
+                        ) : (
+                          monthlyFoodDistribution.map((m) => {
+                            const maxTons = Math.max(...monthlyFoodDistribution.map(d => d.tons), 200)
+                            const h = Math.max(10, Math.min(100, (m.tons / maxTons) * 100))
+                            return (
+                              <div key={m.month} className="flex flex-1 flex-col items-center gap-1">
+                                <div className="w-full rounded-t-sm bg-primary/90" style={{ height: `${h}%` }} />
+                                <span className="text-[10px] text-muted-foreground">{m.month}</span>
+                              </div>
+                            )
+                          })
+                        )}
                       </div>
                     </div>
                   </div>
@@ -217,15 +283,21 @@ export function GovDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {kpis.map((k) => (
-                      <div key={k.name} className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium leading-none">{k.name}</p>
-                          <span className="text-xs text-muted-foreground">{k.value}%</span>
+                    {loading && kpis.length === 0 ? (
+                      <div className="text-sm text-muted-foreground">Loading...</div>
+                    ) : kpis.length === 0 ? (
+                      <div className="text-sm text-muted-foreground">No data available</div>
+                    ) : (
+                      kpis.map((k) => (
+                        <div key={k.name} className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-medium leading-none">{k.name}</p>
+                            <span className="text-xs text-muted-foreground">{k.value}%</span>
+                          </div>
+                          <Progress value={k.value} className="h-2" />
                         </div>
-                        <Progress value={k.value} className="h-2" />
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -240,21 +312,27 @@ export function GovDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {alerts.map((a, idx) => (
-                      <div key={idx} className="flex items-start justify-between gap-3 rounded-md border p-3">
-                        <div>
-                          <p className="text-sm font-medium leading-none">{a.title}</p>
-                          <p className="text-xs text-muted-foreground">{a.desc}</p>
+                    {loading && alerts.length === 0 ? (
+                      <div className="text-sm text-muted-foreground">Loading...</div>
+                    ) : alerts.length === 0 ? (
+                      <div className="text-sm text-muted-foreground">No alerts</div>
+                    ) : (
+                      alerts.map((a, idx) => (
+                        <div key={idx} className="flex items-start justify-between gap-3 rounded-md border p-3">
+                          <div>
+                            <p className="text-sm font-medium leading-none">{a.title}</p>
+                            <p className="text-xs text-muted-foreground">{a.desc}</p>
+                          </div>
+                          <Badge
+                            variant={
+                              a.severity === "High" ? "destructive" : a.severity === "Medium" ? "secondary" : "outline"
+                            }
+                          >
+                            {a.severity}
+                          </Badge>
                         </div>
-                        <Badge
-                          variant={
-                            a.severity === "High" ? "destructive" : a.severity === "Medium" ? "secondary" : "outline"
-                          }
-                        >
-                          {a.severity}
-                        </Badge>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -267,15 +345,21 @@ export function GovDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {topDistricts.map((d) => (
-                      <div key={d.name} className="flex items-center justify-between rounded-md border p-3">
-                        <div>
-                          <p className="text-sm font-medium leading-none">{d.name}</p>
-                          <p className="text-xs text-muted-foreground">{d.meta}</p>
+                    {loading && topDistricts.length === 0 ? (
+                      <div className="text-sm text-muted-foreground">Loading...</div>
+                    ) : topDistricts.length === 0 ? (
+                      <div className="text-sm text-muted-foreground">No data available</div>
+                    ) : (
+                      topDistricts.map((d) => (
+                        <div key={d.name} className="flex items-center justify-between rounded-md border p-3">
+                          <div>
+                            <p className="text-sm font-medium leading-none">{d.name}</p>
+                            <p className="text-xs text-muted-foreground">{d.meta}</p>
+                          </div>
+                          <Badge variant="default">{d.status}</Badge>
                         </div>
-                        <Badge variant="default">{d.status}</Badge>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -288,15 +372,21 @@ export function GovDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {milestones.map((m) => (
-                      <div key={m.title} className="flex items-center justify-between rounded-md border p-3">
-                        <div>
-                          <p className="text-sm font-medium leading-none">{m.title}</p>
-                          <p className="text-xs text-muted-foreground">{m.date}</p>
+                    {loading && milestones.length === 0 ? (
+                      <div className="text-sm text-muted-foreground">Loading...</div>
+                    ) : milestones.length === 0 ? (
+                      <div className="text-sm text-muted-foreground">No milestones</div>
+                    ) : (
+                      milestones.map((m) => (
+                        <div key={m.title} className="flex items-center justify-between rounded-md border p-3">
+                          <div>
+                            <p className="text-sm font-medium leading-none">{m.title}</p>
+                            <p className="text-xs text-muted-foreground">{m.date}</p>
+                          </div>
+                          <div className="text-xs text-muted-foreground">{m.days} days</div>
                         </div>
-                        <div className="text-xs text-muted-foreground">{m.days} days</div>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -311,24 +401,30 @@ export function GovDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {districts.map((district, index) => (
-                      <div key={index} className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div className="space-y-1">
-                            <p className="text-sm font-medium leading-none">{district.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {district.schools} schools • {district.students.toLocaleString()} students
-                            </p>
+                    {loading && districts.length === 0 ? (
+                      <div className="text-sm text-muted-foreground">Loading...</div>
+                    ) : districts.length === 0 ? (
+                      <div className="text-sm text-muted-foreground">No data available</div>
+                    ) : (
+                      districts.map((district, index) => (
+                        <div key={index} className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="space-y-1">
+                              <p className="text-sm font-medium leading-none">{district.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {district.schools} schools • {district.students.toLocaleString()} students
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <Badge variant={district.coverage >= 95 ? "default" : "secondary"}>
+                                {district.coverage}%
+                              </Badge>
+                            </div>
                           </div>
-                          <div className="text-right">
-                            <Badge variant={district.coverage >= 95 ? "default" : "secondary"}>
-                              {district.coverage}%
-                            </Badge>
-                          </div>
+                          <Progress value={district.coverage} className="h-2" />
                         </div>
-                        <Progress value={district.coverage} className="h-2" />
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -340,15 +436,21 @@ export function GovDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {recentActivities.map((activity) => (
-                      <div key={activity.id} className="flex items-start space-x-4">
-                        <div className="flex h-2 w-2 translate-y-1 rounded-full bg-primary" />
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium leading-none">{activity.action}</p>
-                          <p className="text-xs text-muted-foreground">{activity.timestamp}</p>
+                    {loading && recentActivities.length === 0 ? (
+                      <div className="text-sm text-muted-foreground">Loading...</div>
+                    ) : recentActivities.length === 0 ? (
+                      <div className="text-sm text-muted-foreground">No recent activities</div>
+                    ) : (
+                      recentActivities.map((activity) => (
+                        <div key={activity.id} className="flex items-start space-x-4">
+                          <div className="flex h-2 w-2 translate-y-1 rounded-full bg-primary" />
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium leading-none">{activity.action}</p>
+                            <p className="text-xs text-muted-foreground">{activity.timestamp}</p>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 </CardContent>
               </Card>

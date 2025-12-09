@@ -16,4 +16,8 @@ public interface ISchoolService {
     List<School> findAllByDistrict(EDistrict theDistrict);
     List<School> findAllByProvince(EProvince theProvince);
     List<School> findAllByState(Boolean state);
+    long countAllSchools(Boolean active);
+    long countSchoolByDistricts(UUID  districtId);
+    long sumAllByDistrictStudentAndState(UUID districtId);
+    long sumByStudentAndState(Boolean state);
 }

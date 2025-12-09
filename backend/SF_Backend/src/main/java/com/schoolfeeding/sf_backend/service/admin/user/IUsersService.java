@@ -20,5 +20,6 @@ public interface IUsersService {
     List<Users> findUsersByRole(ERole role);
     List<Users> findUsersByState(Boolean state);
     List<Users> findUsersBySchoolAndRoleAndState(UUID schoolId, ERole role, Boolean state);
+    long countAllUser(Boolean active);
 
 }

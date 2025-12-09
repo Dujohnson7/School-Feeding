@@ -20,6 +20,7 @@ public interface IRespondService {
     List<Orders> findAllByRequestItemSchool(UUID schoolId);
     List<Orders>  findAllByRequestItemSchoolAndDeliveryStatus(UUID schoolId, EDelivery delivery );
 
+    long countOrdersByDistrictIdAndDeliveryStatusAndActive(UUID districtId, EDelivery deliveryStatus);
 
     List<Orders> findAllByRequestItemDistrict(UUID districtId);
     List<Orders> findBySupplierIdAndDeliveryStatus(UUID supplierId, EDelivery deliveryStatus);

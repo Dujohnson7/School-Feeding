@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Edit, Package, Plus, Search, Trash2 } from "lucide-react"
-import axios from "axios"
+import apiClient from "@/lib/axios"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -45,30 +45,28 @@ interface Supplier {
   user?: { id: string; email?: string; phone?: string }
 }
 
-const API_BASE_URL = "http://localhost:8070/api/supplier"
-
 const supplierService = {
   getAllSuppliers: async (districtId?: string) => {
     if (districtId) {
-      const response = await axios.get(`${API_BASE_URL}/all/${districtId}`)
+      const response = await apiClient.get(`/supplier/all/${districtId}`)
       return response.data
     }
-    const response = await axios.get(`${API_BASE_URL}/all`)
+    const response = await apiClient.get(`/supplier/all`)
     return response.data
   },
 
   getSupplier: async (id: string) => {
-    const response = await axios.get(`${API_BASE_URL}/${id}`)
+    const response = await apiClient.get(`/supplier/${id}`)
     return response.data
   },
 
   getSupplierItems: async (supplierId: string) => {
-    const response = await axios.get(`${API_BASE_URL}/items/${supplierId}`)
+    const response = await apiClient.get(`/supplier/items/${supplierId}`)
     return response.data
   },
 
   deleteSupplier: async (id: string) => {
-    const response = await axios.delete(`${API_BASE_URL}/delete/${id}`)
+    const response = await apiClient.delete(`/supplier/delete/${id}`)
     return response.data
   },
 }

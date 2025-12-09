@@ -77,4 +77,24 @@ public class SchoolServiceImpl implements ISchoolService {
     public List<School> findAllByState(Boolean state) {
         return schoolRepository.findAllByActive(Boolean.TRUE);
     }
+
+    @Override
+    public long countAllSchools(Boolean active) {
+        return schoolRepository.countAllByActive(active);
+    }
+
+    @Override
+    public long countSchoolByDistricts(UUID districtId) {
+        return schoolRepository.countAllByDistrict_IdAndActive(districtId, Boolean.TRUE);
+    }
+
+    @Override
+    public long sumAllByDistrictStudentAndState(UUID districtId) {
+        return schoolRepository.sumAllByDistrictStudentAndActive(districtId, Boolean.TRUE);
+    }
+
+    @Override
+    public long sumByStudentAndState(Boolean state) {
+        return schoolRepository.sumByStudentAndActive(Boolean.TRUE);
+    }
 }

@@ -168,8 +168,7 @@ export function StockReports() {
     { value: "inventory", label: "Inventory Management", description: "Current stock levels and inventory valuation" },
     { value: "receiving", label: "Goods Receiving", description: "Goods received from suppliers and quality checks" },
     { value: "distribution", label: "Food Distribution", description: "Food distribution to kitchen and consumption" },
-    { value: "waste", label: "Waste & Loss Analysis", description: "Food waste, spoilage, and inventory losses" },
-    { value: "fifo", label: "FIFO Compliance", description: "First-In-First-Out compliance and expiry management" },
+    { value: "waste", label: "Waste & Loss Analysis", description: "Food waste, spoilage, and inventory losses" }, 
   ]
 
   return (

@@ -8,7 +8,7 @@ import {
   Trash2,
   Loader2,
 } from "lucide-react"
-import axios from "axios"
+import apiClient from "@/lib/axios"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -31,8 +31,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 import { toast } from "sonner"
 
-const API_BASE_URL = "http://localhost:8070/api/item"
-
 interface Item {
   id: string
   name: string
@@ -48,37 +46,37 @@ interface Item {
 
 const itemService = {
   getAllItems: async () => {
-    const response = await axios.get(`${API_BASE_URL}/all`)
+    const response = await apiClient.get(`/item/all`)
     return response.data
   },
 
   getItem: async (id: string) => {
-    const response = await axios.get(`${API_BASE_URL}/${id}`)
+    const response = await apiClient.get(`/item/${id}`)
     return response.data
   },
 
   registerItem: async (itemData: any) => {
-    const response = await axios.post(`${API_BASE_URL}/register`, itemData)
+    const response = await apiClient.post(`/item/register`, itemData)
     return response.data
   },
 
   updateItem: async (id: string, itemData: any) => {
-    const response = await axios.put(`${API_BASE_URL}/update/${id}`, itemData)
+    const response = await apiClient.put(`/item/update/${id}`, itemData)
     return response.data
   },
 
   deleteItem: async (id: string) => {
-    const response = await axios.delete(`${API_BASE_URL}/delete/${id}`)
+    const response = await apiClient.delete(`/item/delete/${id}`)
     return response.data
   },
 
   getFoodCategories: async () => {
-    const response = await axios.get(`${API_BASE_URL}/foodCategoryList`)
+    const response = await apiClient.get(`/item/foodCategoryList`)
     return response.data
   },
 
   getFoodUnits: async () => {
-    const response = await axios.get(`${API_BASE_URL}/foodUnitList`)
+    const response = await apiClient.get(`/item/foodUnitList`)
     return response.data
   },
 }

@@ -135,9 +135,6 @@ export default function RoleLayout({ role, children }: RoleLayoutProps) {
                   No notifications
                 </DropdownMenuItem>
               )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>Mark all as read</DropdownMenuItem>
-              <DropdownMenuItem>Notification settings</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 

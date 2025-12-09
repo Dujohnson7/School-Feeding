@@ -373,44 +373,7 @@ export function GovReports() {
                     </div>
                   </CardContent>
                 </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Custom Report</CardTitle>
-                    <CardDescription>Build a custom report with specific parameters</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Date Range</label>
-                        <DatePickerWithRange date={dateRange} setDate={setDateRange} />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Report Format</label>
-                        <Select 
-                          value={selectedReportFormat["custom"] || "pdf"}
-                          onValueChange={(value) => setSelectedReportFormat(prev => ({ ...prev, "custom": value }))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pdf">PDF Report</SelectItem>
-                            <SelectItem value="excel">Excel Spreadsheet</SelectItem>
-                            <SelectItem value="csv">CSV Data</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <Button 
-                        className="w-full" 
-                        onClick={() => handleGenerateReport("Custom")}
-                        disabled={isGenerating["custom"]}
-                      >
-                        {isGenerating["custom"] ? "Generating..." : "Generate Report"}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+ 
               </div>
             </TabsContent>
 

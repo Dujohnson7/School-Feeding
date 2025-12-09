@@ -1,6 +1,4 @@
-import axios from "axios"
-
-const API_BASE_URL = "http://localhost:8070/api"
+import apiClient from "./axios"
 
 export interface Notification {
   id?: string
@@ -21,17 +19,13 @@ export const notificationService = {
    * - Supplier change status of order
    */
   getDistrictNotifications: async (districtId: string): Promise<Notification[]> => {
-    const token = localStorage.getItem("token")
     const notifications: Notification[] = []
 
     try {
       // Fetch pending school requests
       try {
-        const requestsResponse = await axios.get(
-          `${API_BASE_URL}/requestRequestItem/districtRequest/${districtId}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
+        const requestsResponse = await apiClient.get(
+          `/requestRequestItem/districtRequest/${districtId}`
         )
         const requests = Array.isArray(requestsResponse.data) ? requestsResponse.data : []
         
@@ -54,11 +48,8 @@ export const notificationService = {
 
       // Fetch orders with status changes from suppliers
       try {
-        const ordersResponse = await axios.get(
-          `${API_BASE_URL}/supplierOrder/district/${districtId}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
+        const ordersResponse = await apiClient.get(
+          `/supplierOrder/district/${districtId}`
         )
         const orders = Array.isArray(ordersResponse.data) ? ordersResponse.data : []
         
@@ -95,17 +86,13 @@ export const notificationService = {
    * - Supplier change status of order
    */
   getSchoolNotifications: async (schoolId: string): Promise<Notification[]> => {
-    const token = localStorage.getItem("token")
     const notifications: Notification[] = []
 
     try {
       // Fetch request items with status changes
       try {
-        const requestsResponse = await axios.get(
-          `${API_BASE_URL}/requestRequestItem/schoolRequest/${schoolId}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
+        const requestsResponse = await apiClient.get(
+          `/requestRequestItem/schoolRequest/${schoolId}`
         )
         const requests = Array.isArray(requestsResponse.data) ? requestsResponse.data : []
         
@@ -127,11 +114,8 @@ export const notificationService = {
 
       // Fetch orders with status changes from suppliers
       try {
-        const trackResponse = await axios.get(
-          `${API_BASE_URL}/track/current/${schoolId}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
+        const trackResponse = await apiClient.get(
+          `/track/current/${schoolId}`
         )
         const orders = Array.isArray(trackResponse.data) ? trackResponse.data : []
         
@@ -148,7 +132,7 @@ export const notificationService = {
             })
           }
         })
-      } catch (err) {
+      } catch (err: any) {
         if (err.response?.status !== 404) {
           console.error("Error fetching order status changes:", err)
         }
@@ -170,17 +154,13 @@ export const notificationService = {
    * - Notification of payment
    */
   getSupplierNotifications: async (supplierId: string): Promise<Notification[]> => {
-    const token = localStorage.getItem("token")
     const notifications: Notification[] = []
 
     try {
       // Fetch assigned orders
       try {
-        const ordersResponse = await axios.get(
-          `${API_BASE_URL}/supplierOrder/all/${supplierId}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
+        const ordersResponse = await apiClient.get(
+          `/supplierOrder/all/${supplierId}`
         )
         const orders = Array.isArray(ordersResponse.data) ? ordersResponse.data : []
         
@@ -228,17 +208,13 @@ export const notificationService = {
    * - Modification complete delivery
    */
   getGovernmentNotifications: async (): Promise<Notification[]> => {
-    const token = localStorage.getItem("token")
     const notifications: Notification[] = []
 
     try {
       // Fetch budget status notifications
       try {
-        const budgetResponse = await axios.get(
-          `${API_BASE_URL}/budget/all`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
+        const budgetResponse = await apiClient.get(
+          `/budget/all`
         )
         const budgets = Array.isArray(budgetResponse.data) ? budgetResponse.data : []
         
@@ -260,11 +236,8 @@ export const notificationService = {
 
       // Fetch completed deliveries
       try {
-        const deliveriesResponse = await axios.get(
-          `${API_BASE_URL}/supplierDelivery/all`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
+        const deliveriesResponse = await apiClient.get(
+          `/supplierDelivery/all`
         )
         const deliveries = Array.isArray(deliveriesResponse.data) ? deliveriesResponse.data : []
         
@@ -299,17 +272,13 @@ export const notificationService = {
    * - Notification of created account
    */
   getAdminNotifications: async (): Promise<Notification[]> => {
-    const token = localStorage.getItem("token")
     const notifications: Notification[] = []
 
     try {
       // Fetch recently created users
       try {
-        const usersResponse = await axios.get(
-          `${API_BASE_URL}/users/all`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
+        const usersResponse = await apiClient.get(
+          `/users/all`
         )
         const users = Array.isArray(usersResponse.data) ? usersResponse.data : []
         
@@ -354,17 +323,13 @@ export const notificationService = {
    * - Item near to low by status
    */
   getStockKeeperNotifications: async (schoolId: string): Promise<Notification[]> => {
-    const token = localStorage.getItem("token")
     const notifications: Notification[] = []
 
     try {
       // Fetch inventory for stock level and expiry notifications
       try {
-        const inventoryResponse = await axios.get(
-          `${API_BASE_URL}/inventory/all/${schoolId}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
+        const inventoryResponse = await apiClient.get(
+          `/inventory/all/${schoolId}`
         )
         const inventory = Array.isArray(inventoryResponse.data) ? inventoryResponse.data : []
         
@@ -409,11 +374,8 @@ export const notificationService = {
 
       // Fetch orders with status changes from suppliers
       try {
-        const receivingResponse = await axios.get(
-          `${API_BASE_URL}/receiving/all/${schoolId}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
+        const receivingResponse = await apiClient.get(
+          `/receiving/all/${schoolId}`
         )
         const orders = Array.isArray(receivingResponse.data) ? receivingResponse.data : []
         
@@ -430,7 +392,7 @@ export const notificationService = {
             })
           }
         })
-      } catch (err) {
+      } catch (err: any) {
         if (err.response?.status !== 404) {
           console.error("Error fetching order status changes:", err)
         }

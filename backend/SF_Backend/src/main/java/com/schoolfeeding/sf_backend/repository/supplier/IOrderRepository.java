@@ -28,5 +28,7 @@ public interface IOrderRepository extends JpaRepository<Orders, UUID> {
     List<Orders>  findAllByRequestItem_District_IdAndActive(UUID districtId, Boolean active);
     List<Orders>  findAllByRequestItem_School_IdAndActive(UUID schoolId, Boolean active);
     List<Orders>  findAllByRequestItem_School_IdAndDeliveryStatusAndActive(UUID schoolId, EDelivery delivery, Boolean active);
+    long countOrdersByRequestItem_DistrictIdAndDeliveryStatusAndActive(UUID requestItemDistrictId, EDelivery deliveryStatus, Boolean active);
+
 
 }

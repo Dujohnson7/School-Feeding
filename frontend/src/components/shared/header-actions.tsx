@@ -140,9 +140,6 @@ export function HeaderActions({ role, className = "" }: HeaderActionsProps) {
               No notifications
             </DropdownMenuItem>
           )}
-          <DropdownMenuSeparator />
-          <DropdownMenuItem>Mark all as read</DropdownMenuItem>
-          <DropdownMenuItem>Notification settings</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 

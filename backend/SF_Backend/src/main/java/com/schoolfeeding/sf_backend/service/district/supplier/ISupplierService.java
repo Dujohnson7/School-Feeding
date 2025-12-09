@@ -14,4 +14,5 @@ public interface ISupplierService {
     Supplier findByIdAndState(UUID id, Boolean state);
     List<Supplier> findAllByState(Boolean state);
     List<Supplier> findAllByDistrictAndAState(UUID districtId, Boolean state);
+    long countSuppliersByDistrict(UUID districtId);
 }

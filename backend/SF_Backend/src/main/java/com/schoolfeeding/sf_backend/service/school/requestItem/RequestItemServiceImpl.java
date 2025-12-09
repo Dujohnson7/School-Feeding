@@ -112,4 +112,14 @@ public class RequestItemServiceImpl implements IRequestItemService {
     public List<RequestItem> findRequestItemsBySchoolIdAndRequestStatusAndState(UUID schoolId, ERequest requestStatus, Boolean state) {
         return requestItemRepository.findRequestItemsBySchoolIdAndRequestStatusAndActiveOrderByCreatedByDesc(schoolId, requestStatus, Boolean.TRUE);
     }
+
+    @Override
+    public long countAllByRequestStatusAndActive(ERequest requestStatus, Boolean active) {
+        return requestItemRepository.countRequestItemsByRequestStatusAndActive(requestStatus, Boolean.TRUE);
+    }
+
+    @Override
+    public long countAllRequestItemsByDistrictAndRequestStatus(UUID districtId, ERequest requestStatus) {
+        return requestItemRepository.countRequestItemsByDistrictIdAndRequestStatusAndActive(districtId, requestStatus, Boolean.TRUE);
+    }
 }

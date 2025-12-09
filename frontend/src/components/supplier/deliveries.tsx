@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Calendar, CheckCircle, Clock, Filter, MapPin, Search, Truck, XCircle } from "lucide-react"
-import axios from "axios"
+import apiClient from "@/lib/axios"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -92,26 +92,24 @@ interface BackendOrder {
   [key: string]: any
 }
 
-const API_BASE_URL = "http://localhost:8070/api/supplierDelivery"
-
 const deliveryService = {
   getDelivery: async (id: string) => {
-    const response = await axios.get(`${API_BASE_URL}/${id}`)
+    const response = await apiClient.get(`/supplierDelivery/${id}`)
     return response.data
   },
 
   getAllDeliveries: async (supplierId: string) => {
-    const response = await axios.get(`${API_BASE_URL}/all/${supplierId}`)
+    const response = await apiClient.get(`/supplierDelivery/all/${supplierId}`)
     return response.data
   },
 
   processOrder: async (id: string) => {
-    const response = await axios.put(`${API_BASE_URL}/processOrder/${id}`)
+    const response = await apiClient.put(`/supplierDelivery/processOrder/${id}`)
     return response.data
   },
 
   deliveryOrder: async (id: string) => {
-    const response = await axios.put(`${API_BASE_URL}/deliveryOrder/${id}`)
+    const response = await apiClient.put(`/supplierDelivery/deliveryOrder/${id}`)
     return response.data
   },
 }

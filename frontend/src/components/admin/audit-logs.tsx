@@ -3,6 +3,7 @@ import { Link } from "react-router-dom"
 import { Calendar, Download, FileText, Home, Search, Shield, Users, X } from "lucide-react"
 import { format, subDays } from "date-fns"
 import { DateRange } from "react-day-picker"
+import apiClient from "@/lib/axios"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -33,8 +34,6 @@ interface AuditLog {
 }
 
 export function AdminAuditLogs() {
-  const API_URL = "http://localhost:8070/api/audit"
-
   const [auditLogsList, setAuditLogsList] = useState<AuditLog[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
@@ -50,13 +49,8 @@ export function AdminAuditLogs() {
  
   const fetchAuditLogsList = async () => {
     try {
-      const response = await fetch(API_URL)
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error(`HTTP error! status: ${response.status}`, errorText)
-        throw new Error(`Failed to fetch audit logs: ${response.status} ${response.statusText}`)
-      }
-      const data = await response.json()
+      const response = await apiClient.get("/audit")
+      const data = response.data
       setAuditLogsList(data)
     } catch (error: unknown) {
       console.error("Error fetching audit logs:", error) 

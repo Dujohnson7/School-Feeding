@@ -165,8 +165,7 @@ export function SupplierReports() {
 
   const reportCategories = [
     { value: "delivery", label: "Delivery Performance", description: "Delivery timeliness and efficiency metrics" },
-    { value: "financial", label: "Financial Analysis", description: "Revenue, costs, and profitability reports" },
-    { value: "inventory", label: "Inventory Management", description: "Stock levels and inventory turnover" },
+    { value: "financial", label: "Financial Analysis", description: "Revenue, costs, and profitability reports" }, 
     { value: "quality", label: "Quality Assurance", description: "Product quality and compliance reports" },
     { value: "customer", label: "Customer Relations", description: "Customer satisfaction and feedback" },
     { value: "operations", label: "Operations Overview", description: "Comprehensive operational performance" },

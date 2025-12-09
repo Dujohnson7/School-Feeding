@@ -67,4 +67,9 @@ public class DistrictServiceImpl implements IDistrictService {
     public List<District> findDistrictsByProvinceAndState(EProvince province, Boolean state) {
         return districtRepository.findDistrictByProvinceAndActive(province, Boolean.TRUE);
     }
+
+    @Override
+    public long countDistrictsAndState(Boolean state) {
+        return districtRepository.countAllByActive(Boolean.TRUE);
+    }
 }

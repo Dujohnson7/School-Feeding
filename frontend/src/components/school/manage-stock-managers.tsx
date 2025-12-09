@@ -8,7 +8,7 @@ import {
   Trash2,
   Users,
 } from "lucide-react"
-import axios from "axios"
+import apiClient from "@/lib/axios"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -44,31 +44,29 @@ interface StockManager {
   lastActive?: string
 }
 
-const API_BASE_URL = "http://localhost:8070/api/stockManager"
-
 const stockManagerService = {
   getAllStockManagers: async (schoolId: string) => {
-    const response = await axios.get(`${API_BASE_URL}/all/${schoolId}`)
+    const response = await apiClient.get(`/stockManager/all/${schoolId}`)
     return response.data
   },
 
   getStockManager: async (id: string) => {
-    const response = await axios.get(`${API_BASE_URL}/${id}`)
+    const response = await apiClient.get(`/stockManager/${id}`)
     return response.data
   },
 
   registerStockManager: async (stockManagerData: any) => {
-    const response = await axios.post(`${API_BASE_URL}/register`, stockManagerData)
+    const response = await apiClient.post(`/stockManager/register`, stockManagerData)
     return response.data
   },
 
   updateStockManager: async (id: string, stockManagerData: any) => {
-    const response = await axios.put(`${API_BASE_URL}/update/${id}`, stockManagerData)
+    const response = await apiClient.put(`/stockManager/update/${id}`, stockManagerData)
     return response.data
   },
 
   deleteStockManager: async (id: string) => {
-    const response = await axios.delete(`${API_BASE_URL}/delete/${id}`)
+    const response = await apiClient.delete(`/stockManager/delete/${id}`)
     return response.data
   },
 }

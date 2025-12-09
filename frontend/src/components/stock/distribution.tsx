@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Calendar, Download, Edit, Package, Plus, Search, Trash2 } from "lucide-react"
-import axios from "axios"
+import apiClient from "@/lib/axios"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -60,31 +60,29 @@ interface InventoryItem {
 }
 
 
-const API_BASE_URL = "http://localhost:8070/api/distribute"
-
 const distributionService = {
   getAllDistributions: async (schoolId: string) => {
-    const response = await axios.get(`${API_BASE_URL}/all/${schoolId}`)
+    const response = await apiClient.get(`/distribute/all/${schoolId}`)
     return response.data
   },
 
   getDistribution: async (id: string) => {
-    const response = await axios.get(`${API_BASE_URL}/${id}`)
+    const response = await apiClient.get(`/distribute/${id}`)
     return response.data
   },
 
   createDistribution: async (stockOut: StockOut) => {
-    const response = await axios.post(`${API_BASE_URL}/register`, stockOut)
+    const response = await apiClient.post(`/distribute/register`, stockOut)
     return response.data
   },
 
   updateDistribution: async (id: string, stockOut: StockOut) => {
-    const response = await axios.put(`${API_BASE_URL}/update/${id}`, stockOut)
+    const response = await apiClient.put(`/distribute/update/${id}`, stockOut)
     return response.data
   },
 
   deleteDistribution: async (id: string) => {
-    const response = await axios.delete(`${API_BASE_URL}/delete/${id}`)
+    const response = await apiClient.delete(`/distribute/delete/${id}`)
     return response.data
   },
 }
@@ -119,7 +117,7 @@ export function StockDistribution() {
     const fetchItems = async () => {
       try {
         setLoadingItems(true)
-        const response = await axios.get("http://localhost:8070/api/item/all")
+        const response = await apiClient.get("/item/all")
         setAvailableItems(response.data || [])
       } catch (err: any) {
         console.error("Error fetching items:", err)
@@ -139,7 +137,7 @@ export function StockDistribution() {
         const schoolId = localStorage.getItem("schoolId")
         if (!schoolId) return
         
-        const response = await axios.get(`http://localhost:8070/api/inventory/all/${schoolId}`)
+        const response = await apiClient.get(`/inventory/all/${schoolId}`)
         const inventory = Array.isArray(response.data) ? response.data : []
         // Filter only items with quantity > 0
         const inStockItems = inventory.filter((item: InventoryItem) => (item.quantity || 0) > 0)

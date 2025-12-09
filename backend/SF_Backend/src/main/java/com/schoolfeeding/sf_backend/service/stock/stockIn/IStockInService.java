@@ -9,4 +9,6 @@ public interface IStockInService {
     StockIn saveStockIn(StockIn theStockIn);
     StockIn findByIdAndActive(UUID id);
     List<StockIn> findAllBySchoolIdAndActive(UUID schoolId);
+    List<StockIn> getExpiredProducts();
+    List<StockIn> getProductsExpiringSoon(int days);
 }

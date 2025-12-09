@@ -1,8 +1,10 @@
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
 import { BarChart3, Calendar, Clock, Package, ShoppingCart, User } from "lucide-react"
 import PageHeader from "@/components/shared/page-header"
+import apiClient from "@/lib/axios"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,8 +22,114 @@ import {
 import { RequestFoodDialog } from "@/components/school/request-food-dialog"
 import { FoodStockGauge } from "@/components/school/food-stock-gauge"
 
+interface SchoolStats {
+  foodStockLevel: number
+  stockLevelStatus: string
+  pendingRequests: number
+  highPriorityRequests: number
+  normalPriorityRequests: number
+  nextDeliveryDate: string
+  nextDeliveryTime: string
+  studentsFedToday: number
+  totalRegisteredStudents: number
+}
+
+interface RecentDelivery {
+  id: string
+  date: string
+  items: string
+  supplier: string
+  status: string
+}
+
+interface UpcomingSchedule {
+  id: string
+  title: string
+  date: string
+  time: string
+  status: "Scheduled" | "Upcoming"
+}
+
 export function SchoolDashboard() {
   const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState<SchoolStats>({
+    foodStockLevel: 0,
+    stockLevelStatus: "Low",
+    pendingRequests: 0,
+    highPriorityRequests: 0,
+    normalPriorityRequests: 0,
+    nextDeliveryDate: "",
+    nextDeliveryTime: "",
+    studentsFedToday: 0,
+    totalRegisteredStudents: 0,
+  })
+  const [recentDeliveries, setRecentDeliveries] = useState<RecentDelivery[]>([])
+  const [upcomingSchedule, setUpcomingSchedule] = useState<UpcomingSchedule[]>([])
+
+  useEffect(() => {
+    fetchDashboardData()
+  }, [])
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true)
+      const schoolId = localStorage.getItem("schoolId")
+
+      if (!schoolId) {
+        toast.error("School ID not found. Please login again.")
+        setLoading(false)
+        return
+      }
+
+      // Fetch dashboard statistics
+      const statsResponse = await apiClient.get(`/school/dashboard/stats?schoolId=${schoolId}`)
+      if (statsResponse.data) {
+        setStats(statsResponse.data)
+      }
+
+      // Fetch recent deliveries
+      const deliveriesResponse = await apiClient.get(`/school/dashboard/recent-deliveries?schoolId=${schoolId}&limit=5`)
+      if (deliveriesResponse.data) {
+        setRecentDeliveries(deliveriesResponse.data)
+      }
+
+      // Fetch upcoming schedule
+      const scheduleResponse = await apiClient.get(`/school/dashboard/upcoming-schedule?schoolId=${schoolId}&limit=4`)
+      if (scheduleResponse.data) {
+        setUpcomingSchedule(scheduleResponse.data)
+      }
+    } catch (error: any) {
+      console.error("Error fetching dashboard data:", error)
+      toast.error("Failed to load dashboard data. Please refresh the page.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getStatusBadge = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "delivered":
+        return <Badge className="bg-green-500">Delivered</Badge>
+      case "pending":
+        return <Badge variant="outline">Pending</Badge>
+      case "in-transit":
+        return <Badge className="bg-blue-500">In Transit</Badge>
+      default:
+        return <Badge variant="outline">{status}</Badge>
+    }
+  }
+
+  const getScheduleBadge = (status: string) => {
+    if (status === "Scheduled") {
+      return <Badge className="ml-auto">Scheduled</Badge>
+    }
+    return <Badge variant="outline" className="ml-auto">Upcoming</Badge>
+  }
+
+  const studentsFedPercentage = stats.totalRegisteredStudents > 0
+    ? (stats.studentsFedToday / stats.totalRegisteredStudents) * 100
+    : 0
 
   return (
     <div className="flex-1">
@@ -49,8 +157,12 @@ export function SchoolDashboard() {
                 <Package className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <FoodStockGauge value={65} />
-                <p className="text-xs text-muted-foreground text-center mt-2">Current stock level: Medium</p>
+                <FoodStockGauge value={loading ? 0 : stats.foodStockLevel} />
+                <p className="text-xs text-muted-foreground text-center mt-2">
+                  {loading
+                    ? "Loading..."
+                    : `Current stock level: ${stats.stockLevelStatus}`}
+                </p>
               </CardContent>
             </Card>
             <Card>
@@ -59,10 +171,23 @@ export function SchoolDashboard() {
                 <ShoppingCart className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">3</div>
+                <div className="text-2xl font-bold">{loading ? "..." : stats.pendingRequests}</div>
                 <div className="flex items-center space-x-2 mt-2">
-                  <Badge variant="destructive">High Priority: 1</Badge>
-                  <Badge variant="outline">Normal: 2</Badge>
+                  {loading ? (
+                    <div className="text-xs text-muted-foreground">Loading...</div>
+                  ) : (
+                    <>
+                      {stats.highPriorityRequests > 0 && (
+                        <Badge variant="destructive">High Priority: {stats.highPriorityRequests}</Badge>
+                      )}
+                      {stats.normalPriorityRequests > 0 && (
+                        <Badge variant="outline">Normal: {stats.normalPriorityRequests}</Badge>
+                      )}
+                      {stats.pendingRequests === 0 && (
+                        <Badge variant="outline">No pending requests</Badge>
+                      )}
+                    </>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -72,8 +197,22 @@ export function SchoolDashboard() {
                 <Calendar className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">Tomorrow</div>
-                <p className="text-xs text-muted-foreground">April 8, 2025 - 10:00 AM</p>
+                <div className="text-2xl font-bold">
+                  {loading
+                    ? "..."
+                    : stats.nextDeliveryDate
+                      ? stats.nextDeliveryDate === "Tomorrow"
+                        ? "Tomorrow"
+                        : stats.nextDeliveryDate
+                      : "No delivery scheduled"}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {loading
+                    ? "Loading..."
+                    : stats.nextDeliveryTime
+                      ? `${stats.nextDeliveryDate} - ${stats.nextDeliveryTime}`
+                      : "No upcoming delivery"}
+                </p>
               </CardContent>
             </Card>
             <Card>
@@ -82,9 +221,13 @@ export function SchoolDashboard() {
                 <User className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">245</div>
-                <p className="text-xs text-muted-foreground">Out of 250 registered</p>
-                <Progress value={98} className="mt-2" />
+                <div className="text-2xl font-bold">{loading ? "..." : stats.studentsFedToday}</div>
+                <p className="text-xs text-muted-foreground">
+                  {loading
+                    ? "Loading..."
+                    : `Out of ${stats.totalRegisteredStudents} registered`}
+                </p>
+                <Progress value={loading ? 0 : studentsFedPercentage} className="mt-2" />
               </CardContent>
             </Card>
           </div>
@@ -103,61 +246,23 @@ export function SchoolDashboard() {
                     <div>Supplier</div>
                     <div>Status</div>
                   </div>
-                  <div className="grid grid-cols-4 items-center text-sm">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <span>Apr 5, 2025</span>
-                    </div>
-                    <div>Rice, Beans, Vegetables</div>
-                    <div>Kigali Foods Ltd</div>
-                    <div>
-                      <Badge className="bg-green-500">Delivered</Badge>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-4 items-center text-sm">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <span>Apr 1, 2025</span>
-                    </div>
-                    <div>Maize, Potatoes, Fruits</div>
-                    <div>Rwanda Harvest Co.</div>
-                    <div>
-                      <Badge className="bg-green-500">Delivered</Badge>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-4 items-center text-sm">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <span>Mar 28, 2025</span>
-                    </div>
-                    <div>Rice, Beans, Oil</div>
-                    <div>Kigali Foods Ltd</div>
-                    <div>
-                      <Badge className="bg-green-500">Delivered</Badge>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-4 items-center text-sm">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <span>Mar 25, 2025</span>
-                    </div>
-                    <div>Vegetables, Fruits</div>
-                    <div>Fresh Farms Rwanda</div>
-                    <div>
-                      <Badge className="bg-green-500">Delivered</Badge>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-4 items-center text-sm">
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <span>Mar 21, 2025</span>
-                    </div>
-                    <div>Rice, Beans, Vegetables</div>
-                    <div>Rwanda Harvest Co.</div>
-                    <div>
-                      <Badge className="bg-green-500">Delivered</Badge>
-                    </div>
-                  </div>
+                  {loading && recentDeliveries.length === 0 ? (
+                    <div className="text-sm text-muted-foreground py-4">Loading deliveries...</div>
+                  ) : recentDeliveries.length === 0 ? (
+                    <div className="text-sm text-muted-foreground py-4">No recent deliveries</div>
+                  ) : (
+                    recentDeliveries.map((delivery) => (
+                      <div key={delivery.id} className="grid grid-cols-4 items-center text-sm">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-muted-foreground" />
+                          <span>{delivery.date}</span>
+                        </div>
+                        <div>{delivery.items}</div>
+                        <div>{delivery.supplier}</div>
+                        <div>{getStatusBadge(delivery.status)}</div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </CardContent>
               <CardFooter>
@@ -173,50 +278,26 @@ export function SchoolDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                      <Clock className="h-5 w-5 text-primary" />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium leading-none">Food Delivery</p>
-                      <p className="text-sm text-muted-foreground">Tomorrow, 10:00 AM</p>
-                    </div>
-                    <Badge className="ml-auto">Scheduled</Badge>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                      <Clock className="h-5 w-5 text-primary" />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium leading-none">Lunch Serving</p>
-                      <p className="text-sm text-muted-foreground">Tomorrow, 12:30 PM</p>
-                    </div>
-                    <Badge className="ml-auto">Scheduled</Badge>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                      <Clock className="h-5 w-5 text-primary" />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium leading-none">Inventory Check</p>
-                      <p className="text-sm text-muted-foreground">Apr 10, 2025, 9:00 AM</p>
-                    </div>
-                    <Badge variant="outline" className="ml-auto">
-                      Upcoming
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                      <Clock className="h-5 w-5 text-primary" />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium leading-none">Monthly Report Due</p>
-                      <p className="text-sm text-muted-foreground">Apr 30, 2025, 5:00 PM</p>
-                    </div>
-                    <Badge variant="outline" className="ml-auto">
-                      Upcoming
-                    </Badge>
-                  </div>
+                  {loading && upcomingSchedule.length === 0 ? (
+                    <div className="text-sm text-muted-foreground">Loading schedule...</div>
+                  ) : upcomingSchedule.length === 0 ? (
+                    <div className="text-sm text-muted-foreground">No upcoming schedule</div>
+                  ) : (
+                    upcomingSchedule.map((schedule) => (
+                      <div key={schedule.id} className="flex items-center gap-4">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                          <Clock className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium leading-none">{schedule.title}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {schedule.date} {schedule.time ? `, ${schedule.time}` : ""}
+                          </p>
+                        </div>
+                        {getScheduleBadge(schedule.status)}
+                      </div>
+                    ))
+                  )}
                 </div>
               </CardContent>
               <CardFooter>

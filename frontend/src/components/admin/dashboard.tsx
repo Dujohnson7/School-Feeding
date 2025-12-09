@@ -1,25 +1,225 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
+import { formatDistanceToNow } from "date-fns"
 
-import { Calendar, FileText, Home, Shield, Users } from "lucide-react"
+import { Calendar, Home, Shield, Users } from "lucide-react"
 import PageHeader from "@/components/shared/page-header"
+import apiClient from "@/lib/axios"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Progress } from "@/components/ui/progress"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Tabs, TabsContent, TabsList } from "@/components/ui/tabs"
+
+interface User {
+  id: string
+  role: string
+  email: string
+  names?: string
+}
+
+interface Audit {
+  id?: string
+  timestamp: string
+  user: User | null
+  action: string
+  resource: string
+  details: string
+  actionStatus: string
+}
+
+const adminDashboardService = {
+  getTotalUsers: async () => {
+    const response = await apiClient.get("/adminDashboard/totalUser")
+    return response.data
+  },
+  getTotalSchools: async () => {
+    const response = await apiClient.get("/adminDashboard/totalSchool")
+    return response.data
+  },
+  getTotalDistricts: async () => {
+    const response = await apiClient.get("/adminDashboard/totalDistrict")
+    return response.data
+  },
+  getTotalPendingRequests: async () => {
+    const response = await apiClient.get("/adminDashboard/totalRequestPending")
+    return response.data
+  },
+  getTop4Audits: async () => {
+    const response = await apiClient.get("/adminDashboard/listTop4Audit")
+    return response.data
+  },
+  getTotalUserLoginThisWeek: async () => {
+    const response = await apiClient.get("/adminDashboard/totalUserLoginThisWeek")
+    return response.data
+  },
+  getCountLoginsPerDayOfWeek: async () => {
+    const response = await apiClient.get("/adminDashboard/countLoginsPerDayOfWeek")
+    return response.data
+  },
+}
 
 export function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState("overview")
+  const [totalUsers, setTotalUsers] = useState<number>(0)
+  const [totalSchools, setTotalSchools] = useState<number>(0)
+  const [totalDistricts, setTotalDistricts] = useState<number>(0)
+  const [pendingRequests, setPendingRequests] = useState<number>(0)
+  const [recentAudits, setRecentAudits] = useState<Audit[]>([])
+  const [totalLoginsThisWeek, setTotalLoginsThisWeek] = useState<number>(0)
+  const [loginsPerDay, setLoginsPerDay] = useState<number[]>(new Array(7).fill(0))
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true)
+         
+        const parseNumber = (value: any): number => {
+          if (value === null || value === undefined) return 0 
+          if (typeof value === 'string') {
+            const trimmed = value.trim()
+            const num = Number(trimmed)
+            return isNaN(num) ? 0 : num
+          } 
+          const num = Number(value)
+          return isNaN(num) ? 0 : num
+        }
+ 
+        let users = 0
+        let schools = 0
+        let districts = 0
+        let requests = 0
+        let audits: Audit[] = []
+        let logins = 0
+        let loginsPerDayData: any = []
+
+        try {
+          users = parseNumber(await adminDashboardService.getTotalUsers())
+        } catch (error) {
+          console.error("Error fetching total users:", error)
+        }
+
+        try {
+          schools = parseNumber(await adminDashboardService.getTotalSchools())
+        } catch (error) {
+          console.error("Error fetching total schools:", error)
+        }
+
+        try {
+          districts = parseNumber(await adminDashboardService.getTotalDistricts())
+        } catch (error) {
+          console.error("Error fetching total districts:", error)
+        }
+
+        try {
+          requests = parseNumber(await adminDashboardService.getTotalPendingRequests())
+        } catch (error) {
+          console.error("Error fetching pending requests:", error)
+        }
+
+        try {
+          const auditsData = await adminDashboardService.getTop4Audits()
+          audits = Array.isArray(auditsData) ? auditsData : []
+        } catch (error) {
+          console.error("Error fetching audits:", error)
+        }
+
+        try {
+          logins = parseNumber(await adminDashboardService.getTotalUserLoginThisWeek())
+        } catch (error) {
+          console.error("Error fetching logins:", error)
+        }
+
+        try {
+          loginsPerDayData = await adminDashboardService.getCountLoginsPerDayOfWeek()
+        } catch (error: any) {
+          // Silently handle backend errors for this endpoint - chart will display with zero values
+          loginsPerDayData = []
+        }
+
+        setTotalUsers(users)
+        setTotalSchools(schools)
+        setTotalDistricts(districts)
+        setPendingRequests(requests)
+        setRecentAudits(audits)
+        setTotalLoginsThisWeek(logins)
+
+        // Process logins per day data
+        // Assuming the data comes as [[dayOfWeek, count], ...] where dayOfWeek is 1-7 (Monday-Sunday)
+        if (Array.isArray(loginsPerDayData)) {
+          const dayCounts = new Array(7).fill(0)
+          loginsPerDayData.forEach((item: any) => {
+            if (Array.isArray(item) && item.length >= 2) {
+              const dayOfWeek = Number(item[0])
+              const count = Number(item[1]) || 0
+              // Convert 1-7 (Monday-Sunday) to 0-6 array index
+              const dayIndex = dayOfWeek - 1
+              if (dayIndex >= 0 && dayIndex < 7 && !isNaN(dayIndex)) {
+                dayCounts[dayIndex] = count
+              }
+            } else if (typeof item === 'object' && item !== null) {
+              // Handle object format like {dayOfWeek: 1, count: 5}
+              const dayOfWeek = Number(item.dayOfWeek || item.day || item[0])
+              const count = Number(item.count || item.value || item[1]) || 0
+              const dayIndex = dayOfWeek - 1
+              if (dayIndex >= 0 && dayIndex < 7 && !isNaN(dayIndex)) {
+                dayCounts[dayIndex] = count
+              }
+            }
+          })
+          setLoginsPerDay(dayCounts)
+        }
+      } catch (error: any) {
+        console.error("Error fetching dashboard data:", error)
+        if (error.response) {
+          console.error("Response error:", error.response.status, error.response.data)
+        } else if (error.request) {
+          console.error("Request error:", error.request)
+        } else {
+          console.error("Error message:", error.message)
+        }
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchDashboardData()
+  }, [])
+
+  const getInitials = (user: User | null): string => {
+    if (!user) return "SY"
+    if (user.names) {
+      const names = user.names.split(" ")
+      if (names.length >= 2) {
+        return `${names[0][0]}${names[1][0]}`.toUpperCase()
+      }
+      return names[0].substring(0, 2).toUpperCase()
+    }
+    if (user.email) {
+      return user.email.substring(0, 2).toUpperCase()
+    }
+    return "SY"
+  }
+
+  const formatTimestamp = (timestamp: string): string => {
+    try {
+      return formatDistanceToNow(new Date(timestamp), { addSuffix: true })
+    } catch {
+      return "Recently"
+    }
+  }
+
+  const getMaxLoginCount = (): number => {
+    const max = Math.max(...loginsPerDay)
+    return max > 0 ? max : 1
+  }
+
+  const getBarHeight = (count: number): string => {
+    const max = getMaxLoginCount()
+    const height = max > 0 ? (count / max) * 100 : 0
+    // Ensure minimum height of 5% for visibility when count is 0
+    return `${Math.max(height, count > 0 ? 5 : 0)}%`
+  }
 
   return (
     <div className="flex-1">
@@ -46,8 +246,10 @@ export function AdminDashboard() {
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">1,284</div>
-                <p className="text-xs text-muted-foreground">+12% from last month</p>
+                <div className="text-2xl font-bold">
+                  {loading ? "..." : totalUsers.toLocaleString()}
+                </div>
+                <p className="text-xs text-muted-foreground">Active users in the system</p>
               </CardContent>
             </Card>
             <Card>
@@ -56,28 +258,34 @@ export function AdminDashboard() {
                 <Home className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">432</div>
-                <p className="text-xs text-muted-foreground">+4 new schools this week</p>
+                <div className="text-2xl font-bold">
+                  {loading ? "..." : totalSchools.toLocaleString()}
+                </div>
+                <p className="text-xs text-muted-foreground">Schools registered in the system</p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">System Uptime</CardTitle>
+                <CardTitle className="text-sm font-medium">Total Districts</CardTitle>
                 <Shield className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">99.8%</div>
-                <p className="text-xs text-muted-foreground">Last 30 days</p>
+                <div className="text-2xl font-bold">
+                  {loading ? "..." : totalDistricts.toLocaleString()}
+                </div>
+                <p className="text-xs text-muted-foreground">Districts in the system</p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Pending Tasks</CardTitle>
+                <CardTitle className="text-sm font-medium">Pending Requests</CardTitle>
                 <Calendar className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">12</div>
-                <p className="text-xs text-muted-foreground">3 high priority</p>
+                <div className="text-2xl font-bold">
+                  {loading ? "..." : pendingRequests.toLocaleString()}
+                </div>
+                <p className="text-xs text-muted-foreground">Requests awaiting approval</p>
               </CardContent>
             </Card>
           </div>
@@ -88,137 +296,47 @@ export function AdminDashboard() {
                 <CardTitle>System Overview</CardTitle>
               </CardHeader>
               <CardContent className="pl-2">
-                <Tabs defaultValue="overview" className="w-full" onValueChange={setActiveTab}>
-                  <TabsList>
-                    <TabsTrigger value="overview">Overview</TabsTrigger>
-                    <TabsTrigger value="analytics">Analytics</TabsTrigger>
-                    <TabsTrigger value="reports">Reports</TabsTrigger>
-                  </TabsList>
+                <Tabs defaultValue="overview" className="w-full">
+                  <TabsList> 
+                  </TabsList> 
                   <TabsContent value="overview" className="pt-4">
                     <div className="space-y-4">
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div>
-                          <div className="mb-2 flex items-center justify-between">
-                            <div className="text-sm font-medium">Database Storage</div>
-                            <div className="text-sm text-muted-foreground">65%</div>
-                          </div>
-                          <Progress value={65} className="h-2" />
-                        </div>
-                        <div>
-                          <div className="mb-2 flex items-center justify-between">
-                            <div className="text-sm font-medium">API Usage</div>
-                            <div className="text-sm text-muted-foreground">42%</div>
-                          </div>
-                          <Progress value={42} className="h-2" />
-                        </div>
-                      </div>
-
-                      <div className="rounded-md bg-muted p-4">
-                        <div className="font-medium">System Notifications</div>
-                        <div className="mt-2 space-y-2">
-                          <div className="flex items-center gap-2 text-sm">
-                            <div className="h-2 w-2 rounded-full bg-green-500"></div>
-                            <span>Database backup completed successfully</span>
-                            <span className="ml-auto text-xs text-muted-foreground">2h ago</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm">
-                            <div className="h-2 w-2 rounded-full bg-amber-500"></div>
-                            <span>System update scheduled for tonight</span>
-                            <span className="ml-auto text-xs text-muted-foreground">5h ago</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm">
-                            <div className="h-2 w-2 rounded-full bg-blue-500"></div>
-                            <span>New district added to the system</span>
-                            <span className="ml-auto text-xs text-muted-foreground">1d ago</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </TabsContent>
-                  <TabsContent value="analytics" className="pt-4">
-                    <div className="space-y-4">
-                      <div className="grid gap-4 md:grid-cols-2">
+                      <div className="grid gap-4 md:grid-cols-1">
                         <Card>
                           <CardHeader className="pb-2">
                             <CardTitle className="text-sm">User Logins</CardTitle>
                           </CardHeader>
                           <CardContent>
-                            <div className="text-2xl font-bold">1,853</div>
+                            <div className="text-2xl font-bold">
+                              {loading ? "..." : totalLoginsThisWeek.toLocaleString()}
+                            </div>
                             <p className="text-xs text-muted-foreground">This week</p>
-                            <div className="mt-4 h-[80px] w-full bg-muted/50">
+                            <div className="mt-4 h-[80px] w-full bg-muted/50 rounded">
                               <div className="flex h-full items-end justify-between px-1">
-                                <div className="h-[30%] w-[8%] bg-primary"></div>
-                                <div className="h-[40%] w-[8%] bg-primary"></div>
-                                <div className="h-[45%] w-[8%] bg-primary"></div>
-                                <div className="h-[60%] w-[8%] bg-primary"></div>
-                                <div className="h-[70%] w-[8%] bg-primary"></div>
-                                <div className="h-[50%] w-[8%] bg-primary"></div>
-                                <div className="h-[35%] w-[8%] bg-primary"></div>
+                                {loginsPerDay.map((count, index) => (
+                                  <div
+                                    key={index}
+                                    className="w-[8%] bg-primary rounded-t transition-all"
+                                    style={{ height: getBarHeight(count) }}
+                                    title={`${count} logins`}
+                                  />
+                                ))}
                               </div>
+                            </div>
+                            <div className="mt-2 flex justify-between text-xs text-muted-foreground">
+                              <span>Mon</span>
+                              <span>Tue</span>
+                              <span>Wed</span>
+                              <span>Thu</span>
+                              <span>Fri</span>
+                              <span>Sat</span>
+                              <span>Sun</span>
                             </div>
                           </CardContent>
-                        </Card>
-                        <Card>
-                          <CardHeader className="pb-2">
-                            <CardTitle className="text-sm">API Requests</CardTitle>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="text-2xl font-bold">42.5k</div>
-                            <p className="text-xs text-muted-foreground">This week</p>
-                            <div className="mt-4 h-[80px] w-full bg-muted/50">
-                              <div className="flex h-full items-end justify-between px-1">
-                                <div className="h-[60%] w-[8%] bg-primary"></div>
-                                <div className="h-[70%] w-[8%] bg-primary"></div>
-                                <div className="h-[80%] w-[8%] bg-primary"></div>
-                                <div className="h-[50%] w-[8%] bg-primary"></div>
-                                <div className="h-[65%] w-[8%] bg-primary"></div>
-                                <div className="h-[45%] w-[8%] bg-primary"></div>
-                                <div className="h-[55%] w-[8%] bg-primary"></div>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
+                        </Card> 
                       </div>
                     </div>
-                  </TabsContent>
-                  <TabsContent value="reports" className="pt-4">
-                    <div className="space-y-4">
-                      <div className="rounded-md border">
-                        <div className="p-4">
-                          <h3 className="font-medium">Recent Reports</h3>
-                          <div className="mt-2 space-y-2">
-                            <div className="flex items-center justify-between rounded-md bg-muted/50 p-2">
-                              <div className="flex items-center gap-2">
-                                <FileText className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-sm">Monthly System Usage Report</span>
-                              </div>
-                              <Button variant="outline" size="sm">
-                                Download
-                              </Button>
-                            </div>
-                            <div className="flex items-center justify-between rounded-md bg-muted/50 p-2">
-                              <div className="flex items-center gap-2">
-                                <FileText className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-sm">User Activity Summary</span>
-                              </div>
-                              <Button variant="outline" size="sm">
-                                Download
-                              </Button>
-                            </div>
-                            <div className="flex items-center justify-between rounded-md bg-muted/50 p-2">
-                              <div className="flex items-center gap-2">
-                                <FileText className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-sm">Security Audit Report</span>
-                              </div>
-                              <Button variant="outline" size="sm">
-                                Download
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </TabsContent>
+                  </TabsContent> 
                 </Tabs>
               </CardContent>
             </Card>
@@ -228,52 +346,55 @@ export function AdminDashboard() {
                 <CardDescription>Latest system activities and events</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-start gap-4">
-                    <Avatar className="mt-1 h-8 w-8">
-                      <AvatarFallback className="bg-primary text-primary-foreground">JD</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-sm font-medium">User account created</p>
-                      <p className="text-xs text-muted-foreground">John Doe (School Admin) was added to the system</p>
-                      <p className="mt-1 text-xs text-muted-foreground">10 minutes ago</p>
-                    </div>
+                {loading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <p className="text-sm text-muted-foreground">Loading activities...</p>
                   </div>
-                  <div className="flex items-start gap-4">
-                    <Avatar className="mt-1 h-8 w-8">
-                      <AvatarFallback className="bg-amber-500 text-primary-foreground">SY</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-sm font-medium">System settings updated</p>
-                      <p className="text-xs text-muted-foreground">Sarah Yusuf modified payment gateway settings</p>
-                      <p className="mt-1 text-xs text-muted-foreground">1 hour ago</p>
-                    </div>
+                ) : recentAudits.length === 0 ? (
+                  <div className="flex items-center justify-center py-8">
+                    <p className="text-sm text-muted-foreground">No recent activities</p>
                   </div>
-                  <div className="flex items-start gap-4">
-                    <Avatar className="mt-1 h-8 w-8">
-                      <AvatarFallback className="bg-green-500 text-primary-foreground">MK</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-sm font-medium">Database backup</p>
-                      <p className="text-xs text-muted-foreground">Automated system backup completed successfully</p>
-                      <p className="mt-1 text-xs text-muted-foreground">2 hours ago</p>
-                    </div>
+                ) : (
+                  <div className="space-y-4">
+                    {recentAudits.map((audit) => {
+                      const initials = getInitials(audit.user)
+                      const colors = [
+                        "bg-primary",
+                        "bg-amber-500",
+                        "bg-green-500",
+                        "bg-blue-500",
+                        "bg-purple-500",
+                        "bg-pink-500",
+                      ]
+                      const colorIndex = initials.charCodeAt(0) % colors.length
+                      const bgColor = colors[colorIndex]
+
+                      return (
+                        <div key={audit.id || Math.random()} className="flex items-start gap-4">
+                          <Avatar className="mt-1 h-8 w-8">
+                            <AvatarFallback className={`${bgColor} text-primary-foreground`}>
+                              {initials}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <p className="text-sm font-medium">{audit.action}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {audit.details || `${audit.resource} - ${audit.action}`}
+                              {audit.user && ` by ${audit.user.names || audit.user.email}`}
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {formatTimestamp(audit.timestamp)}
+                            </p>
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
-                  <div className="flex items-start gap-4">
-                    <Avatar className="mt-1 h-8 w-8">
-                      <AvatarFallback className="bg-blue-500 text-primary-foreground">RN</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-sm font-medium">New district added</p>
-                      <p className="text-xs text-muted-foreground">Robert Niyonzima added Nyarugenge district</p>
-                      <p className="mt-1 text-xs text-muted-foreground">1 day ago</p>
-                    </div>
-                  </div>
-                </div>
+                )}
               </CardContent>
               <CardFooter>
-                <Button variant="outline" className="w-full">
-                  View All Activities
+                <Button variant="outline" className="w-full" asChild>
+                  <Link to="/admin-logs">View All Activities</Link>
                 </Button>
               </CardFooter>
             </Card>

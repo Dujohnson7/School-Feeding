@@ -18,5 +18,6 @@ public interface ISupplierRepository extends JpaRepository<Supplier, UUID> {
     List<Supplier> findAllByDistrict_IdAndActive(UUID districtId, Boolean active);
     @Query("SELECT i FROM Supplier s JOIN s.items i WHERE s.id = :sId AND s.active = :active")
     List<Item> findSupplierItemByActive(@Param("sId") UUID sId, @Param("active") Boolean active);
+    long countSuppliersByDistrictIdAndActive(UUID districtId, Boolean active);
 
 }

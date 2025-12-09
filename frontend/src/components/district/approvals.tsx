@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Check, Filter, Package, Search, X, Loader2 } from "lucide-react"
+import apiClient from "@/lib/axios"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -22,7 +23,7 @@ import { Label } from "@/components/ui/label"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 import { toast } from "sonner"
 
-const API_BASE_URL = "http://localhost:8070/api/respondDistrict"
+// API_BASE_URL removed - using apiClient from @/lib/axios instead
 
 interface ApiRequestItem {
   id: string
@@ -93,11 +94,8 @@ export function DistrictApprovals() {
   useEffect(() => {
     const fetchItems = async () => {
       try {
-        const response = await fetch("http://localhost:8070/api/item/all")
-        if (response.ok) {
-          const data = await response.json()
-          setItems(data)
-        }
+        const response = await apiClient.get("/item/all")
+        setItems(response.data)
       } catch (err) {
         console.error("Error fetching items:", err)
       }
@@ -109,17 +107,8 @@ export function DistrictApprovals() {
   useEffect(() => {
     const fetchSuppliers = async () => {
       try {
-        const token = localStorage.getItem("token")
-        const response = await fetch("http://localhost:8070/api/supplier/all", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        })
-        if (response.ok) {
-          const data = await response.json()
-          setSuppliers(data)
-        }
+        const response = await apiClient.get("/supplier/all")
+        setSuppliers(response.data)
       } catch (err) {
         console.error("Error fetching suppliers:", err)
       }
@@ -131,11 +120,10 @@ export function DistrictApprovals() {
   useEffect(() => {
     const fetchRequests = async () => {
       const districtId = localStorage.getItem("districtId")
-      const token = localStorage.getItem("token")
 
-      if (!districtId || !token) {
+      if (!districtId) {
         setLoading(false)
-        toast.error("District ID or authentication token not found. Please login again.")
+        toast.error("District ID not found. Please login again.")
         return
       }
 
@@ -152,23 +140,13 @@ export function DistrictApprovals() {
             rejected: "REJECTED",
           }
           const requestStatus = statusMap[statusFilter] || "PENDING"
-          url = `${API_BASE_URL}/districtRequestByRequestStatus?dId=${districtId}&requestStatus=${requestStatus}`
+          url = `/respondDistrict/districtRequestByRequestStatus?dId=${districtId}&requestStatus=${requestStatus}`
         } else {
-          url = `${API_BASE_URL}/districtRequest/${districtId}`
+          url = `/respondDistrict/districtRequest/${districtId}`
         }
 
-        const response = await fetch(url, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        })
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch requests")
-        }
-
-        const data: ApiRequestItem[] = await response.json()
+        const response = await apiClient.get(url)
+        const data: ApiRequestItem[] = response.data
 
         // Transform API data to frontend Request format
         const transformedRequests = transformApiData(data)
@@ -232,66 +210,18 @@ export function DistrictApprovals() {
       return
     }
 
-    const token = localStorage.getItem("token")
-
-    if (!token) {
-      toast.error("Authentication token not found. Please login again.")
-      return
-    }
-
     try {
       setAssignLoading(true)
       
       // First approve the request
-      const approveResponse = await fetch(`${API_BASE_URL}/approval/${pendingApprovalRequest.id}`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      })
-
-      // Handle response that might be JSON or plain text
-      let approveData: any
-      const contentType = approveResponse.headers.get("content-type")
-      if (contentType && contentType.includes("application/json")) {
-        approveData = await approveResponse.json()
-      } else {
-        const text = await approveResponse.text()
-        approveData = text ? { message: text } : {}
-      }
-
-      if (!approveResponse.ok) {
-        throw new Error(approveData?.message || approveData || "Failed to approve request")
-      }
+      await apiClient.put(`/respondDistrict/approval/${pendingApprovalRequest.id}`)
 
       // Then assign order to supplier
-      const assignResponse = await fetch("http://localhost:8070/api/respondDistrict/assignOrder", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          requestItem: { id: pendingApprovalRequest.id },
-          supplier: { id: selectedSupplierId },
-          orderPrice: parseFloat(orderPrice),
-        }),
+      await apiClient.post("/respondDistrict/assignOrder", {
+        requestItem: { id: pendingApprovalRequest.id },
+        supplier: { id: selectedSupplierId },
+        orderPrice: parseFloat(orderPrice),
       })
-
-      // Handle response that might be JSON or plain text
-      let assignData: any
-      const assignContentType = assignResponse.headers.get("content-type")
-      if (assignContentType && assignContentType.includes("application/json")) {
-        assignData = await assignResponse.json()
-      } else {
-        const text = await assignResponse.text()
-        assignData = text ? { message: text } : {}
-      }
-
-      if (!assignResponse.ok) {
-        throw new Error(assignData?.message || assignData || "Failed to assign order")
-      }
 
       toast.success("Request approved and order assigned to supplier successfully.")
 
@@ -309,28 +239,9 @@ export function DistrictApprovals() {
   }
 
   const handleReject = async (request: Request) => {
-    const token = localStorage.getItem("token")
-
-    if (!token) {
-      toast.error("Authentication token not found. Please login again.")
-      return
-    }
-
     try {
       setActionLoading(true)
-      const response = await fetch(`${API_BASE_URL}/reject/${request.id}`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data?.message || data || "Failed to reject request")
-      }
+      await apiClient.put(`/respondDistrict/reject/${request.id}`)
 
       toast.success("Request rejected successfully.")
 
@@ -392,27 +303,18 @@ export function DistrictApprovals() {
   // Helper function to refresh requests after approve/reject
   const refreshRequests = async () => {
     const districtId = localStorage.getItem("districtId")
-    const token = localStorage.getItem("token")
 
-    if (!districtId || !token) return
+    if (!districtId) return
 
     try {
       const refreshUrl = statusFilter !== "all" 
-        ? `${API_BASE_URL}/districtRequestByRequestStatus?dId=${districtId}&requestStatus=${statusFilter === "pending" ? "PENDING" : statusFilter === "approved" ? "COMPLETED" : "REJECTED"}`
-        : `${API_BASE_URL}/districtRequest/${districtId}`
+        ? `/respondDistrict/districtRequestByRequestStatus?dId=${districtId}&requestStatus=${statusFilter === "pending" ? "PENDING" : statusFilter === "approved" ? "COMPLETED" : "REJECTED"}`
+        : `/respondDistrict/districtRequest/${districtId}`
       
-      const refreshResponse = await fetch(refreshUrl, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      })
-      
-      if (refreshResponse.ok) {
-        const refreshData: ApiRequestItem[] = await refreshResponse.json()
-        const transformedRequests = transformApiData(refreshData)
-        setRequests(transformedRequests)
-      }
+      const refreshResponse = await apiClient.get(refreshUrl)
+      const refreshData: ApiRequestItem[] = refreshResponse.data
+      const transformedRequests = transformApiData(refreshData)
+      setRequests(transformedRequests)
     } catch (err) {
       console.error("Error refreshing requests:", err)
     }

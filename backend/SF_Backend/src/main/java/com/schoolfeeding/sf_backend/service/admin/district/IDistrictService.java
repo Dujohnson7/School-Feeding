@@ -13,4 +13,5 @@ public interface IDistrictService {
     District findDistrictByIdAndState (UUID theId, Boolean state);
     List<District> findAllDistrictsAndState(Boolean state);
     List<District> findDistrictsByProvinceAndState(EProvince province, Boolean state);
+    long countDistrictsAndState(Boolean state);
 }

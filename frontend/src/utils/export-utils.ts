@@ -2,44 +2,151 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { format as formatDate } from 'date-fns'
 
-// Helper function to add header with logo and title
-const addReportHeader = (doc: jsPDF, title: string, subtitle?: string) => {
-  // Header background
-  doc.setFillColor(34, 139, 34) // Green color for School Feeding
-  doc.rect(0, 0, doc.internal.pageSize.getWidth(), 40, 'F')
-  
-  // Try to add logo (if available)
+// Helper function to load image as base64
+const loadImageAsBase64 = async (imagePath: string): Promise<string> => {
   try {
-    // You can add an image here if you have a logo file
-    // For now, we'll add a text-based logo
-    doc.setTextColor(255, 255, 255)
-    doc.setFontSize(20)
-    doc.setFont('helvetica', 'bold')
-    doc.text('🍎 School Feeding Program', 20, 15)
+    const response = await fetch(imagePath)
+    const blob = await response.blob()
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(blob)
+    })
   } catch (error) {
-    // If logo fails, just use text
-    doc.setTextColor(255, 255, 255)
-    doc.setFontSize(20)
-    doc.setFont('helvetica', 'bold')
-    doc.text('School Feeding Program', 20, 15)
+    console.error('Error loading image:', error)
+    return ''
   }
+}
+
+// Helper function to add header with logo and title (matching the image format exactly)
+const addReportHeader = async (
+  doc: jsPDF,
+  reportTitle: string,
+  schoolInfo?: {
+    school?: string
+    province?: string
+    district?: string
+    dateFrom?: Date
+    dateTo?: Date
+  }
+) => {
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const pageHeight = doc.internal.pageSize.getHeight()
   
-  // Title
+  // Set light gray background for entire page
+  doc.setFillColor(240, 240, 240) // Light gray
+  doc.rect(0, 0, pageWidth, pageHeight, 'F')
+  
+  let yPos = 15
+
+  // Add logo at top left (circular emblem)
+  try {
+    const logoBase64 = await loadImageAsBase64('/logo.svg')
+    if (logoBase64) {
+      // Add logo image - positioned at top left, size 30x30mm
+      doc.addImage(logoBase64, 'SVG', 15, yPos, 30, 30)
+    }
+  } catch (error) {
+    console.error('Error adding logo:', error)
+    // Draw a placeholder circle if logo fails
+    doc.setDrawColor(0, 128, 0) // Green
+    doc.setFillColor(255, 255, 255) // White
+    doc.circle(30, yPos + 15, 15, 'FD')
+  }
+
+  // Add "SCHOOL FEEDING" in blue, bold, capitalized below logo
+  yPos += 35
+  doc.setTextColor(0, 0, 255) // Blue color (RGB: 0, 0, 255)
+  doc.setFontSize(18)
+  doc.setFont('helvetica', 'bold')
+  doc.text('SCHOOL FEEDING', 15, yPos)
+
+  yPos += 10
+
+  // Add information section with colored labels (matching picture exactly)
+  if (schoolInfo) {
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'normal')
+
+    // School: (red label, black value)
+    doc.setTextColor(255, 0, 0) // Red
+    doc.text('School:', 15, yPos)
+    doc.setTextColor(0, 0, 0) // Black
+    const schoolX = 15 + doc.getTextWidth('School: ') + 2
+    doc.text(schoolInfo.school || 'N/A', schoolX, yPos)
+
+    // Province: (black)
+    yPos += 7
+    doc.setTextColor(0, 0, 0) // Black
+    doc.text('Province:', 15, yPos)
+    const provinceX = 15 + doc.getTextWidth('Province: ') + 2
+    doc.text(schoolInfo.province || 'N/A', provinceX, yPos)
+
+    // District: (orange label, black value)
+    yPos += 7
+    doc.setTextColor(255, 165, 0) // Orange (RGB: 255, 165, 0)
+    doc.text('District:', 15, yPos)
+    doc.setTextColor(0, 0, 0) // Black
+    const districtX = 15 + doc.getTextWidth('District: ') + 2
+    doc.text(schoolInfo.district || 'N/A', districtX, yPos)
+
+    // Date range: From/To (red labels, black dates)
+    if (schoolInfo.dateFrom && schoolInfo.dateTo) {
+      yPos += 7
+      doc.setTextColor(255, 0, 0) // Red
+      doc.text('From:', 15, yPos)
+      doc.setTextColor(0, 0, 0) // Black
+      const fromDateX = 15 + doc.getTextWidth('From: ') + 2
+      doc.text(formatDate(schoolInfo.dateFrom, 'dd MMMM yyyy'), fromDateX, yPos)
+      
+      yPos += 7
+      doc.setTextColor(255, 0, 0) // Red
+      doc.text('To:', 15, yPos)
+      doc.setTextColor(0, 0, 0) // Black
+      const toDateX = 15 + doc.getTextWidth('To: ') + 2
+      doc.text(formatDate(schoolInfo.dateTo, 'dd MMMM yyyy'), toDateX, yPos)
+      
+      yPos += 12
+    } else {
+      yPos += 7
+    }
+  } else {
+    yPos += 10
+  }
+
+  // Center the report title in blue, bold (replace "Title Report" with actual report type)
+  yPos += 5
+  doc.setTextColor(0, 0, 255) // Blue
   doc.setFontSize(16)
   doc.setFont('helvetica', 'bold')
-  doc.text(title, 20, 30)
-  
-  // Subtitle if provided
-  if (subtitle) {
-    doc.setFontSize(10)
-    doc.setFont('helvetica', 'normal')
-    doc.text(subtitle, 20, 37)
-  }
-  
+  const titleWidth = doc.getTextWidth(reportTitle)
+  const titleX = (pageWidth - titleWidth) / 2
+  doc.text(reportTitle, titleX, yPos)
+
+  yPos += 12
+
   // Reset text color
   doc.setTextColor(0, 0, 0)
+
+  return yPos // Return Y position after header
+}
+
+// Helper function to add footer with generator date (matching picture format)
+const addReportFooter = (doc: jsPDF) => {
+  const pageHeight = doc.internal.pageSize.getHeight()
+  const pageWidth = doc.internal.pageSize.getWidth()
   
-  return 45 // Return Y position after header
+  doc.setFontSize(10)
+  doc.setFont('helvetica', 'italic')
+  doc.setTextColor(0, 0, 0) // Black text
+  
+  const footerText = `Generator on ${formatDate(new Date(), 'dd MMMM yyyy')}`
+  const footerWidth = doc.getTextWidth(footerText)
+  const footerX = pageWidth - footerWidth - 15 // Right aligned with margin
+  const footerY = pageHeight - 12 // Bottom margin
+  
+  doc.text(footerText, footerX, footerY)
 }
 
 interface SchoolInfo {
@@ -47,6 +154,7 @@ interface SchoolInfo {
   id?: string
   district?: string
   community?: string
+  province?: string
 }
 
 interface FoodItem {
@@ -81,45 +189,41 @@ export const exportFoodTrackingSheetPDF = async (
       format: 'a4'
     })
 
-
-    // Add header with logo and School Feeding
-    let yPos = addReportHeader(doc, 'Annex 3: Food Tracking Sheet', 'This sheet should be filled separately for each food item, and for each month.')
+    // Parse month/year to get date range
+    let dateFrom: Date | undefined
+    let dateTo: Date | undefined
     
-    doc.setFontSize(10)
-    doc.setFont('helvetica', 'normal')
+    try {
+      // Try to parse month/year (e.g., "November 2025" or "11 2025")
+      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                         'July', 'August', 'September', 'October', 'November', 'December']
+      const parts = monthYear.split(' ')
+      if (parts.length >= 2) {
+        const monthStr = parts[0]
+        const yearStr = parts[parts.length - 1]
+        const monthIndex = monthNames.findIndex(m => m.toLowerCase() === monthStr.toLowerCase())
+        const month = monthIndex !== -1 ? monthIndex + 1 : parseInt(monthStr)
+        const year = parseInt(yearStr)
+        
+        if (!isNaN(month) && !isNaN(year)) {
+          dateFrom = new Date(year, month - 1, 1)
+          const lastDay = new Date(year, month, 0).getDate()
+          dateTo = new Date(year, month - 1, lastDay)
+        }
+      }
+    } catch (error) {
+      console.error('Error parsing month/year:', error)
+    }
 
-    // School Information Section
-    doc.setFont('helvetica', 'bold')
-    doc.text('Name of school:', 10, yPos)
-    doc.setFont('helvetica', 'normal')
-    doc.text(schoolInfo.name || 'N/A', 50, yPos)
-
-    doc.setFont('helvetica', 'bold')
-    doc.text('Community:', 10, yPos + 6)
-    doc.setFont('helvetica', 'normal')
-    doc.text(schoolInfo.community || 'N/A', 50, yPos + 6)
-
-    doc.setFont('helvetica', 'bold')
-    doc.text('School ID:', 10, yPos + 12)
-    doc.setFont('helvetica', 'normal')
-    doc.text(schoolInfo.id || 'N/A', 50, yPos + 12)
-
-    doc.setFont('helvetica', 'bold')
-    doc.text('Food item:', 150, yPos)
-    doc.setFont('helvetica', 'normal')
-    doc.text(foodItem.name || 'N/A', 180, yPos)
-
-    doc.setFont('helvetica', 'bold')
-    doc.text('District:', 150, yPos + 6)
-    doc.setFont('helvetica', 'normal')
-    doc.text(schoolInfo.district || 'N/A', 180, yPos + 6)
-
-    doc.setFont('helvetica', 'bold')
-    doc.text('Month / Year:', 150, yPos + 12)
-    doc.setFont('helvetica', 'normal')
-    doc.text(monthYear, 180, yPos + 12)
-
-    yPos += 20
+    // Add header with logo and School Feeding - use actual report title
+    // All information is now in the header (School, Province, District, From, To)
+    let yPos = await addReportHeader(doc, 'Food Tracking Sheet Report', {
+      school: schoolInfo.name,
+      province: schoolInfo.province,
+      district: schoolInfo.district,
+      dateFrom,
+      dateTo
+    })
 
     // Table headers
     const headers = [
@@ -145,21 +249,27 @@ export const exportFoodTrackingSheetPDF = async (
       item.remarks || ''
     ])
 
-    // Create table with custom styling
+    // Create table with custom styling (black borders, matching picture)
     autoTable(doc, {
       head: headers,
       body: tableData,
       startY: yPos,
       styles: {
         fontSize: 7,
-        cellPadding: 2,
-        overflow: 'linebreak'
+        cellPadding: 3,
+        overflow: 'linebreak',
+        lineColor: [0, 0, 0], // Black borders
+        lineWidth: 0.5, // Thicker borders to match picture
+        fillColor: [255, 255, 255], // White background for cells
+        textColor: [0, 0, 0]
       },
       headStyles: {
-        fillColor: [200, 200, 200],
+        fillColor: [255, 255, 255], // White background
         textColor: [0, 0, 0],
         fontStyle: 'bold',
-        fontSize: 7
+        fontSize: 7,
+        lineColor: [0, 0, 0], // Black borders
+        lineWidth: 0.5
       },
       columnStyles: {
         0: { cellWidth: 20 }, // Date
@@ -177,10 +287,15 @@ export const exportFoodTrackingSheetPDF = async (
         12: { cellWidth: 40 } // Remarks
       },
       alternateRowStyles: {
-        fillColor: [245, 245, 245]
+        fillColor: [255, 255, 255], // White background
+        lineColor: [0, 0, 0], // Black borders
+        lineWidth: 0.5
       },
-      margin: { top: yPos, left: 10, right: 10 }
+      margin: { top: yPos, left: 15, right: 15 }
     })
+
+    // Add footer with generator date
+    addReportFooter(doc)
 
     // Save the PDF
     const fileName = `Food_Tracking_Sheet_${schoolInfo.name?.replace(/\s+/g, '_')}_${foodItem.name?.replace(/\s+/g, '_')}_${monthYear.replace(/\s+/g, '_')}.pdf`
@@ -325,7 +440,12 @@ export const generateStockReport = async (
   reportType: string,
   dateRange: { from?: Date; to?: Date },
   format: 'pdf' | 'csv' | 'excel',
-  data: any
+  data: any,
+  schoolInfo?: {
+    school?: string
+    province?: string
+    district?: string
+  }
 ) => {
   try {
     if (format === 'pdf') {
@@ -335,22 +455,16 @@ export const generateStockReport = async (
         format: 'a4'
       })
 
-      let yPos = addReportHeader(doc, 'Stock Management Report', reportType)
+      // Use reportType as the title (e.g., "Stock Management Report")
+      let yPos = await addReportHeader(doc, `${reportType} Report`, {
+        school: schoolInfo?.school,
+        province: schoolInfo?.province,
+        district: schoolInfo?.district,
+        dateFrom: dateRange.from,
+        dateTo: dateRange.to
+      })
       
-      // Report metadata
-      doc.setFontSize(10)
-      doc.text(`Report Type: ${reportType}`, 20, yPos)
-      yPos += 6
-      
-      if (dateRange.from && dateRange.to) {
-        doc.text(`Period: ${formatDate(dateRange.from, 'dd/MM/yyyy')} - ${formatDate(dateRange.to, 'dd/MM/yyyy')}`, 20, yPos)
-        yPos += 6
-      }
-      
-      doc.text(`Generated: ${formatDate(new Date(), 'dd/MM/yyyy HH:mm')}`, 20, yPos)
-      yPos += 10
-
-      // Add data table
+      // Add data table with black borders
       if (data && data.length > 0) {
         const headers = Object.keys(data[0])
         const tableData = data.map((row: any) => headers.map((key) => String(row[key] || '')))
@@ -359,10 +473,32 @@ export const generateStockReport = async (
           head: [headers],
           body: tableData,
           startY: yPos,
-          styles: { fontSize: 8 },
-          headStyles: { fillColor: [34, 139, 34] }
+          styles: { 
+            fontSize: 8,
+            cellPadding: 3,
+            lineColor: [0, 0, 0], // Black borders
+            lineWidth: 0.5, // Thicker borders to match picture
+            fillColor: [255, 255, 255], // White background
+            textColor: [0, 0, 0]
+          },
+          headStyles: { 
+            fillColor: [255, 255, 255], // White background
+            textColor: [0, 0, 0],
+            fontStyle: 'bold',
+            lineColor: [0, 0, 0], // Black borders
+            lineWidth: 0.5
+          },
+          alternateRowStyles: {
+            fillColor: [255, 255, 255], // White background
+            lineColor: [0, 0, 0], // Black borders
+            lineWidth: 0.5
+          },
+          margin: { left: 15, right: 15 }
         })
       }
+
+      // Add footer with generator date
+      addReportFooter(doc)
 
       const fileName = `Stock_Report_${reportType.replace(/\s+/g, '_')}_${formatDate(new Date(), 'yyyyMMdd')}.pdf`
       doc.save(fileName)
@@ -408,7 +544,12 @@ export const generateSupplierReport = async (
   reportType: string,
   dateRange: { from?: Date; to?: Date },
   format: 'pdf' | 'csv' | 'excel',
-  data: any
+  data: any,
+  schoolInfo?: {
+    school?: string
+    province?: string
+    district?: string
+  }
 ) => {
   try {
     if (format === 'pdf') {
@@ -418,20 +559,15 @@ export const generateSupplierReport = async (
         format: 'a4'
       })
 
-      let yPos = addReportHeader(doc, 'Supplier Report', reportType)
+      // Use reportType as the title (e.g., "Stock Management Report")
+      let yPos = await addReportHeader(doc, `${reportType} Report`, {
+        school: schoolInfo?.school,
+        province: schoolInfo?.province,
+        district: schoolInfo?.district,
+        dateFrom: dateRange.from,
+        dateTo: dateRange.to
+      })
       
-      doc.setFontSize(10)
-      doc.text(`Report Type: ${reportType}`, 20, yPos)
-      yPos += 6
-      
-      if (dateRange.from && dateRange.to) {
-        doc.text(`Period: ${formatDate(dateRange.from, 'dd/MM/yyyy')} - ${formatDate(dateRange.to, 'dd/MM/yyyy')}`, 20, yPos)
-        yPos += 6
-      }
-      
-      doc.text(`Generated: ${formatDate(new Date(), 'dd/MM/yyyy HH:mm')}`, 20, yPos)
-      yPos += 10
-
       if (data && data.length > 0) {
         const headers = Object.keys(data[0])
         const tableData = data.map((row: any) => headers.map((key) => String(row[key] || '')))
@@ -440,10 +576,32 @@ export const generateSupplierReport = async (
           head: [headers],
           body: tableData,
           startY: yPos,
-          styles: { fontSize: 8 },
-          headStyles: { fillColor: [34, 139, 34] }
+          styles: { 
+            fontSize: 8,
+            cellPadding: 3,
+            lineColor: [0, 0, 0], // Black borders
+            lineWidth: 0.5, // Thicker borders to match picture
+            fillColor: [255, 255, 255], // White background
+            textColor: [0, 0, 0]
+          },
+          headStyles: { 
+            fillColor: [255, 255, 255], // White background
+            textColor: [0, 0, 0],
+            fontStyle: 'bold',
+            lineColor: [0, 0, 0], // Black borders
+            lineWidth: 0.5
+          },
+          alternateRowStyles: {
+            fillColor: [255, 255, 255], // White background
+            lineColor: [0, 0, 0], // Black borders
+            lineWidth: 0.5
+          },
+          margin: { left: 15, right: 15 }
         })
       }
+
+      // Add footer with generator date
+      addReportFooter(doc)
 
       const fileName = `Supplier_Report_${reportType.replace(/\s+/g, '_')}_${formatDate(new Date(), 'yyyyMMdd')}.pdf`
       doc.save(fileName)
@@ -488,7 +646,12 @@ export const generateDistrictReport = async (
   reportType: string,
   dateRange: { from?: Date; to?: Date },
   format: 'pdf' | 'csv' | 'excel',
-  data: any
+  data: any,
+  schoolInfo?: {
+    school?: string
+    province?: string
+    district?: string
+  }
 ) => {
   try {
     if (format === 'pdf') {
@@ -498,20 +661,15 @@ export const generateDistrictReport = async (
         format: 'a4'
       })
 
-      let yPos = addReportHeader(doc, 'District Report', reportType)
+      // Use reportType as the title (e.g., "Stock Management Report")
+      let yPos = await addReportHeader(doc, `${reportType} Report`, {
+        school: schoolInfo?.school,
+        province: schoolInfo?.province,
+        district: schoolInfo?.district,
+        dateFrom: dateRange.from,
+        dateTo: dateRange.to
+      })
       
-      doc.setFontSize(10)
-      doc.text(`Report Type: ${reportType}`, 20, yPos)
-      yPos += 6
-      
-      if (dateRange.from && dateRange.to) {
-        doc.text(`Period: ${formatDate(dateRange.from, 'dd/MM/yyyy')} - ${formatDate(dateRange.to, 'dd/MM/yyyy')}`, 20, yPos)
-        yPos += 6
-      }
-      
-      doc.text(`Generated: ${formatDate(new Date(), 'dd/MM/yyyy HH:mm')}`, 20, yPos)
-      yPos += 10
-
       if (data && data.length > 0) {
         const headers = Object.keys(data[0])
         const tableData = data.map((row: any) => headers.map((key) => String(row[key] || '')))
@@ -520,10 +678,32 @@ export const generateDistrictReport = async (
           head: [headers],
           body: tableData,
           startY: yPos,
-          styles: { fontSize: 8 },
-          headStyles: { fillColor: [34, 139, 34] }
+          styles: { 
+            fontSize: 8,
+            cellPadding: 3,
+            lineColor: [0, 0, 0], // Black borders
+            lineWidth: 0.5, // Thicker borders to match picture
+            fillColor: [255, 255, 255], // White background
+            textColor: [0, 0, 0]
+          },
+          headStyles: { 
+            fillColor: [255, 255, 255], // White background
+            textColor: [0, 0, 0],
+            fontStyle: 'bold',
+            lineColor: [0, 0, 0], // Black borders
+            lineWidth: 0.5
+          },
+          alternateRowStyles: {
+            fillColor: [255, 255, 255], // White background
+            lineColor: [0, 0, 0], // Black borders
+            lineWidth: 0.5
+          },
+          margin: { left: 15, right: 15 }
         })
       }
+
+      // Add footer with generator date
+      addReportFooter(doc)
 
       const fileName = `District_Report_${reportType.replace(/\s+/g, '_')}_${formatDate(new Date(), 'yyyyMMdd')}.pdf`
       doc.save(fileName)
@@ -568,7 +748,12 @@ export const generateGovReport = async (
   reportType: string,
   dateRange: { from?: Date; to?: Date },
   format: 'pdf' | 'csv' | 'excel',
-  data: any
+  data: any,
+  schoolInfo?: {
+    school?: string
+    province?: string
+    district?: string
+  }
 ) => {
   try {
     if (format === 'pdf') {
@@ -578,20 +763,15 @@ export const generateGovReport = async (
         format: 'a4'
       })
 
-      let yPos = addReportHeader(doc, 'Government Report', reportType)
+      // Use reportType as the title (e.g., "Stock Management Report")
+      let yPos = await addReportHeader(doc, `${reportType} Report`, {
+        school: schoolInfo?.school,
+        province: schoolInfo?.province,
+        district: schoolInfo?.district,
+        dateFrom: dateRange.from,
+        dateTo: dateRange.to
+      })
       
-      doc.setFontSize(10)
-      doc.text(`Report Type: ${reportType}`, 20, yPos)
-      yPos += 6
-      
-      if (dateRange.from && dateRange.to) {
-        doc.text(`Period: ${formatDate(dateRange.from, 'dd/MM/yyyy')} - ${formatDate(dateRange.to, 'dd/MM/yyyy')}`, 20, yPos)
-        yPos += 6
-      }
-      
-      doc.text(`Generated: ${formatDate(new Date(), 'dd/MM/yyyy HH:mm')}`, 20, yPos)
-      yPos += 10
-
       if (data && data.length > 0) {
         const headers = Object.keys(data[0])
         const tableData = data.map((row: any) => headers.map((key) => String(row[key] || '')))
@@ -600,10 +780,32 @@ export const generateGovReport = async (
           head: [headers],
           body: tableData,
           startY: yPos,
-          styles: { fontSize: 8 },
-          headStyles: { fillColor: [34, 139, 34] }
+          styles: { 
+            fontSize: 8,
+            cellPadding: 3,
+            lineColor: [0, 0, 0], // Black borders
+            lineWidth: 0.5, // Thicker borders to match picture
+            fillColor: [255, 255, 255], // White background
+            textColor: [0, 0, 0]
+          },
+          headStyles: { 
+            fillColor: [255, 255, 255], // White background
+            textColor: [0, 0, 0],
+            fontStyle: 'bold',
+            lineColor: [0, 0, 0], // Black borders
+            lineWidth: 0.5
+          },
+          alternateRowStyles: {
+            fillColor: [255, 255, 255], // White background
+            lineColor: [0, 0, 0], // Black borders
+            lineWidth: 0.5
+          },
+          margin: { left: 15, right: 15 }
         })
       }
+
+      // Add footer with generator date
+      addReportFooter(doc)
 
       const fileName = `Government_Report_${reportType.replace(/\s+/g, '_')}_${formatDate(new Date(), 'yyyyMMdd')}.pdf`
       doc.save(fileName)

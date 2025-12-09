@@ -155,8 +155,7 @@ export function DistrictReports() {
     { value: "schools", label: "School Performance", description: "Individual school analysis and metrics" },
     { value: "suppliers", label: "Supply Chain", description: "Supplier performance and delivery tracking" },
     { value: "financial", label: "Financial Analysis", description: "Budget utilization and cost analysis" },
-    { value: "nutrition", label: "Nutrition Compliance", description: "Nutritional standards and health metrics" },
-    { value: "attendance", label: "Student Attendance", description: "Attendance patterns and meal participation" },
+    { value: "nutrition", label: "Nutrition Compliance", description: "Nutritional standards and health metrics" }, 
   ]
 
   return (

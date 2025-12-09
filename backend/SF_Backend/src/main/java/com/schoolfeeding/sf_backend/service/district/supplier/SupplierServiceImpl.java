@@ -93,4 +93,9 @@ public class SupplierServiceImpl implements ISupplierService{
     public List<Supplier> findAllByDistrictAndAState(UUID districtId, Boolean state) {
         return  supplierRepository.findAllByDistrict_IdAndActive(districtId, Boolean.TRUE);
     }
+
+    @Override
+    public long countSuppliersByDistrict(UUID districtId) {
+        return supplierRepository.countSuppliersByDistrictIdAndActive(districtId, Boolean.TRUE);
+    }
 }

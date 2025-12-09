@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { BookOpen, Save, Loader2 } from "lucide-react";
+import apiClient from "@/lib/axios";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -57,18 +58,8 @@ export function Profile() {
       }
 
       try {
-        const response = await fetch(`http://localhost:8070/api/profile/${user.id}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch profile");
-        }
-
-        const data = await response.json();
+        const response = await apiClient.get(`/profile/${user.id}`);
+        const data = response.data;
         setProfile(prev => ({
           ...prev,
           ...data,
@@ -154,21 +145,13 @@ export function Profile() {
         formData.append("userProfile", profileImage);
       }
 
-      const response = await fetch(`http://localhost:8070/api/profile/update/${user.id}`, {
-        method: "PUT",
+      const response = await apiClient.put(`/profile/update/${user.id}`, formData, {
         headers: {
-          Authorization: `Bearer ${token}`,
           // Don't set Content-Type header, browser will set it with boundary for FormData
         },
-        body: formData,
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to update profile");
-      }
-
-      const updatedData = await response.json();
+      const updatedData = response.data;
       const updatedUser = { 
         ...user, 
         names: updatedData.names || profile.name,
@@ -239,38 +222,19 @@ export function Profile() {
     setIsChangingPassword(true);
     try {
       // First verify current password
-      const checkPasswordResponse = await fetch(`http://localhost:8070/api/profile/checkPassword`, {
-        method: "POST",
+      await apiClient.post(`/profile/checkPassword`, new URLSearchParams({
+        id: user.id,
+        password: security.currentPassword,
+      }), {
         headers: {
-          Authorization: `Bearer ${token}`,
           "Content-Type": "application/x-www-form-urlencoded",
         },
-        body: new URLSearchParams({
-          id: user.id,
-          password: security.currentPassword,
-        }),
       });
-
-      if (!checkPasswordResponse.ok) {
-        throw new Error("Current password is incorrect");
-      }
 
       // If password is correct, change it
-      const response = await fetch(`http://localhost:8070/api/profile/changePassword/${user.id}`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          password: security.newPassword,
-        }),
+      await apiClient.put(`/profile/changePassword/${user.id}`, {
+        password: security.newPassword,
       });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to update password");
-      }
 
       toast.success("Password Changed Successfully", {
         description: "Your password has been changed successfully. Please use your new password for future logins.",

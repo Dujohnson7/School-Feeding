@@ -4,6 +4,7 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
 import { AlertCircle, ArrowLeft, Check } from "lucide-react"
+import apiClient from "@/lib/axios"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -37,12 +38,8 @@ export function RequestFoodForm() {
   useEffect(() => {
     const fetchItems = async () => {
       try {
-        const response = await fetch("http://localhost:8070/api/item/all")
-        if (!response.ok) {
-          throw new Error("Failed to fetch items")
-        }
-        const data = await response.json()
-        setItems(data)
+        const response = await apiClient.get("/item/all")
+        setItems(response.data)
       } catch (err) {
         console.error("Error fetching items:", err)
         toast.error("Failed to load food items. Please refresh the page.")
@@ -116,15 +113,9 @@ export function RequestFoodForm() {
  
     const districtId = localStorage.getItem("districtId")
     const schoolId = localStorage.getItem("schoolId")
-    const token = localStorage.getItem("token")
 
     if (!districtId || !schoolId) {
       setError("District or school information is missing. Please log in again.")
-      return
-    }
-
-    if (!token) {
-      setError("Authentication required. Please log in again.")
       return
     }
  
@@ -156,22 +147,8 @@ export function RequestFoodForm() {
     setLoading(true)
 
     try {
-      const response = await fetch("http://localhost:8070/api/requestRequestItem/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(requestPayload),
-      })
-
-      const data = await response.json().catch(() => null)
-
-      if (!response.ok) {
-        const errorMessage =
-          data?.message || data?.error || response.statusText || "Failed to submit request"
-        throw new Error(errorMessage)
-      }
+      const response = await apiClient.post("/requestRequestItem/register", requestPayload)
+      const data = response.data
 
       toast.success("Your food request has been submitted successfully.")
 

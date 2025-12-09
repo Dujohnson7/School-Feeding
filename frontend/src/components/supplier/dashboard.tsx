@@ -1,6 +1,9 @@
+import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Calendar, Clock, DollarSign, Home, Package, Truck, TrendingUp, FileText } from "lucide-react"
 import PageHeader from "@/components/shared/page-header"
+import apiClient from "@/lib/axios"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,101 +19,119 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 
+interface SupplierStats {
+  activeOrders: string
+  monthlyRevenue: string
+  deliveryRate: string
+  customerRating: string
+}
+
+interface RecentOrder {
+  id: string
+  school: string
+  items: string
+  quantity: string
+  deliveryDate: string
+  status: "pending" | "delivered" | "in-transit"
+  amount: string
+}
+
+interface UpcomingDelivery {
+  id: string
+  school: string
+  date: string
+  time: string
+  items: string
+  status: "scheduled"
+}
+
+interface PerformanceMetrics {
+  onTimeDelivery: number
+  qualityRating: number
+  orderFulfillment: number
+}
+
 export function SupplierDashboard() {
-  const stats = [
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState<SupplierStats>({
+    activeOrders: "0",
+    monthlyRevenue: "RWF 0",
+    deliveryRate: "0%",
+    customerRating: "0/5",
+  })
+  const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([])
+  const [upcomingDeliveries, setUpcomingDeliveries] = useState<UpcomingDelivery[]>([])
+  const [performanceMetrics, setPerformanceMetrics] = useState<PerformanceMetrics>({
+    onTimeDelivery: 0,
+    qualityRating: 0,
+    orderFulfillment: 0,
+  })
+
+  useEffect(() => {
+    fetchDashboardData()
+  }, [])
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true)
+      const supplierId = localStorage.getItem("userId")
+
+      if (!supplierId) {
+        toast.error("Supplier ID not found. Please login again.")
+        setLoading(false)
+        return
+      }
+
+      // Fetch dashboard statistics
+      const statsResponse = await apiClient.get(`/supplier/dashboard/stats?supplierId=${supplierId}`)
+      if (statsResponse.data) {
+        setStats(statsResponse.data)
+      }
+
+      // Fetch recent orders
+      const ordersResponse = await apiClient.get(`/supplier/dashboard/recent-orders?supplierId=${supplierId}&limit=4`)
+      if (ordersResponse.data) {
+        setRecentOrders(ordersResponse.data)
+      }
+
+      // Fetch upcoming deliveries
+      const deliveriesResponse = await apiClient.get(`/supplier/dashboard/upcoming-deliveries?supplierId=${supplierId}&limit=3`)
+      if (deliveriesResponse.data) {
+        setUpcomingDeliveries(deliveriesResponse.data)
+      }
+
+      // Fetch performance metrics
+      const metricsResponse = await apiClient.get(`/supplier/dashboard/performance?supplierId=${supplierId}`)
+      if (metricsResponse.data) {
+        setPerformanceMetrics(metricsResponse.data)
+      }
+    } catch (error: any) {
+      console.error("Error fetching dashboard data:", error)
+      toast.error("Failed to load dashboard data. Please refresh the page.")
+    } finally {
+      setLoading(false)
+    }
+  }
+  const statsConfig = [
     {
       title: "Active Orders",
-      value: "24",
-      change: "+3",
-      changeType: "positive" as const,
+      key: "activeOrders" as keyof SupplierStats,
       icon: Package,
     },
     {
       title: "Monthly Revenue",
-      value: "RWF 45.2M",
-      change: "+12.5%",
-      changeType: "positive" as const,
+      key: "monthlyRevenue" as keyof SupplierStats,
       icon: DollarSign,
     },
     {
       title: "Delivery Rate",
-      value: "98.5%",
-      change: "+2.1%",
-      changeType: "positive" as const,
+      key: "deliveryRate" as keyof SupplierStats,
       icon: Truck,
     },
     {
       title: "Customer Rating",
-      value: "4.8/5",
-      change: "+0.2",
-      changeType: "positive" as const,
+      key: "customerRating" as keyof SupplierStats,
       icon: TrendingUp,
-    },
-  ]
-
-  const recentOrders = [
-    {
-      id: "ORD-2025-156",
-      school: "Kigali Primary School",
-      items: "Rice, Beans, Cooking Oil",
-      quantity: "500kg, 200kg, 50L",
-      deliveryDate: "2025-04-15",
-      status: "pending",
-      amount: "RWF 850,000",
-    },
-    {
-      id: "ORD-2025-155",
-      school: "Nyamirambo Secondary",
-      items: "Maize Flour, Salt, Sugar",
-      quantity: "300kg, 25kg, 100kg",
-      deliveryDate: "2025-04-14",
-      status: "delivered",
-      amount: "RWF 420,000",
-    },
-    {
-      id: "ORD-2025-154",
-      school: "Remera High School",
-      items: "Fresh Vegetables, Meat",
-      quantity: "150kg, 80kg",
-      deliveryDate: "2025-04-13",
-      status: "in-transit",
-      amount: "RWF 320,000",
-    },
-    {
-      id: "ORD-2025-153",
-      school: "Gasabo Primary",
-      items: "Milk, Bread, Eggs",
-      quantity: "200L, 500 loaves, 1000 pieces",
-      deliveryDate: "2025-04-12",
-      status: "delivered",
-      amount: "RWF 180,000",
-    },
-  ]
-
-  const upcomingDeliveries = [
-    {
-      id: "DEL-2025-089",
-      school: "Kigali Primary School",
-      date: "2025-04-15",
-      time: "08:00 AM",
-      items: "Rice, Beans, Cooking Oil",
-      status: "scheduled",
-    },
-    {
-      id: "DEL-2025-090",
-      school: "Nyarugenge Secondary",
-      date: "2025-04-16",
-      time: "09:30 AM",
-      items: "Maize Flour, Vegetables",
-      status: "scheduled",
-    },
-    {
-      id: "DEL-2025-091",
-      school: "Kimisagara Primary",
-      date: "2025-04-17",
-      time: "10:00 AM",
-      items: "Fresh Meat, Spices",
-      status: "scheduled",
     },
   ]
 
@@ -150,19 +171,16 @@ export function SupplierDashboard() {
           <div className="space-y-6">
             {/* Stats Cards */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              {stats.map((stat, index) => (
+              {statsConfig.map((stat, index) => (
                 <Card key={index}>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
                     <stat.icon className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{stat.value}</div>
+                    <div className="text-2xl font-bold">{loading ? "..." : stats[stat.key]}</div>
                     <p className="text-xs text-muted-foreground">
-                      <span className={stat.changeType === "positive" ? "text-green-600" : "text-red-600"}>
-                        {stat.change}
-                      </span>{" "}
-                      from last month
+                      {loading ? "Loading..." : "Current period"}
                     </p>
                   </CardContent>
                 </Card>
@@ -178,22 +196,28 @@ export function SupplierDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {recentOrders.slice(0, 4).map((order) => (
-                      <div key={order.id} className="flex items-center justify-between space-x-4">
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium leading-none">{order.school}</p>
-                          <p className="text-xs text-muted-foreground">{order.items}</p>
-                          <p className="text-xs text-muted-foreground">
-                            <Calendar className="mr-1 inline h-3 w-3" />
-                            {order.deliveryDate}
-                          </p>
+                    {loading && recentOrders.length === 0 ? (
+                      <div className="text-sm text-muted-foreground">Loading orders...</div>
+                    ) : recentOrders.length === 0 ? (
+                      <div className="text-sm text-muted-foreground">No recent orders</div>
+                    ) : (
+                      recentOrders.map((order) => (
+                        <div key={order.id} className="flex items-center justify-between space-x-4">
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium leading-none">{order.school}</p>
+                            <p className="text-xs text-muted-foreground">{order.items}</p>
+                            <p className="text-xs text-muted-foreground">
+                              <Calendar className="mr-1 inline h-3 w-3" />
+                              {order.deliveryDate}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            {getStatusBadge(order.status)}
+                            <p className="text-xs text-muted-foreground mt-1">{order.amount}</p>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          {getStatusBadge(order.status)}
-                          <p className="text-xs text-muted-foreground mt-1">{order.amount}</p>
-                        </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -206,19 +230,25 @@ export function SupplierDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {upcomingDeliveries.map((delivery) => (
-                      <div key={delivery.id} className="flex items-center justify-between space-x-4">
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium leading-none">{delivery.school}</p>
-                          <p className="text-xs text-muted-foreground">{delivery.items}</p>
-                          <p className="text-xs text-muted-foreground">
-                            <Clock className="mr-1 inline h-3 w-3" />
-                            {delivery.date} at {delivery.time}
-                          </p>
+                    {loading && upcomingDeliveries.length === 0 ? (
+                      <div className="text-sm text-muted-foreground">Loading deliveries...</div>
+                    ) : upcomingDeliveries.length === 0 ? (
+                      <div className="text-sm text-muted-foreground">No upcoming deliveries</div>
+                    ) : (
+                      upcomingDeliveries.map((delivery) => (
+                        <div key={delivery.id} className="flex items-center justify-between space-x-4">
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium leading-none">{delivery.school}</p>
+                            <p className="text-xs text-muted-foreground">{delivery.items}</p>
+                            <p className="text-xs text-muted-foreground">
+                              <Clock className="mr-1 inline h-3 w-3" />
+                              {delivery.date} {delivery.time ? `at ${delivery.time}` : ""}
+                            </p>
+                          </div>
+                          <div className="text-right">{getStatusBadge(delivery.status)}</div>
                         </div>
-                        <div className="text-right">{getStatusBadge(delivery.status)}</div>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -235,23 +265,29 @@ export function SupplierDashboard() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">On-Time Delivery</span>
-                      <span className="text-sm text-muted-foreground">98.5%</span>
+                      <span className="text-sm text-muted-foreground">
+                        {loading ? "..." : `${performanceMetrics.onTimeDelivery}%`}
+                      </span>
                     </div>
-                    <Progress value={98.5} className="h-2" />
+                    <Progress value={loading ? 0 : performanceMetrics.onTimeDelivery} className="h-2" />
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Quality Rating</span>
-                      <span className="text-sm text-muted-foreground">4.8/5</span>
+                      <span className="text-sm text-muted-foreground">
+                        {loading ? "..." : `${performanceMetrics.qualityRating}/5`}
+                      </span>
                     </div>
-                    <Progress value={96} className="h-2" />
+                    <Progress value={loading ? 0 : (performanceMetrics.qualityRating / 5) * 100} className="h-2" />
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Order Fulfillment</span>
-                      <span className="text-sm text-muted-foreground">100%</span>
+                      <span className="text-sm text-muted-foreground">
+                        {loading ? "..." : `${performanceMetrics.orderFulfillment}%`}
+                      </span>
                     </div>
-                    <Progress value={100} className="h-2" />
+                    <Progress value={loading ? 0 : performanceMetrics.orderFulfillment} className="h-2" />
                   </div>
                 </div>
               </CardContent>

@@ -19,4 +19,5 @@ public interface IUsersRepository extends JpaRepository<Users, UUID> {
     List<Users> findAllByRoleAndActive(ERole role, Boolean state);
     List<Users> findAllByActive(Boolean state);
     List<Users> findUsersBySchool_IdAndRoleAndActive(UUID schoolId, ERole role, Boolean active);
+    long countUsersByActive(Boolean active);
 }

@@ -10,5 +10,6 @@ public interface IBudgetGovService {
     Budget_Gov budgetUpdate(Budget_Gov theBudget_gov);
     Budget_Gov budgetDelete(Budget_Gov theBudget_gov);
     Budget_Gov findByIdAndState(UUID id, Boolean state);
+    double findCurrentBudget(Boolean status);
     List<Budget_Gov> findAllByActive(Boolean active);
 }

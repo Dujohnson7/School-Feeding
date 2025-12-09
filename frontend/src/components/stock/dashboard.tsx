@@ -1,8 +1,10 @@
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
 import { AlertTriangle, ArrowDown, ArrowUp, Calendar, Package, ShoppingBag, TrendingDown, TrendingUp, Truck } from "lucide-react"
 import PageHeader from "@/components/shared/page-header"
+import apiClient from "@/lib/axios"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -19,8 +21,133 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
+interface StockStats {
+  totalInventory: string
+  itemsLowInStock: number
+  lowStockItems: string
+  incomingDeliveries: number
+  nextDeliveryTime: string
+  itemsExpiringSoon: number
+  expiringItem: string
+  expiringDays: number
+}
+
+interface StockLevel {
+  itemName: string
+  currentQuantity: string
+  percentage: number
+}
+
+interface StockMovement {
+  id: string
+  type: "in" | "out"
+  itemName: string
+  quantity: string
+  source: string
+  timestamp: string
+}
+
+interface ExpiringItem {
+  itemName: string
+  quantity: string
+  batchNumber: string
+  expiryDate: string
+  daysLeft: number
+}
+
+interface WeeklyTrend {
+  day: string
+  value: number
+}
+
+interface UpcomingTask {
+  id: string
+  title: string
+  date: string
+  time: string
+  priority: "High" | "Medium" | "Urgent"
+}
+
 export function StockDashboard() {
   const [activeTab, setActiveTab] = useState("overview")
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState<StockStats>({
+    totalInventory: "0 kg",
+    itemsLowInStock: 0,
+    lowStockItems: "",
+    incomingDeliveries: 0,
+    nextDeliveryTime: "",
+    itemsExpiringSoon: 0,
+    expiringItem: "",
+    expiringDays: 0,
+  })
+  const [stockLevels, setStockLevels] = useState<StockLevel[]>([])
+  const [stockMovements, setStockMovements] = useState<StockMovement[]>([])
+  const [expiringItems, setExpiringItems] = useState<ExpiringItem[]>([])
+  const [weeklyTrend, setWeeklyTrend] = useState<WeeklyTrend[]>([])
+  const [upcomingTasks, setUpcomingTasks] = useState<UpcomingTask[]>([])
+
+  useEffect(() => {
+    fetchDashboardData()
+  }, [activeTab])
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true)
+      const schoolId = localStorage.getItem("schoolId")
+
+      if (!schoolId) {
+        toast.error("School ID not found. Please login again.")
+        setLoading(false)
+        return
+      }
+
+      // Fetch dashboard statistics
+      const statsResponse = await apiClient.get(`/stock/dashboard/stats?schoolId=${schoolId}`)
+      if (statsResponse.data) {
+        setStats(statsResponse.data)
+      }
+
+      // Fetch stock levels
+      const stockLevelsResponse = await apiClient.get(`/stock/dashboard/stock-levels?schoolId=${schoolId}`)
+      if (stockLevelsResponse.data) {
+        setStockLevels(stockLevelsResponse.data)
+      }
+
+      // Fetch stock movements
+      if (activeTab === "movement") {
+        const movementsResponse = await apiClient.get(`/stock/dashboard/movements?schoolId=${schoolId}&limit=5`)
+        if (movementsResponse.data) {
+          setStockMovements(movementsResponse.data)
+        }
+      }
+
+      // Fetch expiring items
+      if (activeTab === "expiry") {
+        const expiringResponse = await apiClient.get(`/stock/dashboard/expiring-items?schoolId=${schoolId}`)
+        if (expiringResponse.data) {
+          setExpiringItems(expiringResponse.data)
+        }
+      }
+
+      // Fetch weekly trend
+      const trendResponse = await apiClient.get(`/stock/dashboard/weekly-trend?schoolId=${schoolId}`)
+      if (trendResponse.data) {
+        setWeeklyTrend(trendResponse.data)
+      }
+
+      // Fetch upcoming tasks
+      const tasksResponse = await apiClient.get(`/stock/dashboard/upcoming-tasks?schoolId=${schoolId}`)
+      if (tasksResponse.data) {
+        setUpcomingTasks(tasksResponse.data)
+      }
+    } catch (error: any) {
+      console.error("Error fetching dashboard data:", error)
+      toast.error("Failed to load dashboard data. Please refresh the page.")
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <div className="flex-1">
@@ -47,10 +174,10 @@ export function StockDashboard() {
                 <Package className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">4,280 kg</div>
+                <div className="text-2xl font-bold">{loading ? "..." : stats.totalInventory}</div>
                 <div className="flex items-center text-xs text-green-500">
                   <ArrowUp className="mr-1 h-3 w-3" />
-                  <span>12% from last month</span>
+                  <span>{loading ? "Loading..." : "12% from last month"}</span>
                 </div>
               </CardContent>
             </Card>
@@ -60,9 +187,9 @@ export function StockDashboard() {
                 <AlertTriangle className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">3</div>
+                <div className="text-2xl font-bold">{loading ? "..." : stats.itemsLowInStock}</div>
                 <div className="flex items-center text-xs text-amber-500">
-                  <span>Vegetables, Oil, Salt</span>
+                  <span>{loading ? "Loading..." : stats.lowStockItems || "No items low in stock"}</span>
                 </div>
               </CardContent>
             </Card>
@@ -72,10 +199,10 @@ export function StockDashboard() {
                 <Truck className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">2</div>
+                <div className="text-2xl font-bold">{loading ? "..." : stats.incomingDeliveries}</div>
                 <div className="flex items-center text-xs text-muted-foreground">
                   <Calendar className="mr-1 h-3 w-3" />
-                  <span>Next: Tomorrow, 10:00 AM</span>
+                  <span>{loading ? "Loading..." : stats.nextDeliveryTime || "No upcoming deliveries"}</span>
                 </div>
               </CardContent>
             </Card>
@@ -85,10 +212,16 @@ export function StockDashboard() {
                 <AlertTriangle className="h-4 w-4 text-red-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">1</div>
+                <div className="text-2xl font-bold">{loading ? "..." : stats.itemsExpiringSoon}</div>
                 <div className="flex items-center text-xs text-red-500">
                   <Calendar className="mr-1 h-3 w-3" />
-                  <span>Milk: 5 days left</span>
+                  <span>
+                    {loading
+                      ? "Loading..."
+                      : stats.itemsExpiringSoon > 0
+                        ? `${stats.expiringItem}: ${stats.expiringDays} days left`
+                        : "No items expiring soon"}
+                  </span>
                 </div>
               </CardContent>
             </Card>
@@ -110,55 +243,23 @@ export function StockDashboard() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      <div>
-                        <div className="mb-2 flex items-center justify-between">
-                          <div className="text-sm font-medium">Rice</div>
-                          <div className="text-sm text-muted-foreground">1,200 kg (80%)</div>
-                        </div>
-                        <Progress value={80} className="h-2" />
-                      </div>
-                      <div>
-                        <div className="mb-2 flex items-center justify-between">
-                          <div className="text-sm font-medium">Beans</div>
-                          <div className="text-sm text-muted-foreground">850 kg (65%)</div>
-                        </div>
-                        <Progress value={65} className="h-2" />
-                      </div>
-                      <div>
-                        <div className="mb-2 flex items-center justify-between">
-                          <div className="text-sm font-medium">Maize</div>
-                          <div className="text-sm text-muted-foreground">950 kg (70%)</div>
-                        </div>
-                        <Progress value={70} className="h-2" />
-                      </div>
-                      <div>
-                        <div className="mb-2 flex items-center justify-between">
-                          <div className="text-sm font-medium">Vegetables</div>
-                          <div className="text-sm text-muted-foreground">120 kg (20%)</div>
-                        </div>
-                        <Progress value={20} className="h-2" />
-                      </div>
-                      <div>
-                        <div className="mb-2 flex items-center justify-between">
-                          <div className="text-sm font-medium">Oil</div>
-                          <div className="text-sm text-muted-foreground">80 L (25%)</div>
-                        </div>
-                        <Progress value={25} className="h-2" />
-                      </div>
-                      <div>
-                        <div className="mb-2 flex items-center justify-between">
-                          <div className="text-sm font-medium">Salt</div>
-                          <div className="text-sm text-muted-foreground">30 kg (15%)</div>
-                        </div>
-                        <Progress value={15} className="h-2" />
-                      </div>
-                      <div>
-                        <div className="mb-2 flex items-center justify-between">
-                          <div className="text-sm font-medium">Milk</div>
-                          <div className="text-sm text-muted-foreground">50 L (45%)</div>
-                        </div>
-                        <Progress value={45} className="h-2" />
-                      </div>
+                      {loading && stockLevels.length === 0 ? (
+                        <div className="text-sm text-muted-foreground">Loading stock levels...</div>
+                      ) : stockLevels.length === 0 ? (
+                        <div className="text-sm text-muted-foreground">No stock data available</div>
+                      ) : (
+                        stockLevels.map((stock, index) => (
+                          <div key={index}>
+                            <div className="mb-2 flex items-center justify-between">
+                              <div className="text-sm font-medium">{stock.itemName}</div>
+                              <div className="text-sm text-muted-foreground">
+                                {stock.currentQuantity} ({stock.percentage}%)
+                              </div>
+                            </div>
+                            <Progress value={stock.percentage} className="h-2" />
+                          </div>
+                        ))
+                      )}
                     </div>
                   </CardContent>
                   <CardFooter>
@@ -179,70 +280,38 @@ export function StockDashboard() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between rounded-md bg-muted/50 p-3">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100">
-                            <ArrowDown className="h-4 w-4 text-green-600" />
+                      {loading && stockMovements.length === 0 ? (
+                        <div className="text-sm text-muted-foreground">Loading movements...</div>
+                      ) : stockMovements.length === 0 ? (
+                        <div className="text-sm text-muted-foreground">No stock movements</div>
+                      ) : (
+                        stockMovements.map((movement) => (
+                          <div key={movement.id} className="flex items-center justify-between rounded-md bg-muted/50 p-3">
+                            <div className="flex items-center gap-3">
+                              <div
+                                className={`flex h-8 w-8 items-center justify-center rounded-full ${
+                                  movement.type === "in" ? "bg-green-100" : "bg-red-100"
+                                }`}
+                              >
+                                {movement.type === "in" ? (
+                                  <ArrowDown className="h-4 w-4 text-green-600" />
+                                ) : (
+                                  <ArrowUp className="h-4 w-4 text-red-600" />
+                                )}
+                              </div>
+                              <div>
+                                <p className="font-medium">
+                                  {movement.itemName} {movement.type === "in" ? "Received" : "Distributed"}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  {movement.quantity} {movement.type === "in" ? `from ${movement.source}` : `to ${movement.source}`}
+                                </p>
+                              </div>
+                            </div>
+                            <p className="text-sm text-muted-foreground">{movement.timestamp}</p>
                           </div>
-                          <div>
-                            <p className="font-medium">Rice Received</p>
-                            <p className="text-sm text-muted-foreground">200 kg from Kigali Foods Ltd</p>
-                          </div>
-                        </div>
-                        <p className="text-sm text-muted-foreground">Today, 9:30 AM</p>
-                      </div>
-
-                      <div className="flex items-center justify-between rounded-md bg-muted/50 p-3">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-100">
-                            <ArrowUp className="h-4 w-4 text-red-600" />
-                          </div>
-                          <div>
-                            <p className="font-medium">Beans Distributed</p>
-                            <p className="text-sm text-muted-foreground">50 kg to Kitchen</p>
-                          </div>
-                        </div>
-                        <p className="text-sm text-muted-foreground">Today, 8:15 AM</p>
-                      </div>
-
-                      <div className="flex items-center justify-between rounded-md bg-muted/50 p-3">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100">
-                            <ArrowDown className="h-4 w-4 text-green-600" />
-                          </div>
-                          <div>
-                            <p className="font-medium">Vegetables Received</p>
-                            <p className="text-sm text-muted-foreground">80 kg from Fresh Farms Rwanda</p>
-                          </div>
-                        </div>
-                        <p className="text-sm text-muted-foreground">Yesterday, 2:45 PM</p>
-                      </div>
-
-                      <div className="flex items-center justify-between rounded-md bg-muted/50 p-3">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-100">
-                            <ArrowUp className="h-4 w-4 text-red-600" />
-                          </div>
-                          <div>
-                            <p className="font-medium">Rice Distributed</p>
-                            <p className="text-sm text-muted-foreground">75 kg to Kitchen</p>
-                          </div>
-                        </div>
-                        <p className="text-sm text-muted-foreground">Yesterday, 11:30 AM</p>
-                      </div>
-
-                      <div className="flex items-center justify-between rounded-md bg-muted/50 p-3">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-100">
-                            <ArrowUp className="h-4 w-4 text-red-600" />
-                          </div>
-                          <div>
-                            <p className="font-medium">Maize Distributed</p>
-                            <p className="text-sm text-muted-foreground">60 kg to Kitchen</p>
-                          </div>
-                        </div>
-                        <p className="text-sm text-muted-foreground">Apr 14, 2025</p>
-                      </div>
+                        ))
+                      )}
                     </div>
                   </CardContent>
                   <CardFooter className="flex justify-between">
@@ -264,42 +333,44 @@ export function StockDashboard() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between rounded-md bg-red-50 p-3">
-                        <div>
-                          <p className="font-medium">Milk</p>
-                          <p className="text-sm text-muted-foreground">50 L - Batch #M2025-042</p>
-                        </div>
-                        <div className="text-right">
-                          <Badge variant="destructive">5 days left</Badge>
-                          <p className="mt-1 text-xs text-muted-foreground">Apr 20, 2025</p>
-                        </div>
-                      </div>
+                      {loading && expiringItems.length === 0 ? (
+                        <div className="text-sm text-muted-foreground">Loading expiring items...</div>
+                      ) : expiringItems.length === 0 ? (
+                        <div className="text-sm text-muted-foreground">No items expiring soon</div>
+                      ) : (
+                        expiringItems.map((item, index) => {
+                          const bgColor = item.daysLeft <= 7 ? "bg-red-50" : item.daysLeft <= 14 ? "bg-amber-50" : "bg-muted/50"
+                          const badgeVariant =
+                            item.daysLeft <= 7
+                              ? "destructive"
+                              : item.daysLeft <= 14
+                                ? "outline"
+                                : "outline"
+                          const badgeClass =
+                            item.daysLeft <= 7
+                              ? ""
+                              : item.daysLeft <= 14
+                                ? "bg-amber-100 text-amber-800 hover:bg-amber-100"
+                                : "bg-blue-100 text-blue-800 hover:bg-blue-100"
 
-                      <div className="flex items-center justify-between rounded-md bg-amber-50 p-3">
-                        <div>
-                          <p className="font-medium">Vegetables</p>
-                          <p className="text-sm text-muted-foreground">120 kg - Batch #V2025-038</p>
-                        </div>
-                        <div className="text-right">
-                          <Badge variant="outline" className="bg-amber-100 text-amber-800 hover:bg-amber-100">
-                            12 days left
-                          </Badge>
-                          <p className="mt-1 text-xs text-muted-foreground">Apr 27, 2025</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between rounded-md bg-muted/50 p-3">
-                        <div>
-                          <p className="font-medium">Oil</p>
-                          <p className="text-sm text-muted-foreground">80 L - Batch #O2025-035</p>
-                        </div>
-                        <div className="text-right">
-                          <Badge variant="outline" className="bg-blue-100 text-blue-800 hover:bg-blue-100">
-                            28 days left
-                          </Badge>
-                          <p className="mt-1 text-xs text-muted-foreground">May 13, 2025</p>
-                        </div>
-                      </div>
+                          return (
+                            <div key={index} className={`flex items-center justify-between rounded-md ${bgColor} p-3`}>
+                              <div>
+                                <p className="font-medium">{item.itemName}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  {item.quantity} - Batch #{item.batchNumber}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <Badge variant={badgeVariant} className={badgeClass}>
+                                  {item.daysLeft} days left
+                                </Badge>
+                                <p className="mt-1 text-xs text-muted-foreground">{item.expiryDate}</p>
+                              </div>
+                            </div>
+                          )
+                        })
+                      )}
                     </div>
                   </CardContent>
                   <CardFooter>
@@ -320,69 +391,42 @@ export function StockDashboard() {
                 <div className="h-[200px] w-full">
                   <div className="flex h-full flex-col justify-between">
                     <div className="grid grid-cols-7 gap-2">
-                      {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
-                        <div key={day} className="text-center text-xs text-muted-foreground">
-                          {day}
-                        </div>
-                      ))}
+                      {loading && weeklyTrend.length === 0
+                        ? ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
+                            <div key={day} className="text-center text-xs text-muted-foreground">
+                              {day}
+                            </div>
+                          ))
+                        : weeklyTrend.map((trend) => (
+                            <div key={trend.day} className="text-center text-xs text-muted-foreground">
+                              {trend.day}
+                            </div>
+                          ))}
                     </div>
                     <div className="mt-2 grid grid-cols-7 gap-2">
-                      <div className="space-y-2">
-                        <div className="h-[120px] w-full bg-muted/50">
-                          <div className="relative h-full w-full">
-                            <div className="absolute bottom-0 w-full bg-primary" style={{ height: "65%" }}></div>
-                          </div>
-                        </div>
-                        <div className="text-center text-xs">3,950kg</div>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="h-[120px] w-full bg-muted/50">
-                          <div className="relative h-full w-full">
-                            <div className="absolute bottom-0 w-full bg-primary" style={{ height: "70%" }}></div>
-                          </div>
-                        </div>
-                        <div className="text-center text-xs">4,050kg</div>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="h-[120px] w-full bg-muted/50">
-                          <div className="relative h-full w-full">
-                            <div className="absolute bottom-0 w-full bg-primary" style={{ height: "62%" }}></div>
-                          </div>
-                        </div>
-                        <div className="text-center text-xs">3,900kg</div>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="h-[120px] w-full bg-muted/50">
-                          <div className="relative h-full w-full">
-                            <div className="absolute bottom-0 w-full bg-primary" style={{ height: "58%" }}></div>
-                          </div>
-                        </div>
-                        <div className="text-center text-xs">3,800kg</div>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="h-[120px] w-full bg-muted/50">
-                          <div className="relative h-full w-full">
-                            <div className="absolute bottom-0 w-full bg-primary" style={{ height: "75%" }}></div>
-                          </div>
-                        </div>
-                        <div className="text-center text-xs">4,150kg</div>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="h-[120px] w-full bg-muted/50">
-                          <div className="relative h-full w-full">
-                            <div className="absolute bottom-0 w-full bg-primary" style={{ height: "72%" }}></div>
-                          </div>
-                        </div>
-                        <div className="text-center text-xs">4,100kg</div>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="h-[120px] w-full bg-muted/50">
-                          <div className="relative h-full w-full">
-                            <div className="absolute bottom-0 w-full bg-primary" style={{ height: "78%" }}></div>
-                          </div>
-                        </div>
-                        <div className="text-center text-xs">4,280kg</div>
-                      </div>
+                      {loading && weeklyTrend.length === 0 ? (
+                        <div className="col-span-7 text-center text-sm text-muted-foreground">Loading trend data...</div>
+                      ) : weeklyTrend.length === 0 ? (
+                        <div className="col-span-7 text-center text-sm text-muted-foreground">No trend data available</div>
+                      ) : (
+                        weeklyTrend.map((trend, index) => {
+                          const maxValue = Math.max(...weeklyTrend.map(t => t.value), 5000)
+                          const height = (trend.value / maxValue) * 100
+                          return (
+                            <div key={index} className="space-y-2">
+                              <div className="h-[120px] w-full bg-muted/50">
+                                <div className="relative h-full w-full">
+                                  <div
+                                    className="absolute bottom-0 w-full bg-primary"
+                                    style={{ height: `${Math.max(10, height)}%` }}
+                                  ></div>
+                                </div>
+                              </div>
+                              <div className="text-center text-xs">{trend.value}kg</div>
+                            </div>
+                          )
+                        })
+                      )}
                     </div>
                   </div>
                 </div>
@@ -395,52 +439,36 @@ export function StockDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                      <Truck className="h-5 w-5 text-primary" />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium leading-none">Receive Rice Delivery</p>
-                      <p className="text-sm text-muted-foreground">Tomorrow, 10:00 AM</p>
-                    </div>
-                    <Badge className="ml-auto">High</Badge>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                      <Package className="h-5 w-5 text-primary" />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium leading-none">Inventory Count</p>
-                      <p className="text-sm text-muted-foreground">Apr 18, 2025, 2:00 PM</p>
-                    </div>
-                    <Badge variant="outline" className="ml-auto">
-                      Medium
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                      <AlertTriangle className="h-5 w-5 text-primary" />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium leading-none">Rotate Milk Stock</p>
-                      <p className="text-sm text-muted-foreground">Apr 19, 2025, 9:00 AM</p>
-                    </div>
-                    <Badge variant="destructive" className="ml-auto">
-                      Urgent
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                      <TrendingDown className="h-5 w-5 text-primary" />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium leading-none">Order Vegetables</p>
-                      <p className="text-sm text-muted-foreground">Apr 20, 2025, 10:00 AM</p>
-                    </div>
-                    <Badge variant="outline" className="ml-auto">
-                      Medium
-                    </Badge>
-                  </div>
+                  {loading && upcomingTasks.length === 0 ? (
+                    <div className="text-sm text-muted-foreground">Loading tasks...</div>
+                  ) : upcomingTasks.length === 0 ? (
+                    <div className="text-sm text-muted-foreground">No upcoming tasks</div>
+                  ) : (
+                    upcomingTasks.map((task) => {
+                      const badgeVariant =
+                        task.priority === "Urgent" || task.priority === "High"
+                          ? task.priority === "Urgent"
+                            ? "destructive"
+                            : "default"
+                          : "outline"
+                      return (
+                        <div key={task.id} className="flex items-center gap-4">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                            <Truck className="h-5 w-5 text-primary" />
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium leading-none">{task.title}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {task.date} {task.time ? `, ${task.time}` : ""}
+                            </p>
+                          </div>
+                          <Badge variant={badgeVariant} className="ml-auto">
+                            {task.priority}
+                          </Badge>
+                        </div>
+                      )
+                    })
+                  )}
                 </div>
               </CardContent>
               <CardFooter>

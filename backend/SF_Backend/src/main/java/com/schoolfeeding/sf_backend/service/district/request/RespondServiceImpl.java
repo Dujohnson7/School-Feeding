@@ -105,6 +105,11 @@ public class RespondServiceImpl implements IRespondService {
     }
 
     @Override
+    public long countOrdersByDistrictIdAndDeliveryStatusAndActive(UUID districtId, EDelivery deliveryStatus) {
+        return orderRepository.countOrdersByRequestItem_DistrictIdAndDeliveryStatusAndActive(districtId, deliveryStatus, Boolean.TRUE);
+    }
+
+    @Override
     public List<Orders> findAllByRequestItemDistrict(UUID districtId) {
         return orderRepository.findAllByRequestItem_District_IdAndActive(districtId, Boolean.TRUE);
     }
