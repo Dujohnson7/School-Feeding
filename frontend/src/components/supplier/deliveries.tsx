@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Calendar, CheckCircle, Clock, Filter, MapPin, Search, Truck, XCircle } from "lucide-react"
-import apiClient from "@/lib/axios"
+import { supplierService } from "./service/supplierService"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -92,27 +92,7 @@ interface BackendOrder {
   [key: string]: any
 }
 
-const deliveryService = {
-  getDelivery: async (id: string) => {
-    const response = await apiClient.get(`/supplierDelivery/${id}`)
-    return response.data
-  },
-
-  getAllDeliveries: async (supplierId: string) => {
-    const response = await apiClient.get(`/supplierDelivery/all/${supplierId}`)
-    return response.data
-  },
-
-  processOrder: async (id: string) => {
-    const response = await apiClient.put(`/supplierDelivery/processOrder/${id}`)
-    return response.data
-  },
-
-  deliveryOrder: async (id: string) => {
-    const response = await apiClient.put(`/supplierDelivery/deliveryOrder/${id}`)
-    return response.data
-  },
-}
+// Local service definition removed
 
 // Helper function to map backend order to frontend delivery
 const mapBackendOrderToDelivery = (backendOrder: BackendOrder): Delivery => {
@@ -150,7 +130,7 @@ const mapBackendOrderToDelivery = (backendOrder: BackendOrder): Delivery => {
     const itemId = detail.item?.id
     const itemName = itemId ? (itemMap.get(itemId) || `Item ${itemId}`) : "Unknown Item"
     const quantity = detail.quantity || 0
-    
+
     items.push(itemName)
     quantities.push(`${quantity} kg`)
   })
@@ -200,8 +180,8 @@ export function SupplierDeliveries() {
           throw new Error("User ID not found. Please login again.")
         }
 
-        const backendOrders: BackendOrder[] = await deliveryService.getAllDeliveries(supplierId)
-        
+        const backendOrders: BackendOrder[] = await supplierService.getAllDeliveries(supplierId)
+
         if (backendOrders && Array.isArray(backendOrders)) {
           const mappedDeliveries = backendOrders.map(mapBackendOrderToDelivery)
           setDeliveries(mappedDeliveries)
@@ -321,12 +301,12 @@ export function SupplierDeliveries() {
   const handleProcessOrder = async (deliveryId: string) => {
     try {
       setUpdatingStatus(deliveryId)
-      await deliveryService.processOrder(deliveryId)
+      await supplierService.processOrder(deliveryId)
       toast.success("Delivery status updated to Processing")
       // Refresh deliveries
       const supplierId = localStorage.getItem("userId")
       if (supplierId) {
-        const backendOrders: BackendOrder[] = await deliveryService.getAllDeliveries(supplierId)
+        const backendOrders: BackendOrder[] = await supplierService.getAllDeliveries(supplierId)
         if (backendOrders && Array.isArray(backendOrders)) {
           const mappedDeliveries = backendOrders.map(mapBackendOrderToDelivery)
           setDeliveries(mappedDeliveries)
@@ -343,12 +323,12 @@ export function SupplierDeliveries() {
   const handleDeliverOrder = async (deliveryId: string) => {
     try {
       setUpdatingStatus(deliveryId)
-      await deliveryService.deliveryOrder(deliveryId)
+      await supplierService.deliverOrder(deliveryId)
       toast.success("Delivery marked as Delivered")
       // Refresh deliveries
       const supplierId = localStorage.getItem("userId")
       if (supplierId) {
-        const backendOrders: BackendOrder[] = await deliveryService.getAllDeliveries(supplierId)
+        const backendOrders: BackendOrder[] = await supplierService.getAllDeliveries(supplierId)
         if (backendOrders && Array.isArray(backendOrders)) {
           const mappedDeliveries = backendOrders.map(mapBackendOrderToDelivery)
           setDeliveries(mappedDeliveries)
@@ -498,8 +478,8 @@ export function SupplierDeliveries() {
                                 <TableCell className="text-right">
                                   <div className="flex justify-end gap-2">
                                     {delivery.deliveryStatus === "SCHEDULED" && (
-                                      <Button 
-                                        size="sm" 
+                                      <Button
+                                        size="sm"
                                         onClick={() => handleProcessOrder(delivery.id)}
                                         disabled={updatingStatus === delivery.id}
                                       >
@@ -507,16 +487,16 @@ export function SupplierDeliveries() {
                                       </Button>
                                     )}
                                     {delivery.deliveryStatus === "PROCESSING" && (
-                                      <Button 
-                                        size="sm" 
+                                      <Button
+                                        size="sm"
                                         onClick={() => handleDeliverOrder(delivery.id)}
                                         disabled={updatingStatus === delivery.id}
                                       >
                                         {updatingStatus === delivery.id ? "Updating..." : "Mark Delivered"}
                                       </Button>
                                     )}
-                                    <Button 
-                                      variant="outline" 
+                                    <Button
+                                      variant="outline"
                                       size="sm"
                                       onClick={() => {
                                         setSelectedDelivery(delivery)

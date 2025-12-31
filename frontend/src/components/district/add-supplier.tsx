@@ -4,8 +4,8 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { Check, Home, Package, Plus, Truck } from "lucide-react"
-import apiClient from "@/lib/axios"
 import { toast } from "sonner"
+import { districtService } from "./service/districtService"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -46,8 +46,8 @@ export function AddSupplier() {
     const fetchItems = async () => {
       try {
         setLoadingItems(true)
-        const response = await apiClient.get(`/item/all`)
-        setItems(response.data || [])
+        const data = await districtService.getAllItems()
+        setItems(data || [])
       } catch (err: any) {
         console.error("Error fetching items:", err)
         toast.error("Failed to load items")
@@ -74,10 +74,10 @@ export function AddSupplier() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     // Validation
-    if (!formData.companyName || !formData.email || !formData.phone || !formData.password || 
-        !formData.address || !formData.tinNumber || !formData.bankName || !formData.bankAccount || !formData.contactPerson) {
+    if (!formData.companyName || !formData.email || !formData.phone || !formData.password ||
+      !formData.address || !formData.tinNumber || !formData.bankName || !formData.bankAccount || !formData.contactPerson) {
       toast.error("Please fill in all required fields")
       return
     }
@@ -96,13 +96,13 @@ export function AddSupplier() {
     try {
       setLoading(true)
       const districtId = localStorage.getItem("districtId")
-      
+
       if (!districtId) {
         toast.error("District ID not found. Please log in again.")
         setLoading(false)
         return
       }
-      
+
       // Map bank name from kebab-case to display format (matching admin pattern)
       const mapBankName = (bankName: string): string => {
         const bankMap: Record<string, string> = {
@@ -115,7 +115,7 @@ export function AddSupplier() {
         }
         return bankMap[bankName] || bankName
       }
-      
+
       const supplierPayload = {
         // Users fields (inherited from Users entity)
         names: formData.contactPerson,
@@ -134,10 +134,10 @@ export function AddSupplier() {
         items: formData.items.map(itemId => ({ id: itemId }))
       }
 
-      const response = await apiClient.post(`/supplier/register`, supplierPayload)
-      
+      const response = await districtService.registerSupplier(supplierPayload)
+
       toast.success("Supplier registered successfully")
-      
+
       // Reset form
       setFormData({
         companyName: "",
@@ -152,7 +152,7 @@ export function AddSupplier() {
         description: "",
         items: [],
       })
-      
+
       // Navigate back to supplier management
       navigate("/manage-suppliers")
     } catch (err: any) {
@@ -374,16 +374,16 @@ export function AddSupplier() {
                   <div className="flex gap-4 pt-6">
                     <Button type="submit" className="flex-1" disabled={loading}>
                       {loading ? "Registering..." : "Register Supplier"}
-                    </Button> 
-                    <Button 
+                    </Button>
+                    <Button
                       type="button"
-                      variant="outline" 
-                      className="flex-1" 
+                      variant="outline"
+                      className="flex-1"
                       onClick={() => navigate("/manage-suppliers")}
                       disabled={loading}
                     >
                       Cancel
-                    </Button> 
+                    </Button>
                   </div>
                 </form>
               </CardContent>

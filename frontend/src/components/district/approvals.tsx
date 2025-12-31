@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Check, Filter, Package, Search, X, Loader2 } from "lucide-react"
-import apiClient from "@/lib/axios"
+import { districtService } from "./service/districtService"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -66,7 +66,7 @@ interface Request {
   school: string
   items: string
   quantity: string
-  requestDate: string 
+  requestDate: string
   status: "pending" | "approved" | "rejected"
   description?: string
 }
@@ -94,8 +94,8 @@ export function DistrictApprovals() {
   useEffect(() => {
     const fetchItems = async () => {
       try {
-        const response = await apiClient.get("/item/all")
-        setItems(response.data)
+        const data = await districtService.getAllItems()
+        setItems(data)
       } catch (err) {
         console.error("Error fetching items:", err)
       }
@@ -107,8 +107,8 @@ export function DistrictApprovals() {
   useEffect(() => {
     const fetchSuppliers = async () => {
       try {
-        const response = await apiClient.get("/supplier/all")
-        setSuppliers(response.data)
+        const data = await districtService.getAllSuppliers()
+        setSuppliers(data)
       } catch (err) {
         console.error("Error fetching suppliers:", err)
       }
@@ -129,8 +129,8 @@ export function DistrictApprovals() {
 
       try {
         setLoading(true)
-        let url = ""
-        
+        let data: ApiRequestItem[] = []
+
         // If status filter is set and not "all", use the filtered endpoint
         if (statusFilter !== "all") {
           // Map frontend status to backend enum values
@@ -140,13 +140,10 @@ export function DistrictApprovals() {
             rejected: "REJECTED",
           }
           const requestStatus = statusMap[statusFilter] || "PENDING"
-          url = `/respondDistrict/districtRequestByRequestStatus?dId=${districtId}&requestStatus=${requestStatus}`
+          data = await districtService.getRequestsByStatus(districtId, requestStatus)
         } else {
-          url = `/respondDistrict/districtRequest/${districtId}`
+          data = await districtService.getAllRequests(districtId)
         }
-
-        const response = await apiClient.get(url)
-        const data: ApiRequestItem[] = response.data
 
         // Transform API data to frontend Request format
         const transformedRequests = transformApiData(data)
@@ -212,12 +209,12 @@ export function DistrictApprovals() {
 
     try {
       setAssignLoading(true)
-      
+
       // First approve the request
-      await apiClient.put(`/respondDistrict/approval/${pendingApprovalRequest.id}`)
+      await districtService.approveRequest(pendingApprovalRequest.id)
 
       // Then assign order to supplier
-      await apiClient.post("/respondDistrict/assignOrder", {
+      await districtService.assignOrder({
         requestItem: { id: pendingApprovalRequest.id },
         supplier: { id: selectedSupplierId },
         orderPrice: parseFloat(orderPrice),
@@ -241,7 +238,7 @@ export function DistrictApprovals() {
   const handleReject = async (request: Request) => {
     try {
       setActionLoading(true)
-      await apiClient.put(`/respondDistrict/reject/${request.id}`)
+      await districtService.rejectRequest(request.id)
 
       toast.success("Request rejected successfully.")
 
@@ -307,12 +304,14 @@ export function DistrictApprovals() {
     if (!districtId) return
 
     try {
-      const refreshUrl = statusFilter !== "all" 
-        ? `/respondDistrict/districtRequestByRequestStatus?dId=${districtId}&requestStatus=${statusFilter === "pending" ? "PENDING" : statusFilter === "approved" ? "COMPLETED" : "REJECTED"}`
-        : `/respondDistrict/districtRequest/${districtId}`
-      
-      const refreshResponse = await apiClient.get(refreshUrl)
-      const refreshData: ApiRequestItem[] = refreshResponse.data
+      let refreshData: ApiRequestItem[] = []
+
+      if (statusFilter !== "all") {
+        const requestStatus = statusFilter === "pending" ? "PENDING" : statusFilter === "approved" ? "COMPLETED" : "REJECTED"
+        refreshData = await districtService.getRequestsByStatus(districtId, requestStatus)
+      } else {
+        refreshData = await districtService.getAllRequests(districtId)
+      }
       const transformedRequests = transformApiData(refreshData)
       setRequests(transformedRequests)
     } catch (err) {
@@ -552,7 +551,7 @@ export function DistrictApprovals() {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div> 
+                <div>
                   <p className="text-sm font-medium text-muted-foreground">Status</p>
                   <div className="mt-1">{getStatusBadge(selectedRequest.status)}</div>
                 </div>
@@ -569,8 +568,8 @@ export function DistrictApprovals() {
             <DialogFooter className="flex flex-col sm:flex-row sm:justify-between">
               {selectedRequest.status === "pending" ? (
                 <>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     onClick={() => handleReject(selectedRequest)}
                     disabled={actionLoading}
                   >
@@ -586,7 +585,7 @@ export function DistrictApprovals() {
                       </>
                     )}
                   </Button>
-                  <Button 
+                  <Button
                     onClick={() => handleApprove(selectedRequest)}
                     disabled={actionLoading}
                   >
@@ -670,8 +669,8 @@ export function DistrictApprovals() {
             </div>
 
             <DialogFooter>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => {
                   setAssignOrderDialogOpen(false)
                   setPendingApprovalRequest(null)
@@ -682,7 +681,7 @@ export function DistrictApprovals() {
               >
                 Cancel
               </Button>
-              <Button 
+              <Button
                 onClick={handleAssignOrder}
                 disabled={assignLoading || !selectedSupplierId || !orderPrice}
               >

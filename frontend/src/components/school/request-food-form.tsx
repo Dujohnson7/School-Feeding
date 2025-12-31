@@ -3,8 +3,8 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
-import { AlertCircle, ArrowLeft, Check } from "lucide-react"
-import apiClient from "@/lib/axios"
+import { ArrowLeft, Check, AlertCircle } from "lucide-react"
+import { schoolService } from "./service/schoolService"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -15,18 +15,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
 
-interface Item {
-  id: string
-  name: string
-  category?: string
-  unit?: string
-}
+import { Item } from "./service/schoolService"
 
 export function RequestFoodForm() {
   const [formState, setFormState] = useState({
     foodItems: [] as string[],
-    quantities: {} as Record<string, string>, 
-    notes: "", 
+    quantities: {} as Record<string, string>,
+    notes: "",
   })
 
   const [submitted, setSubmitted] = useState(false)
@@ -34,12 +29,12 @@ export function RequestFoodForm() {
   const [error, setError] = useState<string | null>(null)
   const [items, setItems] = useState<Item[]>([])
   const [loadingItems, setLoadingItems] = useState(true)
- 
+
   useEffect(() => {
     const fetchItems = async () => {
       try {
-        const response = await apiClient.get("/item/all")
-        setItems(response.data)
+        const data = await schoolService.getAllItems()
+        setItems(data)
       } catch (err) {
         console.error("Error fetching items:", err)
         toast.error("Failed to load food items. Please refresh the page.")
@@ -50,7 +45,7 @@ export function RequestFoodForm() {
 
     fetchItems()
   }, [])
- 
+
   const getItemIdByName = (name: string): string | null => {
     const normalizedName = name.toLowerCase().trim()
     const item = items.find(
@@ -91,7 +86,7 @@ export function RequestFoodForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
- 
+
     const missingQuantities = formState.foodItems.filter(
       (item) => !formState.quantities[item] || formState.quantities[item].trim() === ""
     )
@@ -100,7 +95,7 @@ export function RequestFoodForm() {
       setError("Please enter quantities for all selected items.")
       return
     }
- 
+
     const invalidQuantities = formState.foodItems.filter((item) => {
       const qty = parseFloat(formState.quantities[item])
       return isNaN(qty) || qty <= 0
@@ -110,7 +105,7 @@ export function RequestFoodForm() {
       setError("Please enter valid positive quantities for all items.")
       return
     }
- 
+
     const districtId = localStorage.getItem("districtId")
     const schoolId = localStorage.getItem("schoolId")
 
@@ -118,7 +113,7 @@ export function RequestFoodForm() {
       setError("District or school information is missing. Please log in again.")
       return
     }
- 
+
     const requestItemDetails = formState.foodItems
       .map((itemName) => {
         const itemId = getItemIdByName(itemName)
@@ -136,7 +131,7 @@ export function RequestFoodForm() {
       setError("Could not find item IDs for the selected items. Please try again.")
       return
     }
- 
+
     const requestPayload = {
       district: { id: districtId },
       school: { id: schoolId },
@@ -147,8 +142,7 @@ export function RequestFoodForm() {
     setLoading(true)
 
     try {
-      const response = await apiClient.post("/requestRequestItem/register", requestPayload)
-      const data = response.data
+      const data = await schoolService.createFoodRequest(requestPayload)
 
       toast.success("Your food request has been submitted successfully.")
 
@@ -204,7 +198,7 @@ export function RequestFoodForm() {
                           )
                           .join(", ")}
                       </span>
-                    </div>  
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -310,8 +304,8 @@ export function RequestFoodForm() {
                       </div>
                     )}
                   </div>
- 
- 
+
+
 
                   <div className="space-y-2">
                     <Label htmlFor="notes">Additional Notes</Label>

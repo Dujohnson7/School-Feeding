@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "@/components/ui/use-toast"
+import { authService } from "./service/authService"
 
 const resetImage = "/images/image01.jpg"
 const logoImage = "/logo.svg"
@@ -68,21 +69,11 @@ export function ResetPassword() {
     setLoading(true)
 
     try {
-      const response = await fetch("http://localhost:8070/api/auth/reset-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: resetData.email,
-          otp: resetData.otp,
-          password: resetData.password,
-        }),
+      await authService.resetPassword({
+        email: resetData.email,
+        otp: resetData.otp,
+        password: resetData.password,
       })
-
-      const data = await response.json().catch(() => null)
-      if (!response.ok || data?.status === "error") {
-        const message = data?.message || response.statusText || "Failed to reset password."
-        throw new Error(message)
-      }
 
       toast({
         title: "Password Reset Successful",
@@ -150,46 +141,46 @@ export function ResetPassword() {
           <Card className="border border-blue-100 shadow-lg w-full">
             <CardHeader className="text-center">
               <CardTitle className="text-gray-900">Reset Password</CardTitle>
-                  <CardDescription>Enter the OTP and choose a new password</CardDescription>
+              <CardDescription>Enter the OTP and choose a new password</CardDescription>
             </CardHeader>
 
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
-                    {/* Email */}
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email Address</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                        <Input
-                          id="email"
-                          type="email"
-                          placeholder="Enter your email"
-                          className="pl-10"
-                          value={resetData.email}
-                          onChange={(e) => handleInputChange("email", e.target.value)}
-                          readOnly
-                        />
-                      </div>
-                    </div>
+                {/* Email */}
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email Address</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="Enter your email"
+                      className="pl-10"
+                      value={resetData.email}
+                      onChange={(e) => handleInputChange("email", e.target.value)}
+                      readOnly
+                    />
+                  </div>
+                </div>
 
-                    {/* OTP */}
-                    <div className="space-y-2">
-                      <Label htmlFor="otp">OTP Code</Label>
-                      <div className="relative">
-                        <KeyRound className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                        <Input
-                          id="otp"
-                          type="text"
-                          inputMode="numeric"
-                          maxLength={6}
-                          placeholder="Enter the OTP sent to your email"
-                          className="pl-10"
-                          value={resetData.otp}
-                          onChange={(e) => handleInputChange("otp", e.target.value.replace(/\D/g, ""))}
-                          required
-                        />
-                      </div>
-                    </div>
+                {/* OTP */}
+                <div className="space-y-2">
+                  <Label htmlFor="otp">OTP Code</Label>
+                  <div className="relative">
+                    <KeyRound className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="otp"
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      placeholder="Enter the OTP sent to your email"
+                      className="pl-10"
+                      value={resetData.otp}
+                      onChange={(e) => handleInputChange("otp", e.target.value.replace(/\D/g, ""))}
+                      required
+                    />
+                  </div>
+                </div>
 
                 {/* Password */}
                 <div className="space-y-2">

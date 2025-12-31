@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { toast } from "@/components/ui/use-toast"
+import { authService } from "./service/authService"
 
 const loginImage = "/images/image01.jpg"
 const logoImage = "/logo.svg"
@@ -29,7 +30,7 @@ export function Login() {
   }
 
   const getDashboardPathForRole = (roleRaw: string | undefined | null): string => {
-    if (!roleRaw) return "/" 
+    if (!roleRaw) return "/"
     const role = roleRaw.trim().toUpperCase().replace(/^ROLE_/, "")
     switch (role) {
       case "ADMIN":
@@ -47,8 +48,8 @@ export function Login() {
       case "STOCK_KEEPER":
       case "STOCKKEEPER":
         return "/stock-dashboard"
-      default: 
-        return "/login"
+      default:
+        throw new Error("Unknown role: " + role)
     }
   }
 
@@ -58,39 +59,17 @@ export function Login() {
     setErrorMessage(null)
 
     try {
-      const response = await fetch("http://localhost:8070/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: loginData.email,
-          password: loginData.password,
-        }),
+      const data = await authService.login({
+        email: loginData.email,
+        password: loginData.password,
       })
- 
-      let data: any = null
-      const contentType = response.headers.get("content-type") || ""
-      if (contentType.includes("application/json")) {
-        try {
-          data = await response.json()
-        } catch { 
-        }
-      }
- 
-      if (!response.ok || data?.error || data?.status === "error") {
-        const message =
-          data?.message ||
-          data?.error ||
-          response.statusText ||
-          "Invalid credentials."
-        throw new Error(message)
-      }
-      
+
       const token = data?.token
       const roleFromApi = data?.role
       if (!token || !roleFromApi) {
         throw new Error("Malformed login response: missing token or role.")
       }
-  
+
       localStorage.setItem("token", token)
       localStorage.setItem(
         "user",
@@ -117,10 +96,23 @@ export function Login() {
       const targetPath = getDashboardPathForRole(roleFromApi)
       navigate(targetPath, { replace: true })
     } catch (error: any) {
-      setErrorMessage(error?.message || "Something went wrong. Please try again.")
+      console.error("Login error:", error)
+      let msg = "Something went wrong. Please try again."
+
+      if (error.response) {
+        if (error.response.status === 401) {
+          msg = "Invalid Credentials"
+        } else if (error.response.data && error.response.data.message) {
+          msg = error.response.data.message
+        }
+      } else if (error.message) {
+        msg = error.message
+      }
+
+      setErrorMessage(msg)
       toast({
         title: "Login Failed",
-        description: error.message || "Something went wrong. Please try again.",
+        description: msg,
         variant: "destructive",
       })
     } finally {

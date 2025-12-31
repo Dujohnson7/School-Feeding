@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
 import { BarChart3, Download, Home, PieChart, TrendingUp, User } from "lucide-react"
-import apiClient from "@/lib/axios"
+import { governmentService } from "./service/governmentService"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -90,74 +90,44 @@ export function GovAnalytics() {
       setLoading(true)
 
       // Fetch analytics statistics
-      const statsResponse = await apiClient.get(
-        `/government/analytics/stats?period=${period}${district !== "all" ? `&district=${district}` : ""}`
-      )
-      if (statsResponse.data) {
-        setStats(statsResponse.data)
-      }
+      const statsData = await governmentService.getAnalyticsStats(period, district)
+      if (statsData) setStats(statsData)
 
       // Fetch region participation
-      const participationResponse = await apiClient.get(
-        `/government/analytics/region-participation?period=${period}${district !== "all" ? `&district=${district}` : ""}`
-      )
-      if (participationResponse.data) {
-        setRegionParticipation(participationResponse.data)
-      }
+      const participationData = await governmentService.getRegionParticipation(period, district)
+      if (participationData) setRegionParticipation(participationData)
 
       // Fetch delivery performance
-      const deliveryResponse = await apiClient.get(
-        `/government/analytics/delivery-performance?period=${period}${district !== "all" ? `&district=${district}` : ""}`
-      )
-      if (deliveryResponse.data) {
-        setDeliveryPerformance(deliveryResponse.data)
-      }
+      const deliveryData = await governmentService.getDeliveryPerformanceAnalytics(period, district)
+      if (deliveryData) setDeliveryPerformance(deliveryData)
 
       // Fetch nutrition compliance
-      const nutritionResponse = await apiClient.get(
-        `/government/analytics/nutrition-compliance?period=${period}${district !== "all" ? `&district=${district}` : ""}`
-      )
-      if (nutritionResponse.data) {
-        setNutritionComplianceReqs(nutritionResponse.data)
-      }
+      const nutritionData = await governmentService.getNutritionCompliance(period, district)
+      if (nutritionData) setNutritionComplianceReqs(nutritionData)
 
       // Fetch school enrollment
-      const enrollmentResponse = await apiClient.get(
-        `/government/analytics/school-enrollment?period=${period}${district !== "all" ? `&district=${district}` : ""}`
-      )
-      if (enrollmentResponse.data) {
-        setSchoolEnrollment(enrollmentResponse.data)
-      }
+      const enrollmentData = await governmentService.getSchoolEnrollment(period, district)
+      if (enrollmentData) setSchoolEnrollment(enrollmentData)
 
       // Fetch school performance metrics
-      const performanceResponse = await apiClient.get(
-        `/government/analytics/school-performance?period=${period}${district !== "all" ? `&district=${district}` : ""}`
-      )
-      if (performanceResponse.data) {
-        setSchoolPerformanceMetrics(performanceResponse.data)
-      }
+      const performanceData = await governmentService.getSchoolPerformance(period, district)
+      if (performanceData) setSchoolPerformanceMetrics(performanceData)
 
       // Fetch budget allocation
-      const budgetAllocResponse = await apiClient.get(
-        `/government/analytics/budget-allocation?period=${period}${district !== "all" ? `&district=${district}` : ""}`
-      )
-      if (budgetAllocResponse.data) {
-        setBudgetAllocation(budgetAllocResponse.data)
-      }
+      const budgetAllocData = await governmentService.getBudgetAllocation(period, district)
+      if (budgetAllocData) setBudgetAllocation(budgetAllocData)
 
       // Fetch budget utilization
-      const budgetUtilResponse = await apiClient.get(
-        `/government/analytics/budget-utilization?period=${period}${district !== "all" ? `&district=${district}` : ""}`
-      )
-      if (budgetUtilResponse.data) {
-        if (budgetUtilResponse.data.overallUtilization) {
-          setOverallBudgetUtilization(budgetUtilResponse.data.overallUtilization)
+      const budgetUtilData = await governmentService.getBudgetUtilization(period, district)
+      if (budgetUtilData) {
+        if (budgetUtilData.overallUtilization) {
+          setOverallBudgetUtilization(budgetUtilData.overallUtilization)
         }
-        if (budgetUtilResponse.data.totalSpent) {
-          setTotalSpent(budgetUtilResponse.data.totalSpent)
+        if (budgetUtilData.totalSpent) {
+          setTotalSpent(budgetUtilData.totalSpent)
         }
-        if (budgetUtilResponse.data.provinces) {
-          setBudgetUtilization(budgetUtilResponse.data.provinces)
+        if (budgetUtilData.provinces) {
+          setBudgetUtilization(budgetUtilData.provinces)
         }
       }
     } catch (error: any) {
@@ -241,7 +211,7 @@ export function GovAnalytics() {
           <Tabs defaultValue="overview" className="w-full">
             <TabsList className="mb-4 w-full justify-start">
               <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="schools">Schools</TabsTrigger> 
+              <TabsTrigger value="schools">Schools</TabsTrigger>
               <TabsTrigger value="budget">Budget</TabsTrigger>
             </TabsList>
 
@@ -442,7 +412,7 @@ export function GovAnalytics() {
                 </Card>
               </div>
             </TabsContent>
- 
+
 
             <TabsContent value="budget">
               <div className="grid gap-4 md:grid-cols-2">

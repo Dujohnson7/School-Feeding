@@ -8,7 +8,6 @@ import {
   Trash2,
   Users,
 } from "lucide-react"
-import apiClient from "@/lib/axios"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -31,45 +30,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 
-interface StockManager {
-  id: string
-  names?: string
-  name?: string
-  email: string
-  phone?: string
-  role?: string
-  userStatus?: boolean | string
-  school?: { id: string; name?: string }
-  created?: string
-  lastActive?: string
-}
-
-const stockManagerService = {
-  getAllStockManagers: async (schoolId: string) => {
-    const response = await apiClient.get(`/stockManager/all/${schoolId}`)
-    return response.data
-  },
-
-  getStockManager: async (id: string) => {
-    const response = await apiClient.get(`/stockManager/${id}`)
-    return response.data
-  },
-
-  registerStockManager: async (stockManagerData: any) => {
-    const response = await apiClient.post(`/stockManager/register`, stockManagerData)
-    return response.data
-  },
-
-  updateStockManager: async (id: string, stockManagerData: any) => {
-    const response = await apiClient.put(`/stockManager/update/${id}`, stockManagerData)
-    return response.data
-  },
-
-  deleteStockManager: async (id: string) => {
-    const response = await apiClient.delete(`/stockManager/delete/${id}`)
-    return response.data
-  },
-}
+import { schoolService, StockManager } from "./service/schoolService"
 
 export function ManageStockManagers() {
   const [searchTerm, setSearchTerm] = useState("")
@@ -100,7 +61,7 @@ export function ManageStockManagers() {
           setError("School ID not found")
           return
         }
-        const data = await stockManagerService.getAllStockManagers(schoolId)
+        const data = await schoolService.getAllStockManagers(schoolId)
         setStockManagers(data || [])
       } catch (err: any) {
         // If 404, treat as "no stock managers found" instead of an error
@@ -178,8 +139,8 @@ export function ManageStockManagers() {
         userStatus: true,
       }
 
-      const createdManager = await stockManagerService.registerStockManager(stockManagerPayload)
-      
+      const createdManager = await schoolService.registerStockManager(stockManagerPayload)
+
       // Map backend response to frontend format
       const mappedManager: StockManager = {
         id: createdManager.id,
@@ -251,8 +212,8 @@ export function ManageStockManagers() {
         stockManagerPayload.password = newManager.password
       }
 
-      const updatedManager = await stockManagerService.updateStockManager(selectedManager.id, stockManagerPayload)
-      
+      const updatedManager = await schoolService.updateStockManager(selectedManager.id, stockManagerPayload)
+
       // Map backend response to frontend format
       const mappedManager: StockManager = {
         id: updatedManager.id,
@@ -292,7 +253,7 @@ export function ManageStockManagers() {
 
     try {
       setIsProcessing(true)
-      await stockManagerService.deleteStockManager(managerId)
+      await schoolService.deleteStockManager(managerId)
       setStockManagers(stockManagers.filter(m => m.id !== managerId))
       toast.success("Stock manager deleted successfully")
     } catch (err: any) {
@@ -323,8 +284,8 @@ export function ManageStockManagers() {
         userStatus: !newStatus,
       }
 
-      const updatedManager = await stockManagerService.updateStockManager(manager.id, stockManagerPayload)
-      
+      const updatedManager = await schoolService.updateStockManager(manager.id, stockManagerPayload)
+
       const mappedManager: StockManager = {
         id: updatedManager.id,
         names: updatedManager.names,
@@ -427,92 +388,92 @@ export function ManageStockManagers() {
                           Add Stock Manager
                         </Button>
                       </DialogTrigger>
-                <DialogContent className="sm:max-w-[425px]">
-                  <DialogHeader>
-                    <DialogTitle>Add New Stock Manager</DialogTitle>
-                    <DialogDescription>
-                      Add a new stock manager to your school's inventory management team.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="name" className="text-right">
-                        Name
-                      </Label>
-                      <Input
-                        id="name"
-                        value={newManager.name}
-                        onChange={(e) => setNewManager({ ...newManager, name: e.target.value })}
-                        className="col-span-3"
-                        placeholder="Full name"
-                      />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="email" className="text-right">
-                        Email
-                      </Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={newManager.email}
-                        onChange={(e) => setNewManager({ ...newManager, email: e.target.value })}
-                        className="col-span-3"
-                        placeholder="email@school.edu.rw"
-                      />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="phone" className="text-right">
-                        Phone
-                      </Label>
-                      <Input
-                        id="phone"
-                        value={newManager.phone}
-                        onChange={(e) => setNewManager({ ...newManager, phone: e.target.value })}
-                        className="col-span-3"
-                        placeholder="+250 788 123 456"
-                      />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="password" className="text-right">
-                        Password *
-                      </Label>
-                      <Input
-                        id="password"
-                        type="password"
-                        value={newManager.password}
-                        onChange={(e) => setNewManager({ ...newManager, password: e.target.value })}
-                        className="col-span-3"
-                        placeholder="Enter password (min 6 characters)"
-                        required
-                      />
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => {
-                        setIsAddDialogOpen(false)
-                        setNewManager({
-                          name: "",
-                          email: "",
-                          phone: "",
-                          password: "",
-                          department: "",
-                        })
-                      }}
-                      disabled={isProcessing}
-                    >
-                      Cancel
-                    </Button>
-                    <Button 
-                      type="submit" 
-                      onClick={handleAddManager}
-                      disabled={isProcessing || !newManager.name || !newManager.email || !newManager.phone || !newManager.password}
-                    >
-                      {isProcessing ? "Adding..." : "Add Manager"}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
+                      <DialogContent className="sm:max-w-[425px]">
+                        <DialogHeader>
+                          <DialogTitle>Add New Stock Manager</DialogTitle>
+                          <DialogDescription>
+                            Add a new stock manager to your school's inventory management team.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="name" className="text-right">
+                              Name
+                            </Label>
+                            <Input
+                              id="name"
+                              value={newManager.name}
+                              onChange={(e) => setNewManager({ ...newManager, name: e.target.value })}
+                              className="col-span-3"
+                              placeholder="Full name"
+                            />
+                          </div>
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="email" className="text-right">
+                              Email
+                            </Label>
+                            <Input
+                              id="email"
+                              type="email"
+                              value={newManager.email}
+                              onChange={(e) => setNewManager({ ...newManager, email: e.target.value })}
+                              className="col-span-3"
+                              placeholder="email@school.edu.rw"
+                            />
+                          </div>
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="phone" className="text-right">
+                              Phone
+                            </Label>
+                            <Input
+                              id="phone"
+                              value={newManager.phone}
+                              onChange={(e) => setNewManager({ ...newManager, phone: e.target.value })}
+                              className="col-span-3"
+                              placeholder="+250 788 123 456"
+                            />
+                          </div>
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="password" className="text-right">
+                              Password *
+                            </Label>
+                            <Input
+                              id="password"
+                              type="password"
+                              value={newManager.password}
+                              onChange={(e) => setNewManager({ ...newManager, password: e.target.value })}
+                              className="col-span-3"
+                              placeholder="Enter password (min 6 characters)"
+                              required
+                            />
+                          </div>
+                        </div>
+                        <DialogFooter>
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              setIsAddDialogOpen(false)
+                              setNewManager({
+                                name: "",
+                                email: "",
+                                phone: "",
+                                password: "",
+                                department: "",
+                              })
+                            }}
+                            disabled={isProcessing}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            type="submit"
+                            onClick={handleAddManager}
+                            disabled={isProcessing || !newManager.name || !newManager.email || !newManager.phone || !newManager.password}
+                          >
+                            {isProcessing ? "Adding..." : "Add Manager"}
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
                     </Dialog>
                   </div>
                 </div>
@@ -561,9 +522,9 @@ export function ManageStockManagers() {
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-2">
-                                <Button 
-                                  variant="outline" 
-                                  size="sm" 
+                                <Button
+                                  variant="outline"
+                                  size="sm"
                                   onClick={() => handleEditManager(manager)}
                                   disabled={isProcessing}
                                   title="Edit Manager"
@@ -578,9 +539,9 @@ export function ManageStockManagers() {
                                 >
                                   {manager.userStatus !== false ? "Deactivate" : "Activate"}
                                 </Button>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm" 
+                                <Button
+                                  variant="outline"
+                                  size="sm"
                                   onClick={() => handleDeleteManager(manager.id)}
                                   disabled={isProcessing}
                                   title="Delete Manager"

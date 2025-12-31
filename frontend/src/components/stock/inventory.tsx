@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { ArrowUpDown, Download, Filter, Package, Search } from "lucide-react"
-import apiClient from "@/lib/axios"
+import { stockService } from "./service/stockService"
 import { toast } from "sonner"
 import { format } from "date-fns"
 
@@ -37,7 +37,7 @@ interface Stock {
   updated?: string
   quantity?: number
   batchNumber?: string
-  receivedDate?: string 
+  receivedDate?: string
   location?: string
   stockState?: "NORMAL" | "LOW" | "CRITICAL"
   item?: {
@@ -52,12 +52,7 @@ interface Stock {
   }
 }
 
-const inventoryService = {
-  getAllInventory: async (schoolId: string) => {
-    const response = await apiClient.get(`/inventory/all/${schoolId}`)
-    return response.data
-  },
-}
+// Local service definition removed
 
 export function StockInventory() {
   const [searchTerm, setSearchTerm] = useState("")
@@ -65,7 +60,7 @@ export function StockInventory() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [inventoryItems, setInventoryItems] = useState<Stock[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null) 
+  const [error, setError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(5)
   const [exportDialogOpen, setExportDialogOpen] = useState(false)
@@ -86,7 +81,7 @@ export function StockInventory() {
           setError("School ID not found")
           return
         }
-        const data = await inventoryService.getAllInventory(schoolId)
+        const data = await stockService.getAllInventory(schoolId)
         setInventoryItems(Array.isArray(data) ? data : [])
       } catch (err: any) {
         console.error("Error fetching inventory:", err)
@@ -111,9 +106,9 @@ export function StockInventory() {
       try {
         const schoolId = localStorage.getItem("schoolId")
         if (!schoolId) return
-        
-        const response = await apiClient.get(`/distribute/all/${schoolId}`)
-        setDistributions(Array.isArray(response.data) ? response.data : [])
+
+        const data = await stockService.getAllDistributions(schoolId)
+        setDistributions(Array.isArray(data) ? data : [])
       } catch (err) {
         console.error("Error fetching distributions:", err)
       }
@@ -225,7 +220,7 @@ export function StockInventory() {
       setIsExporting(true)
       const schoolId = localStorage.getItem("schoolId")
       const user = JSON.parse(localStorage.getItem("user") || "null")
-      
+
       // Get school info
       const schoolInfo = {
         name: user?.school?.name || inventoryItems[0]?.school?.name || "N/A",
@@ -255,11 +250,11 @@ export function StockInventory() {
       // Filter distributions by month and item
       const monthStart = new Date(parseInt(year), parseInt(month) - 1, 1)
       const monthEnd = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59)
-      
+
       const relevantDistributions = distributions.filter(dist => {
         const distDate = new Date(dist.created || dist.date || "")
         return distDate >= monthStart && distDate <= monthEnd &&
-               dist.stockOutItemDetails?.some((itemDetail: any) => itemDetail.item?.id === selectedItem)
+          dist.stockOutItemDetails?.some((itemDetail: any) => itemDetail.item?.id === selectedItem)
       })
 
       // Generate daily data (simplified - you may need to adjust based on your data structure)
@@ -276,9 +271,9 @@ export function StockInventory() {
         stockAtEnd: number
         remarks: string
       }> = []
-      
+
       let currentStock = item.quantity || 0
-      
+
       for (let i = 0; i < daysInMonth; i++) {
         const date = new Date(parseInt(year), parseInt(month) - 1, i + 1)
         const dayDistributions = relevantDistributions.filter(dist => {
@@ -355,7 +350,7 @@ export function StockInventory() {
                 <div>
                   <CardTitle>Inventory Items</CardTitle>
                   <CardDescription>Manage and track your food inventory</CardDescription>
-                </div> 
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -430,8 +425,8 @@ export function StockInventory() {
                         </div>
                       </TableHead>
                       <TableHead>Category</TableHead>
-                      <TableHead className="text-right">Quantity</TableHead>  
-                      <TableHead>Status</TableHead> 
+                      <TableHead className="text-right">Quantity</TableHead>
+                      <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -444,8 +439,8 @@ export function StockInventory() {
                             <TableCell>{formatCategory(item.item?.foodCategory)}</TableCell>
                             <TableCell className="text-right">
                               {item.quantity || 0} {item.item?.unit || "kg"}
-                            </TableCell>  
-                            <TableCell>{getStatusBadge(item.stockState)}</TableCell> 
+                            </TableCell>
+                            <TableCell>{getStatusBadge(item.stockState)}</TableCell>
                           </TableRow>
                         )
                       })

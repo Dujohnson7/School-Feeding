@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "@/components/ui/use-toast"
+import { authService } from "./service/authService"
 
 const otpImage = "/images/image01.jpg"
 const logoImage = "/logo.svg"
@@ -69,22 +70,11 @@ export function OTPVerification() {
     setErrorMessage(null)
 
     try {
-      const response = await fetch("http://localhost:8070/api/auth/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email,
-          otp,
-          purpose,
-        }),
+      const data = await authService.verifyOtp({
+        email,
+        otp,
+        purpose,
       })
-
-      const data = await response.json().catch(() => null)
-
-      if (!response.ok || data?.status === "error") {
-        const message = data?.message || response.statusText || "Invalid or expired OTP."
-        throw new Error(message)
-      }
 
       setSuccess(true)
       toast({
@@ -163,20 +153,10 @@ export function OTPVerification() {
     setResending(true)
 
     try {
-      const response = await fetch("http://localhost:8070/api/auth/resend-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email,
-          purpose,
-        }),
+      await authService.resendOtp({
+        email,
+        purpose,
       })
-
-      const data = await response.json().catch(() => null)
-      if (!response.ok || data?.status === "error") {
-        const message = data?.message || response.statusText || "Failed to resend code."
-        throw new Error(message)
-      }
 
       toast({
         title: "OTP Sent",

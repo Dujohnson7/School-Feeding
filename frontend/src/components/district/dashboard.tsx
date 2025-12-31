@@ -2,8 +2,8 @@ import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Check, FileText, Package, School, Truck } from "lucide-react"
 import PageHeader from "@/components/shared/page-header"
-import apiClient from "@/lib/axios"
 import { toast } from "sonner"
+import { districtService } from "./service/districtService"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -94,40 +94,29 @@ export function DistrictDashboard() {
       }
 
       // Fetch dashboard statistics
-      const statsResponse = await apiClient.get(`/district/dashboard/stats?districtId=${districtId}`)
-      if (statsResponse.data) {
-        setStats(statsResponse.data)
-      }
+      const statsData = await districtService.getDashboardStats(districtId)
+      if (statsData) setStats(statsData)
 
       // Fetch stock levels
-      const stockResponse = await apiClient.get(`/district/dashboard/stock-levels?districtId=${districtId}`)
-      if (stockResponse.data) {
-        setStockLevels(stockResponse.data)
-      }
+      const stockData = await districtService.getStockLevels(districtId)
+      if (stockData) setStockLevels(stockData)
 
       // Fetch recent requests
-      const requestsResponse = await apiClient.get(`/district/dashboard/recent-requests?districtId=${districtId}&limit=4`)
-      if (requestsResponse.data) {
-        setRecentRequests(requestsResponse.data)
-      }
+      const requestsData = await districtService.getRecentRequests(districtId)
+      if (requestsData) setRecentRequests(requestsData)
 
       // Fetch upcoming deliveries
-      const deliveriesResponse = await apiClient.get(`/district/dashboard/upcoming-deliveries?districtId=${districtId}&limit=3`)
-      if (deliveriesResponse.data) {
-        setUpcomingDeliveries(deliveriesResponse.data)
-      }
+      const deliveriesData = await districtService.getUpcomingDeliveries(districtId)
+      if (deliveriesData) setUpcomingDeliveries(deliveriesData)
 
       // Fetch performance metrics
-      const metricsResponse = await apiClient.get(`/district/dashboard/performance?districtId=${districtId}`)
-      if (metricsResponse.data) {
-        setPerformanceMetrics(metricsResponse.data)
-      }
+      const metricsData = await districtService.getPerformanceMetrics(districtId)
+      if (metricsData) setPerformanceMetrics(metricsData)
 
       // Fetch monthly distribution
-      const distributionResponse = await apiClient.get(`/district/dashboard/monthly-distribution?districtId=${districtId}`)
-      if (distributionResponse.data) {
-        setMonthlyDistribution(distributionResponse.data)
-      }
+      const distributionData = await districtService.getMonthlyDistribution(districtId)
+      if (distributionData) setMonthlyDistribution(distributionData)
+
     } catch (error: any) {
       console.error("Error fetching dashboard data:", error)
       toast.error("Failed to load dashboard data. Please refresh the page.")

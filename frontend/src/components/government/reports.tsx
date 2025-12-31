@@ -41,7 +41,7 @@ export function GovReports() {
       type: "summary",
       period: "March 2025",
       generatedDate: "Apr 1, 2025",
-      status: "completed", 
+      status: "completed",
     },
     {
       id: "RPT-2025-041",
@@ -49,7 +49,7 @@ export function GovReports() {
       type: "financial",
       period: "Q1 2025",
       generatedDate: "Mar 31, 2025",
-      status: "completed", 
+      status: "completed",
     },
     {
       id: "RPT-2025-040",
@@ -57,7 +57,7 @@ export function GovReports() {
       type: "nutrition",
       period: "March 2025",
       generatedDate: "Mar 30, 2025",
-      status: "completed", 
+      status: "completed",
     },
     {
       id: "RPT-2025-039",
@@ -65,7 +65,7 @@ export function GovReports() {
       type: "supplier",
       period: "Q1 2025",
       generatedDate: "Mar 29, 2025",
-      status: "completed", 
+      status: "completed",
     },
     {
       id: "RPT-2025-038",
@@ -73,7 +73,7 @@ export function GovReports() {
       type: "performance",
       period: "March 2025",
       generatedDate: "Mar 28, 2025",
-      status: "completed", 
+      status: "completed",
     },
   ]
 
@@ -110,7 +110,7 @@ export function GovReports() {
     try {
       setIsGenerating(prev => ({ ...prev, [type]: true }))
       const format = (selectedReportFormat[type] || 'pdf') as 'pdf' | 'csv' | 'excel'
-      
+
       // Sample data - in real app, fetch from API based on type and dateRange
       const sampleData = [
         { 'Province': 'Kigali', 'Districts': 3, 'Schools': 150, 'Students': 45000 },
@@ -119,14 +119,14 @@ export function GovReports() {
         { 'Province': 'Western', 'Districts': 7, 'Schools': 180, 'Students': 54000 },
         { 'Province': 'Southern', 'Districts': 8, 'Schools': 220, 'Students': 66000 }
       ]
-      
+
       await generateGovReport(
         type,
         { from: dateRange?.from, to: dateRange?.to },
         format,
         sampleData
       )
-      
+
       toast.success(`${type} report generated successfully`)
     } catch (error: any) {
       console.error('Error generating report:', error)
@@ -197,7 +197,7 @@ export function GovReports() {
                       </div>
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Report Format</label>
-                        <Select 
+                        <Select
                           value={selectedReportFormat["summary"] || "pdf"}
                           onValueChange={(value) => setSelectedReportFormat(prev => ({ ...prev, "summary": value }))}
                         >
@@ -211,8 +211,8 @@ export function GovReports() {
                           </SelectContent>
                         </Select>
                       </div>
-                      <Button 
-                        className="w-full" 
+                      <Button
+                        className="w-full"
                         onClick={() => handleGenerateReport("National Summary")}
                         disabled={isGenerating["summary"]}
                       >
@@ -235,7 +235,7 @@ export function GovReports() {
                       </div>
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Report Format</label>
-                        <Select 
+                        <Select
                           value={selectedReportFormat["financial"] || "pdf"}
                           onValueChange={(value) => setSelectedReportFormat(prev => ({ ...prev, "financial": value }))}
                         >
@@ -249,8 +249,8 @@ export function GovReports() {
                           </SelectContent>
                         </Select>
                       </div>
-                      <Button 
-                        className="w-full" 
+                      <Button
+                        className="w-full"
                         onClick={() => handleGenerateReport("Financial")}
                         disabled={isGenerating["financial"]}
                       >
@@ -273,7 +273,7 @@ export function GovReports() {
                       </div>
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Report Format</label>
-                        <Select 
+                        <Select
                           value={selectedReportFormat["nutrition"] || "pdf"}
                           onValueChange={(value) => setSelectedReportFormat(prev => ({ ...prev, "nutrition": value }))}
                         >
@@ -287,8 +287,8 @@ export function GovReports() {
                           </SelectContent>
                         </Select>
                       </div>
-                      <Button 
-                        className="w-full" 
+                      <Button
+                        className="w-full"
                         onClick={() => handleGenerateReport("Nutrition Analysis")}
                         disabled={isGenerating["nutrition"]}
                       >
@@ -311,7 +311,7 @@ export function GovReports() {
                       </div>
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Report Format</label>
-                        <Select 
+                        <Select
                           value={selectedReportFormat["performance"] || "pdf"}
                           onValueChange={(value) => setSelectedReportFormat(prev => ({ ...prev, "performance": value }))}
                         >
@@ -325,8 +325,8 @@ export function GovReports() {
                           </SelectContent>
                         </Select>
                       </div>
-                      <Button 
-                        className="w-full" 
+                      <Button
+                        className="w-full"
                         onClick={() => handleGenerateReport("District Performance")}
                         disabled={isGenerating["performance"]}
                       >
@@ -349,7 +349,7 @@ export function GovReports() {
                       </div>
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Report Format</label>
-                        <Select 
+                        <Select
                           value={selectedReportFormat["supplier"] || "pdf"}
                           onValueChange={(value) => setSelectedReportFormat(prev => ({ ...prev, "supplier": value }))}
                         >
@@ -363,8 +363,8 @@ export function GovReports() {
                           </SelectContent>
                         </Select>
                       </div>
-                      <Button 
-                        className="w-full" 
+                      <Button
+                        className="w-full"
                         onClick={() => handleGenerateReport("Supplier Evaluation")}
                         disabled={isGenerating["supplier"]}
                       >
@@ -373,7 +373,7 @@ export function GovReports() {
                     </div>
                   </CardContent>
                 </Card>
- 
+
               </div>
             </TabsContent>
 
@@ -438,7 +438,7 @@ export function GovReports() {
                           <TableHead>Type</TableHead>
                           <TableHead>Period</TableHead>
                           <TableHead>Generated</TableHead>
-                          <TableHead>Status</TableHead> 
+                          <TableHead>Status</TableHead>
                           <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -456,7 +456,7 @@ export function GovReports() {
                                   {report.generatedDate}
                                 </div>
                               </TableCell>
-                              <TableCell>{getStatusBadge(report.status)}</TableCell> 
+                              <TableCell>{getStatusBadge(report.status)}</TableCell>
                               <TableCell className="text-right">
                                 <Button
                                   variant="outline"

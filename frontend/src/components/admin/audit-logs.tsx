@@ -3,7 +3,7 @@ import { Link } from "react-router-dom"
 import { Calendar, Download, FileText, Home, Search, Shield, Users, X } from "lucide-react"
 import { format, subDays } from "date-fns"
 import { DateRange } from "react-day-picker"
-import apiClient from "@/lib/axios"
+import { adminService, AuditLog } from "./service/adminService"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,22 +16,7 @@ import { Pagination, PaginationContent, PaginationItem, PaginationLink, Paginati
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 
-interface User {
-  id: string
-  names: string
-  role: string
-  email: string 
-}
 
-interface AuditLog {
-  id?: string
-  timestamp: string
-  user: User | null
-  action: string
-  resource: string
-  details: string
-  actionStatus: string
-}
 
 export function AdminAuditLogs() {
   const [auditLogsList, setAuditLogsList] = useState<AuditLog[]>([])
@@ -46,19 +31,18 @@ export function AdminAuditLogs() {
     to: new Date(),
   })
   const [showDatePicker, setShowDatePicker] = useState(false)
- 
+
   const fetchAuditLogsList = async () => {
     try {
-      const response = await apiClient.get("/audit")
-      const data = response.data
+      const data = await adminService.getAuditLogs()
       setAuditLogsList(data)
     } catch (error: unknown) {
-      console.error("Error fetching audit logs:", error) 
-      if (process.env.NODE_ENV !== 'production' && 
-          error instanceof Error && 
-          error.message?.includes('Failed to fetch')) {
+      console.error("Error fetching audit logs:", error)
+      if (process.env.NODE_ENV !== 'production' &&
+        error instanceof Error &&
+        error.message?.includes('Failed to fetch')) {
         console.warn('Amplitude analytics error (safe to ignore in development)')
-      } else { 
+      } else {
         console.error('Failed to load audit logs. Please try again later.')
       }
     } finally {
@@ -75,23 +59,23 @@ export function AdminAuditLogs() {
     const userName = log.user?.names || 'System'
     const userRole = log.user?.role || 'SYSTEM'
     const logDate = new Date(log.timestamp)
-    
-    const isInDateRange = !dateRange?.from || !dateRange?.to || 
+
+    const isInDateRange = !dateRange?.from || !dateRange?.to ||
       (logDate >= dateRange.from && logDate <= new Date(dateRange.to.getTime() + 24 * 60 * 60 * 1000 - 1))
-    
+
     const matchesSearch =
       userName.toLowerCase().includes(searchLower) ||
       userRole.toLowerCase().includes(searchLower) ||
       log.action?.toLowerCase().includes(searchLower) ||
       log.resource?.toLowerCase().includes(searchLower) ||
       log.details?.toLowerCase().includes(searchLower)
- 
+
     const matchesAction = selectedAction === "all" || log.action === selectedAction
-     
+
     const statusToCheck = log.actionStatus?.toLowerCase() || ''
-    const statusMatch = selectedStatus === "all" || 
-                       (selectedStatus === "success" && statusToCheck === "success") ||
-                       (selectedStatus === "failed" && (statusToCheck === "failed" || statusToCheck === "failure"))
+    const statusMatch = selectedStatus === "all" ||
+      (selectedStatus === "success" && statusToCheck === "success") ||
+      (selectedStatus === "failed" && (statusToCheck === "failed" || statusToCheck === "failure"))
 
     return isInDateRange && matchesSearch && matchesAction && statusMatch
   })
@@ -108,7 +92,7 @@ export function AdminAuditLogs() {
     if (!actionStatus) {
       return <Badge variant="outline">Unknown</Badge>;
     }
-    
+
     const statusLower = actionStatus.toLowerCase();
     switch (statusLower) {
       case "success":
@@ -156,7 +140,7 @@ export function AdminAuditLogs() {
       supplier: "bg-indigo-100 text-indigo-800",
     };
 
-    const resourceType = Object.keys(colors).find(key => 
+    const resourceType = Object.keys(colors).find(key =>
       resourceLower.includes(key)
     ) || 'default';
 
@@ -169,25 +153,25 @@ export function AdminAuditLogs() {
 
   const getDetailsBadge = (details: string) => {
     if (!details) return details;
-    
+
     const detailsLower = details.toLowerCase();
-    
+
     if (detailsLower.includes('success')) {
       return <span className="text-black font-medium">{details}</span>;
     }
-    
+
     if (detailsLower.includes('fail') || detailsLower.includes('error')) {
       return <span className="text-red-600 font-medium">{details}</span>;
     }
-    
+
     return details;
   };
 
   const handleExportPDF = async () => {
-    try { 
+    try {
       const jsPDF = (await import('jspdf')).default;
       const autoTable = (await import('jspdf-autotable')).default;
-      
+
       const doc = new jsPDF({
         orientation: 'landscape',
         unit: 'mm',
@@ -195,7 +179,7 @@ export function AdminAuditLogs() {
 
       doc.setFontSize(18);
       doc.text('Audit Logs Report', 14, 20);
-      
+
       doc.setFontSize(10);
       const dateRangeText = `Date Range: ${dateRange?.from ? format(dateRange.from, 'PPP') : 'Start date'} to ${dateRange?.to ? format(dateRange.to, 'PPP') : 'End date'}`;
       doc.text(dateRangeText, 14, 30);
@@ -229,8 +213,8 @@ export function AdminAuditLogs() {
           const pageSize = doc.internal.pageSize;
           const pageHeight = pageSize.height ? pageSize.height : pageSize.getHeight();
           doc.text(
-            `Page ${data.pageCount} of ${data.pageCount}`, 
-            data.settings.margin.left, 
+            `Page ${data.pageCount} of ${data.pageCount}`,
+            data.settings.margin.left,
             pageHeight - 10
           );
         }
@@ -318,10 +302,10 @@ export function AdminAuditLogs() {
                       <div className="p-4">
                         <div className="flex justify-between items-center mb-4">
                           <h4 className="font-medium">Select Date Range</h4>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-6 w-6" 
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
                             onClick={() => setShowDatePicker(false)}
                           >
                             <X className="h-4 w-4" />
@@ -336,8 +320,8 @@ export function AdminAuditLogs() {
                           numberOfMonths={2}
                         />
                         <div className="flex justify-end gap-2 mt-4">
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
                             onClick={() => {
                               setDateRange({
@@ -348,7 +332,7 @@ export function AdminAuditLogs() {
                           >
                             Last 30 Days
                           </Button>
-                          <Button 
+                          <Button
                             size="sm"
                             onClick={() => {
                               handleExportPDF();
@@ -444,7 +428,7 @@ export function AdminAuditLogs() {
                       />
                     </PaginationItem>
                     {Array.from({ length: totalPages }, (_, i) => {
-                      const pageNum = i + 1; 
+                      const pageNum = i + 1;
                       if (pageNum === 1 || pageNum === totalPages || (pageNum >= page - 1 && pageNum <= page + 1)) {
                         return (
                           <PaginationItem key={i}>

@@ -3,7 +3,7 @@ import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
 import { AlertTriangle, ArrowDown, ArrowUp, Calendar, Package, ShoppingBag, TrendingDown, TrendingUp, Truck } from "lucide-react"
 import PageHeader from "@/components/shared/page-header"
-import apiClient from "@/lib/axios"
+import { stockService } from "./service/stockService"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -102,45 +102,66 @@ export function StockDashboard() {
         return
       }
 
-      // Fetch dashboard statistics
-      const statsResponse = await apiClient.get(`/stock/dashboard/stats?schoolId=${schoolId}`)
-      if (statsResponse.data) {
-        setStats(statsResponse.data)
+      const totalInventory = await stockService.getTotalInventory(schoolId)
+      const itemsLowInStock = await stockService.getTotalItemInLow(schoolId)
+      const itemsExpiringSoon = await stockService.getExpiredSoonCount(schoolId)
+
+      setStats({
+        totalInventory: `${totalInventory} kg`,
+        itemsLowInStock: itemsLowInStock,
+        lowStockItems: itemsLowInStock > 0 ? `${itemsLowInStock} items are low` : "",
+        incomingDeliveries: 0,
+        nextDeliveryTime: "",
+        itemsExpiringSoon: Math.round(itemsExpiringSoon),
+        expiringItem: "",
+        expiringDays: 0,
+      })
+
+      const stockLevelsData = await stockService.getCurrentStockLevels(schoolId)
+      if (stockLevelsData) {
+        setStockLevels(stockLevelsData.map(item => ({
+          itemName: item.itemName,
+          currentQuantity: `${item.currentQuantity} ${item.unit}`,
+          percentage: item.percentage
+        })))
       }
 
-      // Fetch stock levels
-      const stockLevelsResponse = await apiClient.get(`/stock/dashboard/stock-levels?schoolId=${schoolId}`)
-      if (stockLevelsResponse.data) {
-        setStockLevels(stockLevelsResponse.data)
-      }
-
-      // Fetch stock movements
       if (activeTab === "movement") {
-        const movementsResponse = await apiClient.get(`/stock/dashboard/movements?schoolId=${schoolId}&limit=5`)
-        if (movementsResponse.data) {
-          setStockMovements(movementsResponse.data)
+        const movementsData = await stockService.findRecentActivities(schoolId)
+        if (movementsData) {
+          setStockMovements(movementsData.map(activity => ({
+            id: activity.activityId,
+            type: activity.activityType.toLowerCase().includes("in") ? "in" : "out",
+            itemName: activity.itemName,
+            quantity: `${activity.quantity}`,
+            source: activity.activityType.toLowerCase().includes("in") ? activity.schoolName : "Direct User", // Source mapping might need adjustment
+            timestamp: new Date(activity.activityDate).toLocaleDateString()
+          })))
         }
       }
 
-      // Fetch expiring items
       if (activeTab === "expiry") {
-        const expiringResponse = await apiClient.get(`/stock/dashboard/expiring-items?schoolId=${schoolId}`)
-        if (expiringResponse.data) {
-          setExpiringItems(expiringResponse.data)
+        const expiringData = await stockService.getExpiringSoonList(schoolId)
+        if (expiringData) {
+          setExpiringItems(expiringData.map(item => ({
+            itemName: item.item?.name || "Unknown Item",
+            quantity: `${item.quantity}`,
+            batchNumber: item.orders?.orderNumber || "N/A",
+            expiryDate: new Date(item.expirationDate).toLocaleDateString(),
+            daysLeft: Math.ceil((new Date(item.expirationDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+          })))
         }
       }
 
-      // Fetch weekly trend
-      const trendResponse = await apiClient.get(`/stock/dashboard/weekly-trend?schoolId=${schoolId}`)
-      if (trendResponse.data) {
-        setWeeklyTrend(trendResponse.data)
+      const trendData = await stockService.getWeeklyTrendBySchool(schoolId)
+      if (trendData) {
+        setWeeklyTrend(trendData.map(item => ({
+          day: String(item[0]),
+          value: Number(item[1])
+        })))
       }
 
-      // Fetch upcoming tasks
-      const tasksResponse = await apiClient.get(`/stock/dashboard/upcoming-tasks?schoolId=${schoolId}`)
-      if (tasksResponse.data) {
-        setUpcomingTasks(tasksResponse.data)
-      }
+      setUpcomingTasks([])
     } catch (error: any) {
       console.error("Error fetching dashboard data:", error)
       toast.error("Failed to load dashboard data. Please refresh the page.")
@@ -160,9 +181,6 @@ export function StockDashboard() {
           HomeIcon={Package}
           profileTo="/stock-profile"
           userName="Stock Keeper"
-          userEmail="stockkeeper@school.rw"
-          avatarSrc="/userIcon.png"
-          avatarFallback="SK"
         />
 
         {/* Main Content */}
@@ -176,8 +194,7 @@ export function StockDashboard() {
               <CardContent>
                 <div className="text-2xl font-bold">{loading ? "..." : stats.totalInventory}</div>
                 <div className="flex items-center text-xs text-green-500">
-                  <ArrowUp className="mr-1 h-3 w-3" />
-                  <span>{loading ? "Loading..." : "12% from last month"}</span>
+                  <span>{loading ? "Loading..." : ""}</span>
                 </div>
               </CardContent>
             </Card>
@@ -189,7 +206,7 @@ export function StockDashboard() {
               <CardContent>
                 <div className="text-2xl font-bold">{loading ? "..." : stats.itemsLowInStock}</div>
                 <div className="flex items-center text-xs text-amber-500">
-                  <span>{loading ? "Loading..." : stats.lowStockItems || "No items low in stock"}</span>
+                  <span>{loading ? "Loading..." : stats.lowStockItems || " "}</span>
                 </div>
               </CardContent>
             </Card>
@@ -201,8 +218,7 @@ export function StockDashboard() {
               <CardContent>
                 <div className="text-2xl font-bold">{loading ? "..." : stats.incomingDeliveries}</div>
                 <div className="flex items-center text-xs text-muted-foreground">
-                  <Calendar className="mr-1 h-3 w-3" />
-                  <span>{loading ? "Loading..." : stats.nextDeliveryTime || "No upcoming deliveries"}</span>
+                  <span>{loading ? "Loading..." : stats.nextDeliveryTime || ""}</span>
                 </div>
               </CardContent>
             </Card>
@@ -214,13 +230,12 @@ export function StockDashboard() {
               <CardContent>
                 <div className="text-2xl font-bold">{loading ? "..." : stats.itemsExpiringSoon}</div>
                 <div className="flex items-center text-xs text-red-500">
-                  <Calendar className="mr-1 h-3 w-3" />
                   <span>
                     {loading
                       ? "Loading..."
                       : stats.itemsExpiringSoon > 0
                         ? `${stats.expiringItem}: ${stats.expiringDays} days left`
-                        : "No items expiring soon"}
+                        : " "}
                   </span>
                 </div>
               </CardContent>
@@ -289,9 +304,8 @@ export function StockDashboard() {
                           <div key={movement.id} className="flex items-center justify-between rounded-md bg-muted/50 p-3">
                             <div className="flex items-center gap-3">
                               <div
-                                className={`flex h-8 w-8 items-center justify-center rounded-full ${
-                                  movement.type === "in" ? "bg-green-100" : "bg-red-100"
-                                }`}
+                                className={`flex h-8 w-8 items-center justify-center rounded-full ${movement.type === "in" ? "bg-green-100" : "bg-red-100"
+                                  }`}
                               >
                                 {movement.type === "in" ? (
                                   <ArrowDown className="h-4 w-4 text-green-600" />
@@ -373,9 +387,6 @@ export function StockDashboard() {
                       )}
                     </div>
                   </CardContent>
-                  <CardFooter>
-                    <Button className="w-full">Generate FIFO Distribution Plan</Button>
-                  </CardFooter>
                 </Card>
               </TabsContent>
             </Tabs>
@@ -385,7 +396,7 @@ export function StockDashboard() {
             <Card>
               <CardHeader>
                 <CardTitle>Weekly Stock Trend</CardTitle>
-                <CardDescription>Stock levels over the past week</CardDescription>
+                <CardDescription>Stock levels on this week</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="h-[200px] w-full">
@@ -393,15 +404,15 @@ export function StockDashboard() {
                     <div className="grid grid-cols-7 gap-2">
                       {loading && weeklyTrend.length === 0
                         ? ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
-                            <div key={day} className="text-center text-xs text-muted-foreground">
-                              {day}
-                            </div>
-                          ))
+                          <div key={day} className="text-center text-xs text-muted-foreground">
+                            {day}
+                          </div>
+                        ))
                         : weeklyTrend.map((trend) => (
-                            <div key={trend.day} className="text-center text-xs text-muted-foreground">
-                              {trend.day}
-                            </div>
-                          ))}
+                          <div key={trend.day} className="text-center text-xs text-muted-foreground">
+                            {trend.day}
+                          </div>
+                        ))}
                     </div>
                     <div className="mt-2 grid grid-cols-7 gap-2">
                       {loading && weeklyTrend.length === 0 ? (
@@ -410,15 +421,16 @@ export function StockDashboard() {
                         <div className="col-span-7 text-center text-sm text-muted-foreground">No trend data available</div>
                       ) : (
                         weeklyTrend.map((trend, index) => {
-                          const maxValue = Math.max(...weeklyTrend.map(t => t.value), 5000)
+                          const maxVal = Math.max(...weeklyTrend.map(t => t.value), 0)
+                          const maxValue = maxVal > 0 ? maxVal : 100
                           const height = (trend.value / maxValue) * 100
                           return (
                             <div key={index} className="space-y-2">
                               <div className="h-[120px] w-full bg-muted/50">
                                 <div className="relative h-full w-full">
                                   <div
-                                    className="absolute bottom-0 w-full bg-primary"
-                                    style={{ height: `${Math.max(10, height)}%` }}
+                                    className="absolute bottom-0 w-full bg-primary transition-all duration-300"
+                                    style={{ height: `${trend.value > 0 ? Math.max(5, height) : 0}%` }}
                                   ></div>
                                 </div>
                               </div>
@@ -431,51 +443,6 @@ export function StockDashboard() {
                   </div>
                 </div>
               </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Upcoming Tasks</CardTitle>
-                <CardDescription>Tasks that need your attention</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {loading && upcomingTasks.length === 0 ? (
-                    <div className="text-sm text-muted-foreground">Loading tasks...</div>
-                  ) : upcomingTasks.length === 0 ? (
-                    <div className="text-sm text-muted-foreground">No upcoming tasks</div>
-                  ) : (
-                    upcomingTasks.map((task) => {
-                      const badgeVariant =
-                        task.priority === "Urgent" || task.priority === "High"
-                          ? task.priority === "Urgent"
-                            ? "destructive"
-                            : "default"
-                          : "outline"
-                      return (
-                        <div key={task.id} className="flex items-center gap-4">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                            <Truck className="h-5 w-5 text-primary" />
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-sm font-medium leading-none">{task.title}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {task.date} {task.time ? `, ${task.time}` : ""}
-                            </p>
-                          </div>
-                          <Badge variant={badgeVariant} className="ml-auto">
-                            {task.priority}
-                          </Badge>
-                        </div>
-                      )
-                    })
-                  )}
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button variant="outline" className="w-full">
-                  View All Tasks
-                </Button>
-              </CardFooter>
             </Card>
           </div>
         </main>

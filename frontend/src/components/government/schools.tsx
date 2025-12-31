@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import {  Package,  Plus,  Search,  Edit,  Trash2,  Loader2,  Eye,
+import {
+  Package, Plus, Search, Edit, Trash2, Loader2, Eye,
 } from "lucide-react"
-import apiClient from "@/lib/axios"
+import { governmentService } from "./service/governmentService"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -42,54 +43,10 @@ interface School {
   bankAccount: string
   status: boolean
   district: District
-  bank?: any 
+  bank?: any
 }
 
-const schoolService = {
-  getAllSchools: async () => {
-    const response = await apiClient.get(`/school/all`)
-    return response.data
-  },
 
-  getSchool: async (id: string) => {
-    const response = await apiClient.get(`/school/${id}`)
-    return response.data
-  },
-
-  registerSchool: async (schoolData: any) => {
-    const response = await apiClient.post(`/school/register`, schoolData)
-    return response.data
-  },
-
-  updateSchool: async (id: string, schoolData: any) => {
-    const response = await apiClient.put(`/school/update/${id}`, schoolData)
-    return response.data
-  },
-
-  deleteSchool: async (id: string) => {
-    const response = await apiClient.delete(`/school/delete/${id}`)
-    return response.data
-  },
-}
-
-const schoolApiService = {
-  getProvinces: async () => {
-    const response = await apiClient.get(`/school/province`)
-    return response.data
-  },
-
-  getDistrictsByProvince: async (province: string) => {
-    const response = await apiClient.get(`/school/districts-by-province`, {
-      params: { province }
-    })
-    return response.data
-  },
-
-  getBanks: async () => {
-    const response = await apiClient.get(`/school/bankName`)
-    return response.data
-  },
-}
 
 export function GovSchools() {
   const [searchTerm, setSearchTerm] = useState("")
@@ -124,9 +81,9 @@ export function GovSchools() {
 
   const fetchAllDistricts = async () => {
     try {
-      const allProvinces = await schoolApiService.getProvinces()
-      const districtsPromises = allProvinces.map((province: string) => 
-        schoolApiService.getDistrictsByProvince(province)
+      const allProvinces = await governmentService.getSchoolProvinces()
+      const districtsPromises = allProvinces.map((province: string) =>
+        governmentService.getSchoolDistrictsByProvince(province)
       )
       const districtsArrays = await Promise.all(districtsPromises)
       const allDistrictsList = districtsArrays.flat()
@@ -155,7 +112,7 @@ export function GovSchools() {
   const fetchSchools = async () => {
     try {
       setLoading(true)
-      const data = await schoolService.getAllSchools()
+      const data = await governmentService.getAllSchools()
       setSchools(data || [])
     } catch (err: any) {
       toast.error("Failed to load schools")
@@ -166,7 +123,7 @@ export function GovSchools() {
 
   const fetchProvinces = async () => {
     try {
-      const data = await schoolApiService.getProvinces()
+      const data = await governmentService.getSchoolProvinces()
       const provinceValues = Array.isArray(data) ? data.map((p: any) => typeof p === 'string' ? p : p.toString()) : []
       setProvinces(provinceValues)
     } catch (err: any) {
@@ -176,7 +133,7 @@ export function GovSchools() {
 
   const fetchDistrictsByProvince = async (province: string) => {
     try {
-      const data = await schoolApiService.getDistrictsByProvince(province)
+      const data = await governmentService.getSchoolDistrictsByProvince(province)
       setAvailableDistricts(data || [])
     } catch (err: any) {
       setAvailableDistricts([])
@@ -185,7 +142,7 @@ export function GovSchools() {
 
   const fetchBanks = async () => {
     try {
-      const data = await schoolApiService.getBanks()
+      const data = await governmentService.getBanks()
       const bankValues = Array.isArray(data) ? data.map((b: any) => typeof b === 'string' ? b : b.toString()) : []
       setBanks(bankValues)
     } catch (err: any) {
@@ -193,21 +150,18 @@ export function GovSchools() {
     }
   }
 
-  const handleLogout = async (e: React.MouseEvent) => {
-    e.preventDefault()
-    await logout(navigate)
-  }
+
 
   // Helper function to normalize phone number to exactly 10 digits
   const normalizePhoneNumber = (phone: string): string => {
     // Remove all non-digit characters
     let digits = phone.replace(/\D/g, '')
-    
+
     // If it starts with 250 (country code), remove it
     if (digits.startsWith('250') && digits.length > 10) {
       digits = digits.substring(3)
     }
-    
+
     // Ensure it's exactly 10 digits, if less than 10, pad with leading 0
     if (digits.length < 10) {
       digits = digits.padStart(10, '0')
@@ -215,7 +169,7 @@ export function GovSchools() {
       // If more than 10, take the last 10 digits
       digits = digits.substring(digits.length - 10)
     }
-    
+
     return digits
   }
 
@@ -251,7 +205,7 @@ export function GovSchools() {
         schoolPayload.bank = newSchool.bank
       }
 
-      await schoolService.registerSchool(schoolPayload)
+      await governmentService.registerSchool(schoolPayload)
       toast.success("School added successfully")
       setIsAddDialogOpen(false)
       setNewSchool({
@@ -270,10 +224,10 @@ export function GovSchools() {
       setAvailableDistricts([])
       fetchSchools()
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || 
-                          (typeof err.response?.data === 'string' ? err.response.data : JSON.stringify(err.response?.data)) ||
-                          err.message || 
-                          "Failed to add school"
+      const errorMessage = err.response?.data?.message ||
+        (typeof err.response?.data === 'string' ? err.response.data : JSON.stringify(err.response?.data)) ||
+        err.message ||
+        "Failed to add school"
       toast.error(typeof errorMessage === 'string' ? errorMessage : "Failed to add school")
     } finally {
       setIsProcessing(false)
@@ -340,7 +294,7 @@ export function GovSchools() {
         schoolPayload.bank = newSchool.bank
       }
 
-      await schoolService.updateSchool(selectedSchool.id, schoolPayload)
+      await governmentService.updateSchool(selectedSchool.id, schoolPayload)
       toast.success("School updated successfully")
       setIsEditDialogOpen(false)
       setSelectedSchool(null)
@@ -360,10 +314,10 @@ export function GovSchools() {
       setAvailableDistricts([])
       fetchSchools()
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || 
-                          (typeof err.response?.data === 'string' ? err.response.data : JSON.stringify(err.response?.data)) ||
-                          err.message || 
-                          "Failed to update school"
+      const errorMessage = err.response?.data?.message ||
+        (typeof err.response?.data === 'string' ? err.response.data : JSON.stringify(err.response?.data)) ||
+        err.message ||
+        "Failed to update school"
       toast.error(typeof errorMessage === 'string' ? errorMessage : "Failed to update school")
     } finally {
       setIsProcessing(false)
@@ -377,7 +331,7 @@ export function GovSchools() {
 
     try {
       setIsProcessing(true)
-      await schoolService.deleteSchool(schoolId)
+      await governmentService.deleteSchool(schoolId)
       toast.success("School deleted successfully")
       fetchSchools()
     } catch (err: any) {
@@ -395,9 +349,9 @@ export function GovSchools() {
         school.directorNames.toLowerCase().includes(searchTerm.toLowerCase()) ||
         school.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
         school.district?.district.toLowerCase().includes(searchTerm.toLowerCase())
-      
+
       const matchesDistrict = districtFilter === "all" || school.district?.id === districtFilter
-      
+
       return matchesSearch && matchesDistrict
     }
   )
@@ -487,216 +441,216 @@ export function GovSchools() {
                           Add School
                         </Button>
                       </DialogTrigger>
-                <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>Add New School</DialogTitle>
-                    <DialogDescription>
-                      Register a new school in the system.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="name" className="text-right">
-                        Name *
-                      </Label>
-                      <Input
-                        id="name"
-                        value={newSchool.name}
-                        onChange={(e) => setNewSchool({ ...newSchool, name: e.target.value })}
-                        className="col-span-3"
-                        placeholder="School name"
-                      />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="director" className="text-right">
-                        Director *
-                      </Label>
-                      <Input
-                        id="director"
-                        value={newSchool.directorNames}
-                        onChange={(e) => setNewSchool({ ...newSchool, directorNames: e.target.value })}
-                        className="col-span-3"
-                        placeholder="Director full name"
-                      />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="email" className="text-right">
-                        Email *
-                      </Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={newSchool.email}
-                        onChange={(e) => setNewSchool({ ...newSchool, email: e.target.value })}
-                        className="col-span-3"
-                        placeholder="school@example.com"
-                      />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="phone" className="text-right">
-                        Phone *
-                      </Label>
-                      <Input
-                        id="phone"
-                        value={newSchool.phone}
-                        onChange={(e) => setNewSchool({ ...newSchool, phone: e.target.value })}
-                        className="col-span-3"
-                        placeholder="0785061721 (10 digits)"
-                        maxLength={13}
-                      />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="address" className="text-right">
-                        Address *
-                      </Label>
-                      <Input
-                        id="address"
-                        value={newSchool.address}
-                        onChange={(e) => setNewSchool({ ...newSchool, address: e.target.value })}
-                        className="col-span-3"
-                        placeholder="School address"
-                      />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="students" className="text-right">
-                        Students *
-                      </Label>
-                      <Input
-                        id="students"
-                        type="number"
-                        value={newSchool.student}
-                        onChange={(e) => setNewSchool({ ...newSchool, student: e.target.value })}
-                        className="col-span-3"
-                        placeholder="Number of students"
-                      />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="province" className="text-right">
-                        Province *
-                      </Label>
-                      <Select 
-                        value={newSchool.province} 
-                        onValueChange={(value) => {
-                          setNewSchool({ ...newSchool, province: value, districtId: "" })
-                        }}
-                      >
-                        <SelectTrigger className="col-span-3">
-                          <SelectValue placeholder="Select province" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {provinces.map((province) => (
-                            <SelectItem key={province} value={province}>
-                              {province}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="district" className="text-right">
-                        District *
-                      </Label>
-                      <Select 
-                        value={newSchool.districtId} 
-                        onValueChange={(value) => setNewSchool({ ...newSchool, districtId: value })}
-                        disabled={!newSchool.province}
-                      >
-                        <SelectTrigger className="col-span-3">
-                          <SelectValue placeholder={newSchool.province ? "Select district" : "Select province first"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableDistricts.map((district) => (
-                            <SelectItem key={district.id} value={district.id}>
-                              {district.district}
-                            </SelectItem>
-                          ))}
-                          {availableDistricts.length === 0 && newSchool.province && (
-                            <SelectItem value="new" disabled>
-                              No districts found for this province.
-                            </SelectItem>
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="bank" className="text-right">
-                        Bank Name
-                      </Label>
-                      <Select 
-                        value={newSchool.bank} 
-                        onValueChange={(value) => setNewSchool({ ...newSchool, bank: value })}
-                      >
-                        <SelectTrigger className="col-span-3">
-                          <SelectValue placeholder="Select bank" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {banks.map((bank) => (
-                            <SelectItem key={bank} value={bank}>
-                              {bank}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="bankAccount" className="text-right">
-                        Bank Account *
-                      </Label>
-                      <Input
-                        id="bankAccount"
-                        value={newSchool.bankAccount}
-                        onChange={(e) => setNewSchool({ ...newSchool, bankAccount: e.target.value })}
-                        className="col-span-3"
-                        placeholder="Bank account number"
-                      />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="status" className="text-right">
-                        Status
-                      </Label>
-                      <Select value={newSchool.status ? "true" : "false"} onValueChange={(value) => setNewSchool({ ...newSchool, status: value === "true" })}>
-                        <SelectTrigger className="col-span-3">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="true">Active</SelectItem>
-                          <SelectItem value="false">Inactive</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setIsAddDialogOpen(false)
-                        setNewSchool({
-                          name: "",
-                          directorNames: "",
-                          email: "",
-                          phone: "",
-                          address: "",
-                          student: "",
-                          bank: "",
-                          bankAccount: "",
-                          status: true,
-                          province: "",
-                          districtId: "",
-                        })
-                        setAvailableDistricts([])
-                      }}
-                      disabled={isProcessing}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={handleAddSchool}
-                      disabled={isProcessing || !newSchool.name || !newSchool.directorNames || !newSchool.email || !newSchool.phone || !newSchool.address || !newSchool.student || !newSchool.districtId || !newSchool.bankAccount}
-                    >
-                      {isProcessing ? "Adding..." : "Add School"}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
+                      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+                        <DialogHeader>
+                          <DialogTitle>Add New School</DialogTitle>
+                          <DialogDescription>
+                            Register a new school in the system.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="name" className="text-right">
+                              Name *
+                            </Label>
+                            <Input
+                              id="name"
+                              value={newSchool.name}
+                              onChange={(e) => setNewSchool({ ...newSchool, name: e.target.value })}
+                              className="col-span-3"
+                              placeholder="School name"
+                            />
+                          </div>
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="director" className="text-right">
+                              Director *
+                            </Label>
+                            <Input
+                              id="director"
+                              value={newSchool.directorNames}
+                              onChange={(e) => setNewSchool({ ...newSchool, directorNames: e.target.value })}
+                              className="col-span-3"
+                              placeholder="Director full name"
+                            />
+                          </div>
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="email" className="text-right">
+                              Email *
+                            </Label>
+                            <Input
+                              id="email"
+                              type="email"
+                              value={newSchool.email}
+                              onChange={(e) => setNewSchool({ ...newSchool, email: e.target.value })}
+                              className="col-span-3"
+                              placeholder="school@example.com"
+                            />
+                          </div>
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="phone" className="text-right">
+                              Phone *
+                            </Label>
+                            <Input
+                              id="phone"
+                              value={newSchool.phone}
+                              onChange={(e) => setNewSchool({ ...newSchool, phone: e.target.value })}
+                              className="col-span-3"
+                              placeholder="0785061721 (10 digits)"
+                              maxLength={13}
+                            />
+                          </div>
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="address" className="text-right">
+                              Address *
+                            </Label>
+                            <Input
+                              id="address"
+                              value={newSchool.address}
+                              onChange={(e) => setNewSchool({ ...newSchool, address: e.target.value })}
+                              className="col-span-3"
+                              placeholder="School address"
+                            />
+                          </div>
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="students" className="text-right">
+                              Students *
+                            </Label>
+                            <Input
+                              id="students"
+                              type="number"
+                              value={newSchool.student}
+                              onChange={(e) => setNewSchool({ ...newSchool, student: e.target.value })}
+                              className="col-span-3"
+                              placeholder="Number of students"
+                            />
+                          </div>
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="province" className="text-right">
+                              Province *
+                            </Label>
+                            <Select
+                              value={newSchool.province}
+                              onValueChange={(value) => {
+                                setNewSchool({ ...newSchool, province: value, districtId: "" })
+                              }}
+                            >
+                              <SelectTrigger className="col-span-3">
+                                <SelectValue placeholder="Select province" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {provinces.map((province) => (
+                                  <SelectItem key={province} value={province}>
+                                    {province}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="district" className="text-right">
+                              District *
+                            </Label>
+                            <Select
+                              value={newSchool.districtId}
+                              onValueChange={(value) => setNewSchool({ ...newSchool, districtId: value })}
+                              disabled={!newSchool.province}
+                            >
+                              <SelectTrigger className="col-span-3">
+                                <SelectValue placeholder={newSchool.province ? "Select district" : "Select province first"} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {availableDistricts.map((district) => (
+                                  <SelectItem key={district.id} value={district.id}>
+                                    {district.district}
+                                  </SelectItem>
+                                ))}
+                                {availableDistricts.length === 0 && newSchool.province && (
+                                  <SelectItem value="new" disabled>
+                                    No districts found for this province.
+                                  </SelectItem>
+                                )}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="bank" className="text-right">
+                              Bank Name
+                            </Label>
+                            <Select
+                              value={newSchool.bank}
+                              onValueChange={(value) => setNewSchool({ ...newSchool, bank: value })}
+                            >
+                              <SelectTrigger className="col-span-3">
+                                <SelectValue placeholder="Select bank" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {banks.map((bank) => (
+                                  <SelectItem key={bank} value={bank}>
+                                    {bank}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="bankAccount" className="text-right">
+                              Bank Account *
+                            </Label>
+                            <Input
+                              id="bankAccount"
+                              value={newSchool.bankAccount}
+                              onChange={(e) => setNewSchool({ ...newSchool, bankAccount: e.target.value })}
+                              className="col-span-3"
+                              placeholder="Bank account number"
+                            />
+                          </div>
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="status" className="text-right">
+                              Status
+                            </Label>
+                            <Select value={newSchool.status ? "true" : "false"} onValueChange={(value) => setNewSchool({ ...newSchool, status: value === "true" })}>
+                              <SelectTrigger className="col-span-3">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="true">Active</SelectItem>
+                                <SelectItem value="false">Inactive</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <DialogFooter>
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              setIsAddDialogOpen(false)
+                              setNewSchool({
+                                name: "",
+                                directorNames: "",
+                                email: "",
+                                phone: "",
+                                address: "",
+                                student: "",
+                                bank: "",
+                                bankAccount: "",
+                                status: true,
+                                province: "",
+                                districtId: "",
+                              })
+                              setAvailableDistricts([])
+                            }}
+                            disabled={isProcessing}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            onClick={handleAddSchool}
+                            disabled={isProcessing || !newSchool.name || !newSchool.directorNames || !newSchool.email || !newSchool.phone || !newSchool.address || !newSchool.student || !newSchool.districtId || !newSchool.bankAccount}
+                          >
+                            {isProcessing ? "Adding..." : "Add School"}
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
                     </Dialog>
                   </div>
                 </div>
@@ -919,8 +873,8 @@ export function GovSchools() {
               <Label htmlFor="edit-province" className="text-right">
                 Province *
               </Label>
-              <Select 
-                value={newSchool.province} 
+              <Select
+                value={newSchool.province}
                 onValueChange={(value) => {
                   setNewSchool({ ...newSchool, province: value, districtId: "" })
                 }}
@@ -941,8 +895,8 @@ export function GovSchools() {
               <Label htmlFor="edit-district" className="text-right">
                 District *
               </Label>
-              <Select 
-                value={newSchool.districtId} 
+              <Select
+                value={newSchool.districtId}
                 onValueChange={(value) => setNewSchool({ ...newSchool, districtId: value })}
                 disabled={!newSchool.province}
               >
@@ -967,8 +921,8 @@ export function GovSchools() {
               <Label htmlFor="edit-bank" className="text-right">
                 Bank Name
               </Label>
-              <Select 
-                value={newSchool.bank} 
+              <Select
+                value={newSchool.bank}
                 onValueChange={(value) => setNewSchool({ ...newSchool, bank: value })}
               >
                 <SelectTrigger className="col-span-3">

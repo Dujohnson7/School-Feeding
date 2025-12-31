@@ -3,7 +3,7 @@ import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
 import { BarChart3, Calendar, Clock, Package, ShoppingCart, User } from "lucide-react"
 import PageHeader from "@/components/shared/page-header"
-import apiClient from "@/lib/axios"
+import { schoolService, SchoolStats, RecentDelivery, UpcomingSchedule } from "./service/schoolService"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -21,34 +21,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { RequestFoodDialog } from "@/components/school/request-food-dialog"
 import { FoodStockGauge } from "@/components/school/food-stock-gauge"
-
-interface SchoolStats {
-  foodStockLevel: number
-  stockLevelStatus: string
-  pendingRequests: number
-  highPriorityRequests: number
-  normalPriorityRequests: number
-  nextDeliveryDate: string
-  nextDeliveryTime: string
-  studentsFedToday: number
-  totalRegisteredStudents: number
-}
-
-interface RecentDelivery {
-  id: string
-  date: string
-  items: string
-  supplier: string
-  status: string
-}
-
-interface UpcomingSchedule {
-  id: string
-  title: string
-  date: string
-  time: string
-  status: "Scheduled" | "Upcoming"
-}
 
 export function SchoolDashboard() {
   const [open, setOpen] = useState(false)
@@ -83,21 +55,21 @@ export function SchoolDashboard() {
       }
 
       // Fetch dashboard statistics
-      const statsResponse = await apiClient.get(`/school/dashboard/stats?schoolId=${schoolId}`)
-      if (statsResponse.data) {
-        setStats(statsResponse.data)
+      const statsData = await schoolService.getDashboardStats(schoolId)
+      if (statsData) {
+        setStats(statsData)
       }
 
       // Fetch recent deliveries
-      const deliveriesResponse = await apiClient.get(`/school/dashboard/recent-deliveries?schoolId=${schoolId}&limit=5`)
-      if (deliveriesResponse.data) {
-        setRecentDeliveries(deliveriesResponse.data)
+      const deliveriesData = await schoolService.getRecentDeliveries(schoolId)
+      if (deliveriesData) {
+        setRecentDeliveries(deliveriesData)
       }
 
       // Fetch upcoming schedule
-      const scheduleResponse = await apiClient.get(`/school/dashboard/upcoming-schedule?schoolId=${schoolId}&limit=4`)
-      if (scheduleResponse.data) {
-        setUpcomingSchedule(scheduleResponse.data)
+      const scheduleData = await schoolService.getUpcomingSchedule(schoolId)
+      if (scheduleData) {
+        setUpcomingSchedule(scheduleData)
       }
     } catch (error: any) {
       console.error("Error fetching dashboard data:", error)

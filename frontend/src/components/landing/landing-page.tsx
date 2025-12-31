@@ -1,18 +1,81 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, type CarouselApi } from "@/components/ui/carousel"
-import { School, Users, Truck, MapPin, TrendingUp, Shield, Clock, CheckCircle, ArrowRight, Phone, Mail, Globe, Menu, X, Brain, BookOpen, Activity, Home, Utensils, GraduationCap, } from "lucide-react"
+import { School, Users, Truck, MapPin, TrendingUp, Shield, Clock, CheckCircle, ArrowRight, Phone, Mail, Globe, Menu, X, Brain, BookOpen, Activity, Home, Utensils, GraduationCap, ChevronRight, BarChart3, Target, Zap } from "lucide-react"
 import { Link } from "react-router-dom"
+import { cn } from "@/lib/utils"
+
+function useIntersectionObserver(options = {}) {
+  const [element, setElement] = useState<HTMLElement | null>(null);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    if (!element) return;
+
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setIsVisible(true);
+        observer.disconnect(); 
+      }
+    }, { threshold: 0.1, ...options });
+
+    observer.observe(element);
+
+    return () => {
+      if (element) observer.unobserve(element);
+    };
+  }, [element, options]);
+
+  return [setElement, isVisible] as const;
+}
+
+const Counter = ({ end, duration = 2000, suffix = "" }: { end: number, duration?: number, suffix?: string }) => {
+  const [count, setCount] = useState(0);
+  const [ref, isVisible] = useIntersectionObserver();
+
+  useEffect(() => {
+    if (!isVisible) return;
+
+    let startTime: number | null = null;
+    const animate = (currentTime: number) => {
+      if (!startTime) startTime = currentTime;
+      const progress = Math.min((currentTime - startTime) / duration, 1);
+ 
+      const easeOutQuart = (x: number) => 1 - Math.pow(1 - x, 4);
+
+      setCount(Math.floor(easeOutQuart(progress) * end));
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        setCount(end);
+      }
+    };
+
+    requestAnimationFrame(animate);
+  }, [end, duration, isVisible]);
+
+  return <span ref={ref as any}>{count.toLocaleString()}{suffix}</span>;
+};
 
 export function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [api, setApi] = useState<CarouselApi>()
   const [current, setCurrent] = useState(0)
   const [count, setCount] = useState(0)
+  const [scrolled, setScrolled] = useState(false)
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20)
+    }
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
 
   useEffect(() => {
     if (!api) {
@@ -27,7 +90,6 @@ export function LandingPage() {
     })
   }, [api])
 
-  // Autoplay functionality
   useEffect(() => {
     if (!api) return
 
@@ -35,129 +97,111 @@ export function LandingPage() {
       if (api.canScrollNext()) {
         api.scrollNext()
       } else {
-        api.scrollTo(0) // Reset to first slide
+        api.scrollTo(0) 
       }
-    }, 5000) // Change slide every 5 seconds
+    }, 6000)
 
     return () => clearInterval(interval)
   }, [api])
 
   const stats = [
-    { label: "Schools Supported", value: "2,847", icon: School, color: "text-blue-600" },
-    { label: "Students Fed Daily", value: "1.2M", icon: Users, color: "text-blue-600" },
-    { label: "Active Suppliers", value: "156", icon: Truck, color: "text-blue-600" },
-    { label: "Districts Covered", value: "30", icon: MapPin, color: "text-blue-600" },
-  ]
-
-  const features = [
-    {
-      title: "Real-time Monitoring",
-      description: "Track food distribution, inventory levels, and delivery status in real-time across all schools.",
-      icon: Clock,
-      color: "bg-blue-50 text-blue-600",
-    },
-    {
-      title: "Quality Assurance",
-      description: "Ensure food safety and nutritional standards with comprehensive quality control systems.",
-      icon: Shield,
-      color: "bg-indigo-50 text-indigo-600",
-    },
-    {
-      title: "Transparent Operations",
-      description: "Complete visibility into the supply chain from procurement to student meals.",
-      icon: CheckCircle,
-      color: "bg-sky-50 text-sky-600",
-    },
-    {
-      title: "Impact Measurement",
-      description: "Measure the program's impact on student health, attendance, and academic performance.",
-      icon: TrendingUp,
-      color: "bg-cyan-50 text-cyan-600",
-    },
+    { label: "Schools Supported", value: 2847, description: "Partner institutions", icon: School, color: "text-blue-600", bg: "bg-blue-50" },
+    { label: "Students Fed Daily", value: 1200000, isFloat: true, display: "1.2M", description: "Beneficiaries", icon: Users, color: "text-indigo-600", bg: "bg-indigo-50" },
+    { label: "Active Suppliers", value: 156, description: "Local partners", icon: Truck, color: "text-sky-600", bg: "bg-sky-50" },
+    { label: "Districts Covered", value: 30, description: "Nationwide reach", icon: MapPin, color: "text-purple-600", bg: "bg-purple-50" },
   ]
 
   const importanceItems = [
     {
-      title: "Improved Academic Performance",
-      description: "Well-nourished students show 23% better learning outcomes and improved concentration in class.",
+      title: "Academic Performance",
+      description: "23% better learning outcomes and improved concentration.",
       icon: Brain,
-      color: "bg-blue-500",
+      color: "text-blue-500",
     },
     {
-      title: "Enhanced School Attendance",
-      description:
-        "School feeding programs increase attendance rates by up to 85%, especially among vulnerable children.",
+      title: "School Attendance",
+      description: "Increase attendance rates by up to 85% among children.",
       icon: BookOpen,
-      color: "bg-indigo-500",
+      color: "text-indigo-500",
     },
     {
-      title: "Better Health & Nutrition",
-      description: "Balanced meals reduce malnutrition by 40% and improve overall child health and development.",
+      title: "Health & Nutrition",
+      description: "Balanced meals reduce malnutrition by 40% globally.",
       icon: Activity,
-      color: "bg-sky-500",
+      color: "text-teal-500",
     },
     {
-      title: "Community Development",
-      description: "Programs support local farmers and suppliers, creating jobs and strengthening local economies.",
+      title: "Local Economy",
+      description: "Creating jobs and strengthening local farmer markets.",
       icon: Home,
-      color: "bg-cyan-500",
-    },
-    {
-      title: "Food Security",
-      description: "Ensures consistent access to nutritious meals, reducing household food insecurity by 60%.",
-      icon: Utensils,
-      color: "bg-blue-600",
-    },
-    {
-      title: "Long-term Education Goals",
-      description: "Students are 3x more likely to complete their education when school feeding is available.",
-      icon: GraduationCap,
-      color: "bg-indigo-600",
-    },
+      color: "text-orange-500",
+    }
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+    <div className="min-h-screen bg-white font-sans selection:bg-blue-100">
       {/* Navigation */}
-      <nav className="bg-white/90 backdrop-blur-md border-b border-gray-200 sticky top-0 z-50">
+      <nav
+        className={cn(
+          "fixed w-full z-50 transition-all duration-300 border-b border-transparent",
+          scrolled ? "bg-white/95 backdrop-blur-md shadow-sm border-gray-100 py-2" : "bg-transparent py-4 text-white"
+        )}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-2"> 
-               <img
-                   src="/logo.svg"
-                   alt="School Feeding Logo"
-                   width={30}
-                   height={30}
-                   className="h-auto object-cover"
-                 />
-              <span className="text-xl font-bold text-blue-900">School Feeding</span>
+          <div className="flex justify-between items-center">
+            <div className="flex items-center space-x-3 group cursor-pointer">
+              <div className="relative overflow-hidden rounded-full transition-transform duration-300 group-hover:scale-110">
+                <img
+                  src="/logo.svg"
+                  alt="School Feeding Logo"
+                  width={40}
+                  height={40}
+                  className="h-10 w-10 object-cover"
+                />
+              </div>
+              <span className={cn("text-xl font-bold transition-colors", scrolled ? "text-slate-900" : "text-white drop-shadow-md")}>
+                School Feeding
+              </span>
             </div>
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-8">
-              <a href="#about" className="text-gray-700 hover:text-blue-600 transition-colors">
-                About
-              </a>
-              <a href="#importance" className="text-gray-700 hover:text-blue-600 transition-colors">
-                Importance
-              </a>
-              <a href="#impact" className="text-gray-700 hover:text-blue-600 transition-colors">
-                Impact
-              </a>
-              <a href="#contact" className="text-gray-700 hover:text-blue-600 transition-colors">
-                Contact
-              </a>
+              {['About', 'Services', 'Contact'].map((item) => (
+                <a
+                  key={item}
+                  href={`#${item.toLowerCase()}`}
+                  className={cn(
+                    "text-sm font-medium transition-all hover:-translate-y-0.5",
+                    scrolled
+                      ? "text-slate-600 hover:text-blue-600"
+                      : "text-white/90 hover:text-white drop-shadow-sm"
+                  )}
+                >
+                  {item}
+                </a>
+              ))}
               <Link to="/login">
-                <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                <Button
+                  className={cn(
+                    "transition-all duration-300 px-6 rounded-full",
+                    scrolled
+                      ? "bg-blue-900 hover:bg-blue-800 text-white shadow-md"
+                      : "bg-white text-blue-900 hover:bg-gray-100 shadow-lg"
+                  )}
+                >
                   Login
-                  <ArrowRight className="ml-2 w-4 h-4" />
                 </Button>
               </Link>
             </div>
 
             {/* Mobile menu button */}
             <div className="md:hidden">
-              <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className={cn(scrolled ? "text-slate-900" : "text-white")}
+              >
                 {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
               </Button>
             </div>
@@ -165,26 +209,25 @@ export function LandingPage() {
 
           {/* Mobile Navigation */}
           {mobileMenuOpen && (
-            <div className="md:hidden py-4 border-t border-gray-200">
-              <div className="flex flex-col space-y-4">
-                <a href="#about" className="text-gray-700 hover:text-blue-600 transition-colors">
-                  About
-                </a>
-                <a href="#importance" className="text-gray-700 hover:text-blue-600 transition-colors">
-                  Importance
-                </a>
-                <a href="#impact" className="text-gray-700 hover:text-blue-600 transition-colors">
-                  Impact
-                </a>
-                <a href="#contact" className="text-gray-700 hover:text-blue-600 transition-colors">
-                  Contact
-                </a>
-                <Link to="/login">
-                  <Button className="bg-blue-600 hover:bg-blue-700 w-full text-white">
-                    Login
-                    <ArrowRight className="ml-2 w-4 h-4" />
-                  </Button>
-                </Link>
+            <div className="md:hidden absolute top-full left-0 w-full bg-white/95 backdrop-blur-xl border-t border-gray-100 shadow-xl animate-in slide-in-from-top-5">
+              <div className="flex flex-col p-4 space-y-4">
+                {['About', 'Services', 'Team', 'Contact'].map((item) => (
+                  <a
+                    key={item}
+                    href={`#${item.toLowerCase()}`}
+                    className="text-slate-600 font-medium hover:text-blue-600 hover:bg-blue-50 px-4 py-3 rounded-lg transition-colors"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    {item}
+                  </a>
+                ))}
+                <div className="px-4 pt-2">
+                  <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
+                    <Button className="w-full bg-blue-900 hover:bg-blue-800 text-white shadow-lg rounded-full">
+                      Login
+                    </Button>
+                  </Link>
+                </div>
               </div>
             </div>
           )}
@@ -192,611 +235,340 @@ export function LandingPage() {
       </nav>
 
       {/* Hero Section with Slideshow */}
-      <section className="relative w-full overflow-hidden">
-        <div className="w-full relative">
-          <Carousel setApi={setApi} className="w-full" opts={{ loop: true, align: "start" }}>
-            <CarouselContent className="-ml-0 w-full">
-              {/* Slide 1 */}
-              <CarouselItem className="pl-0 basis-full">
-                <div className="relative w-full h-[600px] md:h-[700px] lg:h-[800px] overflow-hidden">
-                  <img
-                    src="/images/image01.jpg"
-                    alt="Happy students enjoying nutritious meals in school cafeteria"
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/30"></div>
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-                      <div className="max-w-2xl space-y-6 text-white">
-                        <Badge className="mb-4 bg-blue-500/90 text-white hover:bg-blue-500/90 border-0">
-                          Transforming Education Through Nutrition
-                        </Badge>
-                        <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold">
-                          Nourishing Rwanda's
-                          <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-indigo-300 block">
-                            Future Leaders
-                          </span>
-                        </h1>
-                        <p className="text-lg md:text-xl text-gray-100 leading-relaxed">
-                          A comprehensive digital platform managing school feeding programs across Rwanda, ensuring every child
-                          receives nutritious meals to support their education and development.
-                        </p>
-                        <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                          <Link to="https://www.mineduc.gov.rw/index.php?eID=dumpFile&t=f&f=23437&token=cb243d309da920d47fec8fdd0ad3011928149779" target="_blank">
-                            <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg">
-                              Read More
-                              <ArrowRight className="ml-2 w-5 h-5" />
-                            </Button>
-                          </Link>
-                        </div>
+      <section className="relative w-full overflow-hidden h-[780px]">
+        <Carousel setApi={setApi} className="w-full h-full" opts={{ loop: true, align: "start" }}>
+          <CarouselContent className="-ml-0 w-full h-full">
+            {/* Slide 1 */}
+            <CarouselItem className="pl-0 basis-full h-full">
+              <div className="relative w-full h-full">
+                <div className="absolute inset-0 bg-blue-900/10 z-10"></div>
+                <img
+                  src="/images/image01.jpg"
+                  alt="Happy students"
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-r from-slate-900/80 via-transparent to-transparent z-20"></div>
+                <div className="absolute inset-0 flex items-center z-30">
+                  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full animate-in fade-in slide-in-from-left-10 duration-1000">
+                    <div className="max-w-2xl space-y-6">
+                      <h4 className="text-yellow-400 font-semibold tracking-wide uppercase text-sm">
+                        Building a brighter future
+                      </h4>
+                      <h1 className="text-5xl md:text-7xl font-bold text-white leading-tight">
+                        WE IMPROVE YOUR <br />
+                        <span className="text-blue-400">SCHOOL FEEDING</span>
+                      </h1>
+                      <p className="text-lg text-slate-200 max-w-lg leading-relaxed">
+                        A comprehensive digital platform managing school feeding programs across Rwanda.
+                      </p>
+                      <div className="pt-4">
+                        <Link to="/login">
+                          <Button className="bg-white text-blue-900 hover:bg-gray-100 rounded-full px-8 py-6 text-lg font-semibold shadow-xl transition-transform hover:-translate-y-1">
+                            Get Started
+                          </Button>
+                        </Link>
                       </div>
                     </div>
                   </div>
                 </div>
-              </CarouselItem>
+              </div>
+            </CarouselItem>
 
-              {/* Slide 2 */}
-              <CarouselItem className="pl-0 basis-full">
-                <div className="relative w-full h-[600px] md:h-[700px] lg:h-[800px] overflow-hidden">
-                  <img
-                    src="/images/image02.jpg"
-                    alt="Students showing improved concentration and learning in classroom"
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/30"></div>
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-                      <div className="max-w-2xl space-y-6 text-white">
-                        <Badge className="mb-4 bg-indigo-500/90 text-white hover:bg-indigo-500/90 border-0">
-                          Quality Nutrition for Every Child
-                        </Badge>
-                        <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold">
-                          Building Healthy
-                          <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 to-purple-300 block">
-                            Communities
-                          </span>
-                        </h1>
-                        <p className="text-lg md:text-xl text-gray-100 leading-relaxed">
-                          Our program ensures that every student receives balanced, nutritious meals that meet international
-                          nutritional standards, supporting their physical growth and cognitive development.
-                        </p>
-                        <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                          <Link to="/login">
-                            <Button size="lg" className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg">
-                              Get Started
-                              <ArrowRight className="ml-2 w-5 h-5" />
-                            </Button>
-                          </Link>
-                        </div>
+            {/* Slide 2 */}
+            <CarouselItem className="pl-0 basis-full h-full">
+              <div className="relative w-full h-full">
+                <img
+                  src="/images/image02.jpg"
+                  alt="Students learning"
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-r from-slate-900/80 via-transparent to-transparent z-20"></div>
+                <div className="absolute inset-0 flex items-center z-30">
+                  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full animate-in fade-in slide-in-from-left-10 duration-1000">
+                    <div className="max-w-2xl space-y-6">
+                      <h4 className="text-yellow-400 font-semibold tracking-wide uppercase text-sm">
+                        Quality Nutrition
+                      </h4>
+                      <h1 className="text-5xl md:text-7xl font-bold text-white leading-tight">
+                        HEALTHY MEALS FOR <br />
+                        <span className="text-emerald-400">EVERY CHILD</span>
+                      </h1>
+                      <div className="pt-4">
+                        <Link to="/login">
+                          <Button className="bg-emerald-500 text-white hover:bg-emerald-600 rounded-full px-8 py-6 text-lg font-semibold shadow-xl transition-transform hover:-translate-y-1">
+                            Join Us
+                          </Button>
+                        </Link>
                       </div>
                     </div>
                   </div>
                 </div>
-              </CarouselItem>
+              </div>
+            </CarouselItem>
+          </CarouselContent>
 
-              {/* Slide 3 */}
-              <CarouselItem className="pl-0 basis-full">
-                <div className="relative w-full h-[600px] md:h-[700px] lg:h-[800px] overflow-hidden">
-                  <img
-                    src="/images/image09.jpg"
-                    alt="School feeding program community impact"
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/30"></div>
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-                      <div className="max-w-2xl space-y-6 text-white">
-                        <Badge className="mb-4 bg-sky-500/90 text-white hover:bg-sky-500/90 border-0">
-                          Transparency & Accountability
-                        </Badge>
-                        <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold">
-                          Real-time
-                          <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-300 to-cyan-300 block">
-                            Monitoring & Tracking
-                          </span>
-                        </h1>
-                        <p className="text-lg md:text-xl text-gray-100 leading-relaxed">
-                          Track food distribution, inventory levels, and delivery status in real-time. Our platform ensures
-                          complete transparency from procurement to student meals.
-                        </p>
-                        <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                          <Link to="/login">
-                            <Button size="lg" className="bg-sky-600 hover:bg-sky-700 text-white shadow-lg">
-                              Explore Platform
-                              <ArrowRight className="ml-2 w-5 h-5" />
-                            </Button>
-                          </Link>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CarouselItem>
-
-              {/* Slide 4 */}
-              <CarouselItem className="pl-0 basis-full">
-                <div className="relative w-full h-[600px] md:h-[700px] lg:h-[800px] overflow-hidden">
-                  <img
-                    src="/images/image01.jpg"
-                    alt="Successful school feeding program results"
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/30"></div>
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-                      <div className="max-w-2xl space-y-6 text-white">
-                        <Badge className="mb-4 bg-cyan-500/90 text-white hover:bg-cyan-500/90 border-0">
-                          Impact & Results
-                        </Badge>
-                        <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold">
-                          Measurable
-                          <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-teal-300 block">
-                            Success Stories
-                          </span>
-                        </h1>
-                        <p className="text-lg md:text-xl text-gray-100 leading-relaxed">
-                          With over 1.2 million students fed daily and 2,847 schools supported, our program has shown
-                          significant improvements in attendance, academic performance, and overall student well-being.
-                        </p>
-                        <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                          <Link to="#impact">
-                            <Button size="lg" className="bg-cyan-600 hover:bg-cyan-700 text-white shadow-lg">
-                              View Impact
-                              <ArrowRight className="ml-2 w-5 h-5" />
-                            </Button>
-                          </Link>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CarouselItem>
-            </CarouselContent>
-            
-            {/* Navigation Arrows */}
-            <CarouselPrevious className="left-4 md:left-8 h-12 w-12 bg-white/20 hover:bg-white/30 backdrop-blur-sm shadow-lg border-0 text-white hover:text-white z-20" />
-            <CarouselNext className="right-4 md:right-8 h-12 w-12 bg-white/20 hover:bg-white/30 backdrop-blur-sm shadow-lg border-0 text-white hover:text-white z-20" />
-          </Carousel>
-
-          {/* Slide Indicators */}
-          <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20 flex justify-center gap-2">
+          {/* Custom Indicators */}
+          <div className="absolute left-8 top-1/2 -translate-y-1/2 flex flex-col space-y-3 z-30 hidden md:flex">
             {Array.from({ length: count }).map((_, index) => (
               <button
                 key={index}
                 onClick={() => api?.scrollTo(index)}
-                className={`h-2 rounded-full transition-all duration-300 ${
-                  index + 1 === current
-                    ? "w-8 bg-white"
-                    : "w-2 bg-white/50 hover:bg-white/70"
-                }`}
-                aria-label={`Go to slide ${index + 1}`}
+                className={cn(
+                  "w-2 rounded-full transition-all duration-300 bg-white/50 hover:bg-white",
+                  index + 1 === current ? "h-8 bg-white" : "h-2"
+                )}
               />
             ))}
           </div>
-        </div>
+        </Carousel>
       </section>
 
-      {/* Statistics Section */}
-      <section className="py-20 bg-gradient-to-br from-blue-50 via-white to-indigo-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <Badge className="mb-4 bg-blue-100 text-blue-800 hover:bg-blue-100">
-              Our Impact
-            </Badge>
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              Program Impact in Numbers
-            </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Real numbers showing the reach and impact of our school feeding program across Rwanda
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Statistics Strip - Lowered Position */}
+      <section className="relative z-40 bg-slate-50 border-b border-slate-100">
+        <div className="max-w-7xl mx-auto">
+          {/* Negative margin reduced to allow it to sit just below or slightly overlap */}
+          <div className="grid grid-cols-1 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-slate-200 bg-white shadow-xl md:rounded-lg -mt-12 mx-4 md:mx-0 overflow-hidden relative">
             {stats.map((stat, index) => (
-              <Card key={index} className="text-center hover:shadow-2xl transition-all duration-300 border-0 shadow-lg hover:scale-105 bg-white/80 backdrop-blur-sm">
-                <CardContent className="pt-8 pb-8">
-                  <div
-                    className={`w-16 h-16 mx-auto mb-6 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center ${stat.color} shadow-md`}
-                  >
-                    <stat.icon className="w-8 h-8" />
-                  </div>
-                  <div className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-3">
-                    {stat.value}
-                  </div>
-                  <div className="text-gray-700 font-medium text-lg">{stat.label}</div>
-                </CardContent>
-              </Card>
+              <div key={index} className="p-8 group hover:bg-slate-50 transition-colors cursor-default text-center">
+                <div className="flex flex-col items-center">
+                  <stat.icon className={cn("w-10 h-10 mb-4 transition-transform group-hover:scale-110 duration-300", stat.color)} />
+                  <h3 className="text-lg font-bold text-slate-900 mb-1">{stat.label}</h3>
+                  <p className="text-slate-500 text-sm">{stat.description}</p>
+                </div>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* About Section */}
-      <section id="about" className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-          <div className="text-center mb-16">
-            <Badge className="mb-4 bg-indigo-100 text-indigo-800 hover:bg-indigo-100">
-              About Us
-            </Badge>
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              About Rwanda School Feeding Program
-            </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              A comprehensive government initiative transforming education through nutrition
-            </p>
-          </div>
+      {/* About Section - Swapped Layout (Image Left) */}
+      <section id="about" className="py-24 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-16">
-            <div className="space-y-8">
-              <div className="space-y-4">
-                <p className="text-lg text-gray-700 leading-relaxed">
-                  The Rwanda School Feeding Program is a government initiative designed to improve student health,
-                  nutrition, and educational outcomes by providing nutritious meals to students across the country.
-                </p>
-                <p className="text-lg text-gray-700 leading-relaxed">
-                  Our digital platform streamlines the entire process from procurement to delivery, ensuring transparency,
-                  efficiency, and accountability at every step.
-                </p>
-              </div>
-
-              <div className="space-y-5">
-                <div className="flex items-start space-x-4 p-4 rounded-lg bg-blue-50 hover:bg-blue-100 transition-colors">
-                  <div className="flex-shrink-0">
-                    <CheckCircle className="w-7 h-7 text-blue-600 mt-0.5" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-gray-900 text-lg mb-1">Improved Nutrition</h4>
-                    <p className="text-gray-700">Balanced meals meeting nutritional standards for growing children</p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-4 p-4 rounded-lg bg-indigo-50 hover:bg-indigo-100 transition-colors">
-                  <div className="flex-shrink-0">
-                    <CheckCircle className="w-7 h-7 text-indigo-600 mt-0.5" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-gray-900 text-lg mb-1">Increased Attendance</h4>
-                    <p className="text-gray-700">Students are more likely to attend school when meals are provided</p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-4 p-4 rounded-lg bg-sky-50 hover:bg-sky-100 transition-colors">
-                  <div className="flex-shrink-0">
-                    <CheckCircle className="w-7 h-7 text-sky-600 mt-0.5" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-gray-900 text-lg mb-1">Better Learning Outcomes</h4>
-                    <p className="text-gray-700">Well-nourished students perform better academically</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
+            {/* Left Column: Image */}
             <div className="relative">
-              <div className="relative rounded-3xl overflow-hidden shadow-2xl">
-                 <img
-                   src="/images/image02.jpg"
-                   alt="Students showing improved concentration and learning in classroom"
-                   className="w-full h-[500px] object-cover"
-                 />
-                 <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
+              <div className="relative rounded-sm overflow-hidden shadow-2xl">
+                <img
+                  src="/images/image09.jpg"
+                  alt="Students focused"
+                  className="w-full h-auto object-cover"
+                />
               </div>
-              <div className="grid grid-cols-2 gap-4 mt-6">
-                <Card className="p-6 bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-xl border-0">
-                  <div className="text-4xl font-bold mb-2">98%</div>
-                  <div className="text-sm text-blue-100">School Participation Rate</div>
-                </Card>
-                <Card className="p-6 bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-xl border-0">
-                  <div className="text-4xl font-bold mb-2">85%</div>
-                  <div className="text-sm text-indigo-100">Attendance Improvement</div>
-                </Card>
+              {/* Decorative dots or shape */}
+              <div className="absolute -bottom-6 -left-6 w-24 h-24 bg-blue-100 rounded-full -z-10"></div>
+              <div className="absolute -top-6 -right-6 w-32 h-32 bg-slate-50 rounded-full -z-10"></div>
+            </div>
+
+            {/* Right Column: Text */}
+            <div className="space-y-8">
+              <div>
+                <h4 className="text-blue-600 font-bold uppercase tracking-wider text-sm mb-2">About Our Program</h4>
+                <h2 className="text-4xl font-bold text-slate-900 leading-tight mb-6">
+                  We Provide High Quality Nutrition & <br /> Innovative Solutions
+                </h2>
+                <p className="text-slate-600 leading-relaxed text-lg">
+                  The Rwanda School Feeding Program is a transformative government initiative designed to improve student health, nutrition, and educational outcomes.
+                </p>
+                <p className="text-slate-500 leading-relaxed mt-4">
+                  We ensure transparency and efficiency in the delivery of millions of meals every day, fostering a healthier generation ready to learn.
+                </p>
+              </div>
+
+              <div className="flex justify-between gap-4 pt-4 border-t border-gray-100">
+                <div className="text-center">
+                  <Target className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+                  <h5 className="font-bold text-slate-900">Vision</h5>
+                </div>
+                <div className="text-center">
+                  <Zap className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+                  <h5 className="font-bold text-slate-900">Mission</h5>
+                </div>
+                <div className="text-center">
+                  <BarChart3 className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+                  <h5 className="font-bold text-slate-900">Goal</h5>
+                </div>
               </div>
             </div>
+
           </div>
         </div>
       </section>
- 
 
-      {/* Importance of School Feeding Section */}
-      <section id="importance" className="py-20 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 relative overflow-hidden">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-20 left-10 w-64 h-64 border-2 border-blue-300 rounded-full"></div>
-          <div className="absolute bottom-20 right-10 w-48 h-48 border-2 border-indigo-300 rounded-full"></div>
-          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 border-2 border-blue-200 rounded-full"></div>
+      {/* Separator / CTA Strip */}
+      <section className="py-16 bg-blue-900 text-white text-center relative overflow-hidden">
+        <div className="absolute inset-0 bg-[url('/images/image02.jpg')] opacity-10 bg-cover bg-center mix-blend-overlay"></div>
+        <div className="max-w-4xl mx-auto px-4 relative z-10">
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">We provide high quality services & innovative solutions</h2>
+          <Link to="/login">
+            <Button className="mt-6 bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded-md font-semibold">
+              Get Started Now
+            </Button>
+          </Link>
         </div>
+      </section>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-          <div className="text-center mb-16">
-            <Badge className="mb-4 bg-purple-100 text-purple-800 hover:bg-purple-100">
-              Why It Matters
-            </Badge>
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">Why School Feeding Matters</h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-              School feeding programs are transformative interventions that address multiple challenges simultaneously,
-              creating lasting positive impacts on children, families, and communities.
-            </p>
-          </div>
+      {/* Services / Importance Section */}
+      <section id="services" className="py-24 bg-slate-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h4 className="text-blue-600 font-bold uppercase tracking-wider text-sm mb-2">Our Impact</h4>
+          <h2 className="text-4xl font-bold text-slate-900 mb-16">Why It Matters</h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
-            {importanceItems.map((item, index) => (
-              <Card
-                key={index}
-                className="bg-white/90 backdrop-blur-sm hover:shadow-2xl transition-all duration-300 border-0 shadow-lg group hover:scale-105"
-              >
-                <CardHeader className="text-center pb-4 pt-8">
-                  <div
-                    className={`w-20 h-20 mx-auto mb-6 rounded-full ${item.color} flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg`}
-                  >
-                    <item.icon className="w-10 h-10 text-white" />
-                  </div>
-                  <CardTitle className="text-xl font-bold text-gray-900 mb-2">{item.title}</CardTitle>
-                </CardHeader>
-                <CardContent className="text-center pb-8">
-                  <CardDescription className="text-gray-700 text-base leading-relaxed">
-                    {item.description}
-                  </CardDescription>
-                </CardContent>
-              </Card>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {importanceItems.map((item, idx) => (
+              <div key={idx} className="bg-white p-8 rounded-lg shadow-sm hover:shadow-xl transition-shadow border-t-4 border-transparent hover:border-blue-600 group">
+                <div className="flex justify-center mb-6">
+                  <item.icon className={cn("w-12 h-12 group-hover:scale-110 transition-transform duration-300", item.color)} />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 mb-3">{item.title}</h3>
+                <p className="text-slate-500 leading-relaxed text-sm">
+                  {item.description}
+                </p>
+                <div className="mt-4">
+                  <a href="#" className="text-blue-600 text-sm font-semibold hover:underline">Read More</a>
+                </div>
+              </div>
             ))}
           </div>
+        </div>
+      </section>
 
-          {/* Community Impact Image */}
-          <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl overflow-hidden border-0">
-            <div className="grid grid-cols-1 lg:grid-cols-2">
-              <div className="p-10 lg:p-14 flex flex-col justify-center bg-gradient-to-br from-white to-blue-50/30">
-                <Badge className="mb-4 w-fit bg-blue-100 text-blue-800 hover:bg-blue-100">
-                  Community Impact
-                </Badge>
-                <h3 className="text-3xl font-bold text-gray-900 mb-6">Community-Centered Approach</h3>
-                <p className="text-gray-700 mb-8 leading-relaxed text-lg">
-                  Our school feeding program goes beyond just providing meals. It creates a sustainable ecosystem that
-                  supports local farmers, suppliers, and communities while ensuring children receive the nutrition they
-                  need to thrive academically and physically.
-                </p>
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-4 p-3 rounded-lg bg-blue-50 hover:bg-blue-100 transition-colors">
-                    <div className="w-3 h-3 bg-blue-500 rounded-full flex-shrink-0"></div>
-                    <span className="text-gray-800 font-medium">Local sourcing supports 500+ farmers</span>
-                  </div>
-                  <div className="flex items-center space-x-4 p-3 rounded-lg bg-indigo-50 hover:bg-indigo-100 transition-colors">
-                    <div className="w-3 h-3 bg-indigo-500 rounded-full flex-shrink-0"></div>
-                    <span className="text-gray-800 font-medium">Creates 2,000+ jobs in rural communities</span>
-                  </div>
-                  <div className="flex items-center space-x-4 p-3 rounded-lg bg-sky-50 hover:bg-sky-100 transition-colors">
-                    <div className="w-3 h-3 bg-sky-500 rounded-full flex-shrink-0"></div>
-                    <span className="text-gray-800 font-medium">Reduces family food expenses by 40%</span>
-                  </div>
-                </div>
+      {/* Fun Facts / Impact Section - Centered */}
+      <section className="py-24 bg-white relative">
+        {/* Background Map Graphic Placeholder */}
+        <div className="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none">
+          <Globe className="w-[600px] h-[600px] text-slate-300" />
+        </div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
+          <h4 className="text-blue-600 font-bold uppercase tracking-wider text-sm mb-2">Fun Facts</h4>
+          <h2 className="text-4xl font-bold text-slate-900 mb-16">Some fun facts about our program</h2>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-12">
+            <div className="space-y-2">
+              <div className="text-5xl font-bold text-slate-300">
+                <Counter end={2847} suffix="+" />
               </div>
-              <div className="relative h-64 lg:h-auto min-h-[400px]">
-                 <img
-                   src="/images/image09.jpg"
-                   alt="School feeding program"
-                   className="w-full h-full object-cover"
-                 />
-                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+              <p className="font-bold text-slate-900">Schools</p>
+              <p className="text-xs text-slate-500 uppercase tracking-widest">Supported</p>
+            </div>
+            <div className="space-y-2">
+              <div className="text-5xl font-bold text-slate-300">
+                <Counter end={100} suffix="%" />
               </div>
+              <p className="font-bold text-slate-900">Growth</p>
+              <p className="text-xs text-slate-500 uppercase tracking-widest">Year over Year</p>
+            </div>
+            <div className="space-y-2">
+              <div className="text-5xl font-bold text-slate-300">
+                <Counter end={30} suffix="+" />
+              </div>
+              <p className="font-bold text-slate-900">Districts</p>
+              <p className="text-xs text-slate-500 uppercase tracking-widest">Covered</p>
+            </div>
+            <div className="space-y-2">
+              <div className="text-5xl font-bold text-slate-300">
+                <Counter end={24} suffix="/7" />
+              </div>
+              <p className="font-bold text-slate-900">Support</p>
+              <p className="text-xs text-slate-500 uppercase tracking-widest">Monitoring</p>
             </div>
           </div>
-        </div>
-      </section>
 
-      {/* Impact Section */}
-      <section id="impact" className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <Badge className="mb-4 bg-cyan-100 text-cyan-800 hover:bg-cyan-100">
-              Our Progress
-            </Badge>
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              Program Impact & Progress
-            </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Measuring success through key performance indicators and continuous improvement
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <Card className="p-8 shadow-2xl border-0 bg-gradient-to-br from-white to-blue-50/50 hover:shadow-3xl transition-all duration-300">
-              <div className="flex items-center mb-6">
-                <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center mr-4">
-                  <School className="w-6 h-6 text-blue-600" />
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900">Coverage Progress</h3>
-              </div>
-              <div className="space-y-6">
-                <div>
-                  <div className="flex justify-between mb-3">
-                    <span className="text-base font-medium text-gray-700">Primary Schools</span>
-                    <span className="text-lg font-bold text-blue-600">94%</span>
-                  </div>
-                  <Progress value={94} className="h-3 bg-gray-200" />
-                </div>
-                <div>
-                  <div className="flex justify-between mb-3">
-                    <span className="text-base font-medium text-gray-700">Secondary Schools</span>
-                    <span className="text-lg font-bold text-indigo-600">78%</span>
-                  </div>
-                  <Progress value={78} className="h-3 bg-gray-200" />
-                </div>
-                <div>
-                  <div className="flex justify-between mb-3">
-                    <span className="text-base font-medium text-gray-700">Rural Areas</span>
-                    <span className="text-lg font-bold text-sky-600">89%</span>
-                  </div>
-                  <Progress value={89} className="h-3 bg-gray-200" />
-                </div>
-              </div>
-            </Card>
-
-            <Card className="p-8 shadow-2xl border-0 bg-gradient-to-br from-white to-indigo-50/50 hover:shadow-3xl transition-all duration-300">
-              <div className="flex items-center mb-6">
-                <div className="w-12 h-12 rounded-lg bg-indigo-100 flex items-center justify-center mr-4">
-                  <Shield className="w-6 h-6 text-indigo-600" />
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900">Quality Metrics</h3>
-              </div>
-              <div className="space-y-6">
-                <div>
-                  <div className="flex justify-between mb-3">
-                    <span className="text-base font-medium text-gray-700">Food Safety Standards</span>
-                    <span className="text-lg font-bold text-green-600">96%</span>
-                  </div>
-                  <Progress value={96} className="h-3 bg-gray-200" />
-                </div>
-                <div>
-                  <div className="flex justify-between mb-3">
-                    <span className="text-base font-medium text-gray-700">Nutritional Requirements</span>
-                    <span className="text-lg font-bold text-cyan-600">92%</span>
-                  </div>
-                  <Progress value={92} className="h-3 bg-gray-200" />
-                </div>
-                <div>
-                  <div className="flex justify-between mb-3">
-                    <span className="text-base font-medium text-gray-700">On-time Delivery</span>
-                    <span className="text-lg font-bold text-teal-600">88%</span>
-                  </div>
-                  <Progress value={88} className="h-3 bg-gray-200" />
-                </div>
-              </div>
-            </Card>
+          <div className="mt-16">
+            <Link to="/login">
+              <Button className="bg-blue-900 text-white px-8 py-3 rounded-sm hover:bg-slate-800">
+                VIEW REPORT
+              </Button>
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* Contact Section */}
-      <section id="contact" className="py-20 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <Badge className="mb-4 bg-blue-100 text-blue-800 hover:bg-blue-100">
-              Contact Us
-            </Badge>
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              Get In Touch
-            </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Have questions about the school feeding program? We're here to help and support you.
-            </p>
-          </div>
+      {/* Contact / Consultation Section */}
+      <section id="contact" className="py-24 bg-slate-50">
+        <div className="max-w-5xl mx-auto px-4 text-center mb-16">
+          <h2 className="text-3xl font-bold text-slate-900">FREE CONSULTATION</h2>
+          <div className="w-12 h-1 bg-blue-600 mx-auto mt-4 mb-4"></div>
+          <p className="text-slate-500">Contact us to learn more about how you can support or participate in the program.</p>
+        </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <Card className="text-center p-8 shadow-2xl border-0 bg-white/90 backdrop-blur-sm hover:shadow-3xl transition-all duration-300 hover:scale-105">
-              <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center">
-                <Phone className="w-8 h-8 text-blue-600" />
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-white rounded-lg shadow-xl overflow-hidden flex flex-col md:flex-row">
+            <div className="md:w-1/2 relative min-h-[400px]">
+              <img src="/images/image02.jpg" className="absolute inset-0 w-full h-full object-cover" alt="Contact" />
+              <div className="absolute inset-0 bg-blue-900/20"></div>
+            </div>
+            <div className="md:w-1/2 p-12">
+              <div className="grid grid-cols-2 gap-6 mb-6">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-400 uppercase">Name</label>
+                  <input type="text" className="w-full border-b border-gray-200 py-2 focus:outline-none focus:border-blue-600 transition-colors" placeholder="Your name" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-400 uppercase">Email</label>
+                  <input type="email" className="w-full border-b border-gray-200 py-2 focus:outline-none focus:border-blue-600 transition-colors" placeholder="Your email" />
+                </div>
               </div>
-              <h3 className="font-bold text-xl mb-3 text-gray-900">Phone</h3>
-              <p className="text-gray-700 text-lg">+250 788 123 456</p>
-            </Card>
-
-            <Card className="text-center p-8 shadow-2xl border-0 bg-white/90 backdrop-blur-sm hover:shadow-3xl transition-all duration-300 hover:scale-105">
-              <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-gradient-to-br from-indigo-100 to-indigo-200 flex items-center justify-center">
-                <Mail className="w-8 h-8 text-indigo-600" />
+              <div className="space-y-2 mb-8">
+                <label className="text-xs font-bold text-slate-400 uppercase">Message</label>
+                <textarea className="w-full border-b border-gray-200 py-2 focus:outline-none focus:border-blue-600 transition-colors resize-none" rows={3} placeholder="How can we help?"></textarea>
               </div>
-              <h3 className="font-bold text-xl mb-3 text-gray-900">Email</h3>
-              <p className="text-gray-700 text-lg">schoolfeeding.info@gmail.com</p>
-            </Card>
-
-            <Card className="text-center p-8 shadow-2xl border-0 bg-white/90 backdrop-blur-sm hover:shadow-3xl transition-all duration-300 hover:scale-105">
-              <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-gradient-to-br from-purple-100 to-purple-200 flex items-center justify-center">
-                <Globe className="w-8 h-8 text-purple-600" />
-              </div>
-              <h3 className="font-bold text-xl mb-3 text-gray-900">Website</h3>
-              <p className="text-gray-700 text-lg">www.schoolfeeding.gov.rw</p>
-            </Card>
+              <Button className="bg-blue-900 hover:bg-blue-800 text-white px-8 rounded-sm">
+                SEND MESSAGE
+              </Button>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12">
+      <footer className="bg-blue-950 text-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div>
-              <div className="flex items-center space-x-2 mb-4">
-                 <img
-                   src="/logo.svg"
-                   alt="School Feeding Logo"
-                   width={20}
-                   height={20}
-                   className="h-auto object-cover"
-                 />
-                <span className="text-xl font-bold">School Feeding</span>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-12 text-sm border-b border-blue-900 pb-12 mb-8">
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <img src="/logo.svg" alt="Logo" className="h-8 w-auto bg-white rounded-full p-1" />
+                <span className="font-bold text-xl tracking-tight">School Feeding</span>
               </div>
-              <p className="text-gray-400">
-                Nourishing minds, building futures through comprehensive school feeding programs.
+              <p className="text-blue-200 leading-relaxed">
+                Empowering the next generation through nutrition, education, and community support.
               </p>
             </div>
-
             <div>
-              <h4 className="font-semibold mb-4">Quick Links</h4>
-              <ul className="space-y-2 text-gray-400">
-                <li>
-                  <a href="#about" className="hover:text-white transition-colors">
-                    About
-                  </a>
-                </li>
-                <li>
-                  <a href="#importance" className="hover:text-white transition-colors">
-                    Importance
-                  </a>
-                </li>
-                <li>
-                  <a href="#impact" className="hover:text-white transition-colors">
-                    Impact
-                  </a>
-                </li>
-                <li>
-                  <a href="#contact" className="hover:text-white transition-colors">
-                    Contact
-                  </a>
-                </li>
+              <h4 className="font-bold text-white mb-6 uppercase tracking-wider">Useful Links</h4>
+              <ul className="space-y-2 text-blue-200">
+                <li><a href="#" className="hover:text-white">About Us</a></li>
+                <li><a href="#" className="hover:text-white">Our Services</a></li>
+                <li><a href="#" className="hover:text-white">Track Record</a></li>
+                <li><a href="#" className="hover:text-white">Contact</a></li>
               </ul>
             </div>
-
             <div>
-              <h4 className="font-semibold mb-4">Platform Access</h4>
-              <ul className="space-y-2 text-gray-400">
-                <li>
-                  <Link to="/login" className="hover:text-white transition-colors">
-                    Login
-                  </Link>
-                </li>
-                <li>
-                  <a href="https://www.mineduc.gov.rw/index.php?eID=dumpFile&t=f&f=23437&token=cb243d309da920d47fec8fdd0ad3011928149779" target="_blank" className="hover:text-white transition-colors">
-                    Documentation
-                  </a>
-                </li>
-                <li>
-                  <a href="https://planipolis.iiep.unesco.org/sites/default/files/ressources/rwanda_school_feeding_operational_guidelines_summary.pdf" className="hover:text-white transition-colors">
-                    Support
-                  </a>
-                </li> 
+              <h4 className="font-bold text-white mb-6 uppercase tracking-wider">Resources</h4>
+              <ul className="space-y-2 text-blue-200">
+                <li><a href="#" className="hover:text-white">Documentation</a></li>
+                <li><a href="#" className="hover:text-white">Support</a></li>
+                <li><a href="#" className="hover:text-white">Privacy Policy</a></li>
+                <li><a href="#" className="hover:text-white">Terms of Use</a></li>
               </ul>
             </div>
-
             <div>
-              <h4 className="font-semibold mb-4">Government</h4>
-              <ul className="space-y-2 text-gray-400">
-                <li>
-                  <a href="https://www.mineduc.gov.rw/" target="_blank" className="hover:text-white transition-colors">
-                    Ministry of Education
-                  </a> 
-                </li>
-                <li>
-                  <a href="https://www.rab.gov.rw/" target="_blank"  className="hover:text-white transition-colors">
-                    Rwanda Agriculture Board
-                  </a>
-                </li>
-                <li>
-                  <a href="https://www.gov.rw/" target="_blank"   className="hover:text-white transition-colors">
-                    Local Government
-                  </a>
-                </li> 
-              </ul>
+              <h4 className="font-bold text-white mb-6 uppercase tracking-wider">Newsletter</h4>
+              <p className="text-blue-200 mb-4">Subscribe to get the latest news and updates.</p>
+              <div className="flex">
+                <input type="text" placeholder="Enter your email" className="bg-blue-900 border-none text-white px-4 py-2 w-full focus:ring-1 focus:ring-blue-500 outline-none rounded-l-sm" />
+                <button className="bg-white text-blue-900 font-bold px-4 py-2 rounded-r-sm uppercase text-xs">GO</button>
+              </div>
             </div>
           </div>
-
-          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2025 School Feeding. All rights reserved.</p>
+          <div className="flex flex-col md:flex-row justify-between items-center text-blue-300 text-xs">
+            <p>&copy; {new Date().getFullYear()} School Feeding Program. All rights reserved.</p>
+            <div className="flex space-x-4 mt-4 md:mt-0">
+              <a href="#" className="hover:text-white">Privacy</a>
+              <a href="#" className="hover:text-white">Terms</a>
+              <a href="#" className="hover:text-white">Sitemap</a>
+            </div>
           </div>
         </div>
       </footer>

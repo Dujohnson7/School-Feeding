@@ -3,8 +3,8 @@ import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
 import { BarChart3, Download, Home, PieChart, TrendingUp, User, School } from "lucide-react"
 import PageHeader from "@/components/shared/page-header"
-import apiClient from "@/lib/axios"
 import { toast } from "sonner"
+import { districtService } from "./service/districtService"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -84,50 +84,28 @@ export function DistrictAnalytics() {
       }
 
       // Fetch analytics statistics
-      const statsResponse = await apiClient.get(`/district/analytics/stats?districtId=${districtId}&period=${period}`)
-      if (statsResponse.data) {
-        setStats(statsResponse.data)
-      }
+      const statsData = await districtService.getAnalyticsStats(districtId, period)
+      if (statsData) setStats(statsData)
 
       // Fetch school participation
-      const participationResponse = await apiClient.get(
-        `/district/analytics/school-participation?districtId=${districtId}&period=${period}`
-      )
-      if (participationResponse.data) {
-        setSchoolParticipation(participationResponse.data)
-      }
+      const participationData = await districtService.getSchoolParticipation(districtId, period)
+      if (participationData) setSchoolParticipation(participationData)
 
       // Fetch delivery performance
-      const deliveryResponse = await apiClient.get(
-        `/district/analytics/delivery-performance?districtId=${districtId}&period=${period}`
-      )
-      if (deliveryResponse.data) {
-        setDeliveryPerformance(deliveryResponse.data)
-      }
+      const deliveryData = await districtService.getDeliveryPerformance(districtId, period)
+      if (deliveryData) setDeliveryPerformance(deliveryData)
 
       // Fetch nutrition compliance
-      const nutritionResponse = await apiClient.get(
-        `/district/analytics/nutrition-compliance?districtId=${districtId}&period=${period}`
-      )
-      if (nutritionResponse.data) {
-        setNutritionCompliance(nutritionResponse.data)
-      }
+      const nutritionData = await districtService.getNutritionCompliance(districtId, period)
+      if (nutritionData) setNutritionCompliance(nutritionData)
 
       // Fetch school performance
-      const schoolPerformanceResponse = await apiClient.get(
-        `/district/analytics/school-performance?districtId=${districtId}&period=${period}`
-      )
-      if (schoolPerformanceResponse.data) {
-        setSchoolPerformance(schoolPerformanceResponse.data)
-      }
+      const schoolPerformanceData = await districtService.getSchoolPerformance(districtId, period)
+      if (schoolPerformanceData) setSchoolPerformance(schoolPerformanceData)
 
       // Fetch budget allocation
-      const budgetResponse = await apiClient.get(
-        `/district/analytics/budget-allocation?districtId=${districtId}&period=${period}`
-      )
-      if (budgetResponse.data) {
-        setBudgetAllocation(budgetResponse.data)
-      }
+      const budgetData = await districtService.getBudgetAllocation(districtId, period)
+      if (budgetData) setBudgetAllocation(budgetData)
     } catch (error: any) {
       console.error("Error fetching analytics data:", error)
       toast.error("Failed to load analytics data. Please refresh the page.")

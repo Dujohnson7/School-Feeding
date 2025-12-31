@@ -117,21 +117,21 @@ export function SupplierReports() {
     try {
       setIsGenerating(prev => ({ ...prev, [type]: true }))
       const format = (selectedReportFormat[type] || 'pdf') as 'pdf' | 'csv' | 'excel'
-      
+
       // Sample data - in real app, fetch from API based on type and dateRange
       const sampleData = [
         { 'Supplier': 'ABC Foods Ltd', 'Deliveries': 15, 'Total Amount': 500000, 'Status': 'Active' },
         { 'Supplier': 'XYZ Distributors', 'Deliveries': 12, 'Total Amount': 350000, 'Status': 'Active' },
         { 'Supplier': 'Fresh Produce Co', 'Deliveries': 8, 'Total Amount': 200000, 'Status': 'Inactive' }
       ]
-      
+
       await generateSupplierReport(
         category,
         { from: dateRange?.from, to: dateRange?.to },
         format,
         sampleData
       )
-      
+
       toast.success(`${category} report generated successfully`)
     } catch (error: any) {
       console.error('Error generating report:', error)
@@ -165,7 +165,7 @@ export function SupplierReports() {
 
   const reportCategories = [
     { value: "delivery", label: "Delivery Performance", description: "Delivery timeliness and efficiency metrics" },
-    { value: "financial", label: "Financial Analysis", description: "Revenue, costs, and profitability reports" }, 
+    { value: "financial", label: "Financial Analysis", description: "Revenue, costs, and profitability reports" },
     { value: "quality", label: "Quality Assurance", description: "Product quality and compliance reports" },
     { value: "customer", label: "Customer Relations", description: "Customer satisfaction and feedback" },
     { value: "operations", label: "Operations Overview", description: "Comprehensive operational performance" },
@@ -211,7 +211,7 @@ export function SupplierReports() {
                         </div>
                         <div className="space-y-2">
                           <label className="text-sm font-medium">Report Format</label>
-                          <Select 
+                          <Select
                             value={selectedReportFormat[category.value] || "pdf"}
                             onValueChange={(value) => setSelectedReportFormat(prev => ({ ...prev, [category.value]: value }))}
                           >
@@ -225,8 +225,8 @@ export function SupplierReports() {
                             </SelectContent>
                           </Select>
                         </div>
-                        <Button 
-                          className="w-full" 
+                        <Button
+                          className="w-full"
                           onClick={() => handleGenerateReport(category.value, category.label)}
                           disabled={isGenerating[category.value]}
                         >

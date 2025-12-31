@@ -4,60 +4,14 @@ import { formatDistanceToNow } from "date-fns"
 
 import { Calendar, Home, Shield, Users } from "lucide-react"
 import PageHeader from "@/components/shared/page-header"
-import apiClient from "@/lib/axios"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList } from "@/components/ui/tabs"
 
-interface User {
-  id: string
-  role: string
-  email: string
-  names?: string
-}
-
-interface Audit {
-  id?: string
-  timestamp: string
-  user: User | null
-  action: string
-  resource: string
-  details: string
-  actionStatus: string
-}
-
-const adminDashboardService = {
-  getTotalUsers: async () => {
-    const response = await apiClient.get("/adminDashboard/totalUser")
-    return response.data
-  },
-  getTotalSchools: async () => {
-    const response = await apiClient.get("/adminDashboard/totalSchool")
-    return response.data
-  },
-  getTotalDistricts: async () => {
-    const response = await apiClient.get("/adminDashboard/totalDistrict")
-    return response.data
-  },
-  getTotalPendingRequests: async () => {
-    const response = await apiClient.get("/adminDashboard/totalRequestPending")
-    return response.data
-  },
-  getTop4Audits: async () => {
-    const response = await apiClient.get("/adminDashboard/listTop4Audit")
-    return response.data
-  },
-  getTotalUserLoginThisWeek: async () => {
-    const response = await apiClient.get("/adminDashboard/totalUserLoginThisWeek")
-    return response.data
-  },
-  getCountLoginsPerDayOfWeek: async () => {
-    const response = await apiClient.get("/adminDashboard/countLoginsPerDayOfWeek")
-    return response.data
-  },
-}
+import { adminService, AuditLog as Audit, User } from "./service/adminService"
+ 
 
 export function AdminDashboard() {
   const [totalUsers, setTotalUsers] = useState<number>(0)
@@ -73,18 +27,18 @@ export function AdminDashboard() {
     const fetchDashboardData = async () => {
       try {
         setLoading(true)
-         
+
         const parseNumber = (value: any): number => {
-          if (value === null || value === undefined) return 0 
+          if (value === null || value === undefined) return 0
           if (typeof value === 'string') {
             const trimmed = value.trim()
             const num = Number(trimmed)
             return isNaN(num) ? 0 : num
-          } 
+          }
           const num = Number(value)
           return isNaN(num) ? 0 : num
         }
- 
+
         let users = 0
         let schools = 0
         let districts = 0
@@ -100,38 +54,38 @@ export function AdminDashboard() {
         }
 
         try {
-          schools = parseNumber(await adminDashboardService.getTotalSchools())
+          schools = parseNumber(await adminService.getTotalSchools())
         } catch (error) {
           console.error("Error fetching total schools:", error)
         }
 
         try {
-          districts = parseNumber(await adminDashboardService.getTotalDistricts())
+          districts = parseNumber(await adminService.getTotalDistricts())
         } catch (error) {
           console.error("Error fetching total districts:", error)
         }
 
         try {
-          requests = parseNumber(await adminDashboardService.getTotalPendingRequests())
+          requests = parseNumber(await adminService.getTotalPendingRequests())
         } catch (error) {
           console.error("Error fetching pending requests:", error)
         }
 
         try {
-          const auditsData = await adminDashboardService.getTop4Audits()
+          const auditsData = await adminService.getTop4Audits()
           audits = Array.isArray(auditsData) ? auditsData : []
         } catch (error) {
           console.error("Error fetching audits:", error)
         }
 
         try {
-          logins = parseNumber(await adminDashboardService.getTotalUserLoginThisWeek())
+          logins = parseNumber(await adminService.getTotalUserLoginThisWeek())
         } catch (error) {
           console.error("Error fetching logins:", error)
         }
 
         try {
-          loginsPerDayData = await adminDashboardService.getCountLoginsPerDayOfWeek()
+          loginsPerDayData = await adminService.getCountLoginsPerDayOfWeek()
         } catch (error: any) {
           // Silently handle backend errors for this endpoint - chart will display with zero values
           loginsPerDayData = []
@@ -297,8 +251,8 @@ export function AdminDashboard() {
               </CardHeader>
               <CardContent className="pl-2">
                 <Tabs defaultValue="overview" className="w-full">
-                  <TabsList> 
-                  </TabsList> 
+                  <TabsList>
+                  </TabsList>
                   <TabsContent value="overview" className="pt-4">
                     <div className="space-y-4">
                       <div className="grid gap-4 md:grid-cols-1">
@@ -333,10 +287,10 @@ export function AdminDashboard() {
                               <span>Sun</span>
                             </div>
                           </CardContent>
-                        </Card> 
+                        </Card>
                       </div>
                     </div>
-                  </TabsContent> 
+                  </TabsContent>
                 </Tabs>
               </CardContent>
             </Card>

@@ -8,7 +8,7 @@ import {
   Trash2,
   Loader2,
 } from "lucide-react"
-import apiClient from "@/lib/axios"
+import { governmentService } from "./service/governmentService"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -39,44 +39,7 @@ interface District {
   updated?: string
 }
 
-const districtService = {
-  getAllDistricts: async () => {
-    const response = await apiClient.get(`/district/all`)
-    return response.data
-  },
 
-  getDistrict: async (id: string) => {
-    const response = await apiClient.get(`/district/${id}`)
-    return response.data
-  },
-
-  getProvinces: async () => {
-    const response = await apiClient.get(`/district/province`)
-    return response.data
-  },
-
-  getDistrictsByProvince: async (province: string) => {
-    const response = await apiClient.get(`/district/districts-by-province`, {
-      params: { province }
-    })
-    return response.data
-  },
-
-  registerDistrict: async (districtData: any) => {
-    const response = await apiClient.post(`/district/register`, districtData)
-    return response.data
-  },
-
-  updateDistrict: async (id: string, districtData: any) => {
-    const response = await apiClient.put(`/district/update/${id}`, districtData)
-    return response.data
-  },
-
-  deleteDistrict: async (id: string) => {
-    const response = await apiClient.delete(`/district/delete/${id}`)
-    return response.data
-  },
-}
 
 export function GovDistricts() {
   const [searchTerm, setSearchTerm] = useState("")
@@ -113,7 +76,7 @@ export function GovDistricts() {
   const fetchDistricts = async () => {
     try {
       setLoading(true)
-      const data = await districtService.getAllDistricts()
+      const data = await governmentService.getAllDistricts()
       setDistricts(data || [])
     } catch (err: any) {
       console.error("Error fetching districts:", err)
@@ -125,7 +88,7 @@ export function GovDistricts() {
 
   const fetchProvinces = async () => {
     try {
-      const data = await districtService.getProvinces()
+      const data = await governmentService.getProvinces()
       setProvinces(data || [])
     } catch (err: any) {
       console.error("Error fetching provinces:", err)
@@ -135,7 +98,7 @@ export function GovDistricts() {
 
   const fetchDistrictsByProvince = async (province: string) => {
     try {
-      const data = await districtService.getDistrictsByProvince(province)
+      const data = await governmentService.getDistrictsByProvince(province)
       // API returns List<EDistrict> (enum values), extract the string values
       const districtValues = Array.isArray(data) ? data.map((d: any) => typeof d === 'string' ? d : d.toString()) : []
       setAvailableDistricts(districtValues)
@@ -145,10 +108,7 @@ export function GovDistricts() {
     }
   }
 
-  const handleLogout = async (e: React.MouseEvent) => {
-    e.preventDefault()
-    await logout(navigate)
-  }
+
 
   const handleAddDistrict = async () => {
     if (!newDistrict.province || !newDistrict.district) {
@@ -164,7 +124,7 @@ export function GovDistricts() {
         active: newDistrict.active,
       }
 
-      await districtService.registerDistrict(districtPayload)
+      await governmentService.registerDistrict(districtPayload)
       toast.success("District added successfully")
       setIsAddDialogOpen(false)
       setNewDistrict({
@@ -211,7 +171,7 @@ export function GovDistricts() {
         active: newDistrict.active,
       }
 
-      await districtService.updateDistrict(selectedDistrict.id, districtPayload)
+      await governmentService.updateDistrict(selectedDistrict.id, districtPayload)
       toast.success("District updated successfully")
       setIsEditDialogOpen(false)
       setSelectedDistrict(null)
@@ -237,7 +197,7 @@ export function GovDistricts() {
 
     try {
       setIsProcessing(true)
-      await districtService.deleteDistrict(districtId)
+      await governmentService.deleteDistrict(districtId)
       toast.success("District deleted successfully")
       fetchDistricts()
     } catch (err: any) {
@@ -327,101 +287,101 @@ export function GovDistricts() {
                           Add District
                         </Button>
                       </DialogTrigger>
-                <DialogContent className="sm:max-w-[425px]">
-                  <DialogHeader>
-                    <DialogTitle>Add New District</DialogTitle>
-                    <DialogDescription>
-                      Register a new district in the system.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="province" className="text-right">
-                        Province *
-                      </Label>
-                      <Select 
-                        value={newDistrict.province} 
-                        onValueChange={(value) => {
-                          setNewDistrict({ ...newDistrict, province: value, district: "" })
-                        }}
-                      >
-                        <SelectTrigger className="col-span-3">
-                          <SelectValue placeholder="Select province" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {provinces.map((province) => (
-                            <SelectItem key={province} value={province}>
-                              {province}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="district" className="text-right">
-                        District *
-                      </Label>
-                      <Select 
-                        value={newDistrict.district} 
-                        onValueChange={(value) => setNewDistrict({ ...newDistrict, district: value })}
-                        disabled={!newDistrict.province}
-                      >
-                        <SelectTrigger className="col-span-3">
-                          <SelectValue placeholder={newDistrict.province ? "Select district" : "Select province first"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableDistricts.map((district) => (
-                            <SelectItem key={district} value={district}>
-                              {district}
-                            </SelectItem>
-                          ))}
-                          {availableDistricts.length === 0 && newDistrict.province && (
-                            <SelectItem value="new" disabled>
-                              No districts found. You can create a new one.
-                            </SelectItem>
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="active" className="text-right">
-                        Status
-                      </Label>
-                      <Select value={newDistrict.active ? "true" : "false"} onValueChange={(value) => setNewDistrict({ ...newDistrict, active: value === "true" })}>
-                        <SelectTrigger className="col-span-3">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="true">Active</SelectItem>
-                          <SelectItem value="false">Inactive</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setIsAddDialogOpen(false)
-                        setNewDistrict({
-                          province: "",
-                          district: "",
-                          active: true,
-                        })
-                        setAvailableDistricts([])
-                      }}
-                      disabled={isProcessing}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={handleAddDistrict}
-                      disabled={isProcessing || !newDistrict.province || !newDistrict.district}
-                    >
-                      {isProcessing ? "Adding..." : "Add District"}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
+                      <DialogContent className="sm:max-w-[425px]">
+                        <DialogHeader>
+                          <DialogTitle>Add New District</DialogTitle>
+                          <DialogDescription>
+                            Register a new district in the system.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="province" className="text-right">
+                              Province *
+                            </Label>
+                            <Select
+                              value={newDistrict.province}
+                              onValueChange={(value) => {
+                                setNewDistrict({ ...newDistrict, province: value, district: "" })
+                              }}
+                            >
+                              <SelectTrigger className="col-span-3">
+                                <SelectValue placeholder="Select province" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {provinces.map((province) => (
+                                  <SelectItem key={province} value={province}>
+                                    {province}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="district" className="text-right">
+                              District *
+                            </Label>
+                            <Select
+                              value={newDistrict.district}
+                              onValueChange={(value) => setNewDistrict({ ...newDistrict, district: value })}
+                              disabled={!newDistrict.province}
+                            >
+                              <SelectTrigger className="col-span-3">
+                                <SelectValue placeholder={newDistrict.province ? "Select district" : "Select province first"} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {availableDistricts.map((district) => (
+                                  <SelectItem key={district} value={district}>
+                                    {district}
+                                  </SelectItem>
+                                ))}
+                                {availableDistricts.length === 0 && newDistrict.province && (
+                                  <SelectItem value="new" disabled>
+                                    No districts found. You can create a new one.
+                                  </SelectItem>
+                                )}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="active" className="text-right">
+                              Status
+                            </Label>
+                            <Select value={newDistrict.active ? "true" : "false"} onValueChange={(value) => setNewDistrict({ ...newDistrict, active: value === "true" })}>
+                              <SelectTrigger className="col-span-3">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="true">Active</SelectItem>
+                                <SelectItem value="false">Inactive</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <DialogFooter>
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              setIsAddDialogOpen(false)
+                              setNewDistrict({
+                                province: "",
+                                district: "",
+                                active: true,
+                              })
+                              setAvailableDistricts([])
+                            }}
+                            disabled={isProcessing}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            onClick={handleAddDistrict}
+                            disabled={isProcessing || !newDistrict.province || !newDistrict.district}
+                          >
+                            {isProcessing ? "Adding..." : "Add District"}
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
                     </Dialog>
                   </div>
                 </div>
@@ -554,8 +514,8 @@ export function GovDistricts() {
               <Label htmlFor="edit-province" className="text-right">
                 Province *
               </Label>
-              <Select 
-                value={newDistrict.province} 
+              <Select
+                value={newDistrict.province}
                 onValueChange={(value) => {
                   setNewDistrict({ ...newDistrict, province: value, district: "" })
                 }}
@@ -576,8 +536,8 @@ export function GovDistricts() {
               <Label htmlFor="edit-district" className="text-right">
                 District *
               </Label>
-              <Select 
-                value={newDistrict.district} 
+              <Select
+                value={newDistrict.district}
                 onValueChange={(value) => setNewDistrict({ ...newDistrict, district: value })}
                 disabled={!newDistrict.province}
               >

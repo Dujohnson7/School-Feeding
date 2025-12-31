@@ -8,7 +8,7 @@ import {
   Trash2,
   Loader2,
 } from "lucide-react"
-import apiClient from "@/lib/axios"
+import { governmentService } from "./service/governmentService"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -44,42 +44,7 @@ interface Item {
   updated?: string
 }
 
-const itemService = {
-  getAllItems: async () => {
-    const response = await apiClient.get(`/item/all`)
-    return response.data
-  },
 
-  getItem: async (id: string) => {
-    const response = await apiClient.get(`/item/${id}`)
-    return response.data
-  },
-
-  registerItem: async (itemData: any) => {
-    const response = await apiClient.post(`/item/register`, itemData)
-    return response.data
-  },
-
-  updateItem: async (id: string, itemData: any) => {
-    const response = await apiClient.put(`/item/update/${id}`, itemData)
-    return response.data
-  },
-
-  deleteItem: async (id: string) => {
-    const response = await apiClient.delete(`/item/delete/${id}`)
-    return response.data
-  },
-
-  getFoodCategories: async () => {
-    const response = await apiClient.get(`/item/foodCategoryList`)
-    return response.data
-  },
-
-  getFoodUnits: async () => {
-    const response = await apiClient.get(`/item/foodUnitList`)
-    return response.data
-  },
-}
 
 export function GovItems() {
   const [searchTerm, setSearchTerm] = useState("")
@@ -119,7 +84,7 @@ export function GovItems() {
 
   const fetchFoodCategories = async () => {
     try {
-      const data = await itemService.getFoodCategories()
+      const data = await governmentService.getFoodCategories()
       setFoodCategories(data || [])
     } catch (err: any) {
       console.error("Error fetching food categories:", err)
@@ -128,7 +93,7 @@ export function GovItems() {
 
   const fetchFoodUnits = async () => {
     try {
-      const data = await itemService.getFoodUnits()
+      const data = await governmentService.getFoodUnits()
       setFoodUnits(data || [])
     } catch (err: any) {
       console.error("Error fetching food units:", err)
@@ -138,7 +103,7 @@ export function GovItems() {
   const fetchItems = async () => {
     try {
       setLoading(true)
-      const data = await itemService.getAllItems()
+      const data = await governmentService.getAllItems()
       setItems(data || [])
     } catch (err: any) {
       console.error("Error fetching items:", err)
@@ -172,7 +137,7 @@ export function GovItems() {
         itemPayload.unit = newItem.unit
       }
 
-      await itemService.registerItem(itemPayload)
+      await governmentService.registerItem(itemPayload)
       toast.success("Item added successfully")
       setIsAddDialogOpen(false)
       setNewItem({
@@ -230,7 +195,7 @@ export function GovItems() {
         itemPayload.unit = newItem.unit
       }
 
-      await itemService.updateItem(selectedItem.id, itemPayload)
+      await governmentService.updateItem(selectedItem.id, itemPayload)
       toast.success("Item updated successfully")
       setIsEditDialogOpen(false)
       setSelectedItem(null)
@@ -259,7 +224,7 @@ export function GovItems() {
 
     try {
       setIsProcessing(true)
-      await itemService.deleteItem(itemId)
+      await governmentService.deleteItem(itemId)
       toast.success("Item deleted successfully")
       fetchItems()
     } catch (err: any) {
@@ -390,134 +355,134 @@ export function GovItems() {
                           Add Item
                         </Button>
                       </DialogTrigger>
-                <DialogContent className="sm:max-w-[500px]">
-                  <DialogHeader>
-                    <DialogTitle>Add New Item</DialogTitle>
-                    <DialogDescription>
-                      Register a new food item in the system.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="name" className="text-right">
-                        Name *
-                      </Label>
-                      <Input
-                        id="name"
-                        value={newItem.name}
-                        onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-                        className="col-span-3"
-                        placeholder="Item name (e.g., Rice, Maize)"
-                      />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="perStudent" className="text-right">
-                        Per Student *
-                      </Label>
-                      <Input
-                        id="perStudent"
-                        type="number"
-                        step="0.01"
-                        value={newItem.perStudent}
-                        onChange={(e) => setNewItem({ ...newItem, perStudent: e.target.value })}
-                        className="col-span-3"
-                        placeholder="0.1"
-                      />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="description" className="text-right">
-                        Description *
-                      </Label>
-                      <Textarea
-                        id="description"
-                        value={newItem.description}
-                        onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
-                        className="col-span-3"
-                        placeholder="Item description"
-                        rows={3}
-                      />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="foodCategory" className="text-right">
-                        Food Category
-                      </Label>
-                      <Select
-                        value={newItem.foodCategory}
-                        onValueChange={(value) => setNewItem({ ...newItem, foodCategory: value })}
-                      >
-                        <SelectTrigger className="col-span-3">
-                          <SelectValue placeholder="Select food category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {foodCategories.map((category) => (
-                            <SelectItem key={category} value={category}>
-                              {category.replace(/_/g, " ")}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="price" className="text-right">
-                        Price
-                      </Label>
-                      <Input
-                        id="price"
-                        type="number"
-                        step="0.01"
-                        value={newItem.price}
-                        onChange={(e) => setNewItem({ ...newItem, price: e.target.value })}
-                        className="col-span-3"
-                        placeholder="0.00"
-                      />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                      <Label htmlFor="unit" className="text-right">
-                        Unit
-                      </Label>
-                      <Select
-                        value={newItem.unit}
-                        onValueChange={(value) => setNewItem({ ...newItem, unit: value })}
-                      >
-                        <SelectTrigger className="col-span-3">
-                          <SelectValue placeholder="Select unit" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {foodUnits.map((unit) => (
-                            <SelectItem key={unit} value={unit}>
-                              {unit}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setIsAddDialogOpen(false)
-                        setNewItem({
-                          name: "",
-                          perStudent: "",
-                          description: "",
-                          foodCategory: "",
-                          price: "",
-                          unit: "",
-                        })
-                      }}
-                      disabled={isProcessing}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={handleAddItem}
-                      disabled={isProcessing || !newItem.name || !newItem.perStudent || !newItem.description}
-                    >
-                      {isProcessing ? "Adding..." : "Add Item"}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
+                      <DialogContent className="sm:max-w-[500px]">
+                        <DialogHeader>
+                          <DialogTitle>Add New Item</DialogTitle>
+                          <DialogDescription>
+                            Register a new food item in the system.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="name" className="text-right">
+                              Name *
+                            </Label>
+                            <Input
+                              id="name"
+                              value={newItem.name}
+                              onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+                              className="col-span-3"
+                              placeholder="Item name (e.g., Rice, Maize)"
+                            />
+                          </div>
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="perStudent" className="text-right">
+                              Per Student *
+                            </Label>
+                            <Input
+                              id="perStudent"
+                              type="number"
+                              step="0.01"
+                              value={newItem.perStudent}
+                              onChange={(e) => setNewItem({ ...newItem, perStudent: e.target.value })}
+                              className="col-span-3"
+                              placeholder="0.1"
+                            />
+                          </div>
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="description" className="text-right">
+                              Description *
+                            </Label>
+                            <Textarea
+                              id="description"
+                              value={newItem.description}
+                              onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
+                              className="col-span-3"
+                              placeholder="Item description"
+                              rows={3}
+                            />
+                          </div>
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="foodCategory" className="text-right">
+                              Food Category
+                            </Label>
+                            <Select
+                              value={newItem.foodCategory}
+                              onValueChange={(value) => setNewItem({ ...newItem, foodCategory: value })}
+                            >
+                              <SelectTrigger className="col-span-3">
+                                <SelectValue placeholder="Select food category" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {foodCategories.map((category) => (
+                                  <SelectItem key={category} value={category}>
+                                    {category.replace(/_/g, " ")}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="price" className="text-right">
+                              Price
+                            </Label>
+                            <Input
+                              id="price"
+                              type="number"
+                              step="0.01"
+                              value={newItem.price}
+                              onChange={(e) => setNewItem({ ...newItem, price: e.target.value })}
+                              className="col-span-3"
+                              placeholder="0.00"
+                            />
+                          </div>
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="unit" className="text-right">
+                              Unit
+                            </Label>
+                            <Select
+                              value={newItem.unit}
+                              onValueChange={(value) => setNewItem({ ...newItem, unit: value })}
+                            >
+                              <SelectTrigger className="col-span-3">
+                                <SelectValue placeholder="Select unit" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {foodUnits.map((unit) => (
+                                  <SelectItem key={unit} value={unit}>
+                                    {unit}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <DialogFooter>
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              setIsAddDialogOpen(false)
+                              setNewItem({
+                                name: "",
+                                perStudent: "",
+                                description: "",
+                                foodCategory: "",
+                                price: "",
+                                unit: "",
+                              })
+                            }}
+                            disabled={isProcessing}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            onClick={handleAddItem}
+                            disabled={isProcessing || !newItem.name || !newItem.perStudent || !newItem.description}
+                          >
+                            {isProcessing ? "Adding..." : "Add Item"}
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
                     </Dialog>
                   </div>
                 </div>

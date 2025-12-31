@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "@/components/ui/use-toast"
+import { authService } from "./service/authService"
 
 const loginImage = "/images/image01.jpg"
 const logoImage = "/logo.svg"
@@ -27,17 +28,7 @@ export function ForgotPassword() {
     setErrorMessage(null)
 
     try {
-      const response = await fetch("http://localhost:8070/api/auth/forgot-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: resetData.email }),
-      })
-
-      if (!response.ok) {
-        const data = await response.json().catch(() => null)
-        const message = data?.message || response.statusText || "Failed to send reset link."
-        throw new Error(message)
-      }
+      await authService.forgotPassword(resetData.email)
 
       toast({
         title: "Reset Link Sent",

@@ -18,34 +18,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 import { Checkbox } from "@/components/ui/checkbox"
 
-interface User {
-  id: string
-  name: string
-  email: string
-  role: string
-  userStatus: boolean | string
-  created?: string
-  companyName?: string
-  names?: string
-  profile?: string
-  phone?: string
-  password?: string
-  district?: string | any
-  school?: string | any
-  province?: string
-  tinNumber?: string
-  address?: string
-  bankName?: string
-  bankAccount?: string
-  items?: string[]  
-}
+
 
 // API_BASE_URL removed - using apiClient from @/lib/axios instead
 
 interface District {
   id: string
-  district: string  
-  province: string  
+  district: string
+  province: string
   active?: boolean
   created?: string
   updated?: string
@@ -66,114 +46,7 @@ interface Item {
   unit?: string
 }
 
-const userService = {
-  getAllUsers: async () => {
-    const response = await apiClient.get(`/users/all`)
-    return response.data
-  },
-
-  getProvinces: async () => {
-    const response = await apiClient.get(`/users/province`)
-    return response.data
-  },
-
-  getDistrictsByProvince: async (province: string) => {
-    const response = await apiClient.get(`/users/districts-by-province`, {
-      params: { province }
-    })
-    return response.data
-  },
-
-  getSchoolsByDistrict: async (districtEnum: string) => { 
-    const response = await apiClient.get(`/users/schoolByDistrict`, {
-      params: { district: districtEnum }
-    })
-    return response.data
-  },
-
-  getBanks: async () => {
-    const response = await apiClient.get(`/users/bankName`)
-    return response.data
-  },
-
-  getAllItems: async () => {
-    const response = await apiClient.get(`/item/all`)
-    return response.data
-  },
-
-  registerSupplier: async (supplierData: any) => {
-    const response = await apiClient.post("/supplier/register", supplierData)
-    return response.data
-  },
-
-  updateSupplier: async (id: string, supplierData: any) => {
-    const response = await apiClient.put(`/supplier/update/${id}`, supplierData)
-    return response.data
-  },
-
-  createUser: async (userData: Omit<User, 'id'>) => {
-    const userPayload: any = {
-      names: userData.name,
-      email: userData.email,
-      password: userData.password,
-      role: userData.role,
-      phone: userData.phone,
-      userStatus: userData.userStatus === 'active' || userData.userStatus === true
-    }
-    
-    if (userData.district) userPayload.district = { id: userData.district }
-    if (userData.school) userPayload.school = { id: userData.school }
-    if (userData.province) userPayload.province = userData.province
-    if (userData.companyName) userPayload.companyName = userData.companyName
-    if (userData.tinNumber) userPayload.tinNumber = userData.tinNumber
-    if (userData.address) userPayload.address = userData.address
-    if (userData.bankName) userPayload.bankName = userData.bankName
-    if (userData.bankAccount) userPayload.bankAccount = userData.bankAccount
-    
-    const response = await apiClient.post(`/users/register`, userPayload)
-    return response.data
-  },
-
-  updateUser: async (id: string, userData: Partial<User>) => {
-    const userPayload: any = {
-      names: userData.name,
-      email: userData.email,
-      role: userData.role,
-      phone: userData.phone,
-      userStatus: userData.userStatus === 'active' || userData.userStatus === true
-    }
-    
-    if (userData.district) userPayload.district = { id: userData.district }
-    if (userData.school) userPayload.school = { id: userData.school }
-    if (userData.province) userPayload.province = userData.province
-    if (userData.companyName) userPayload.companyName = userData.companyName
-    if (userData.tinNumber) userPayload.tinNumber = userData.tinNumber
-    if (userData.address) userPayload.address = userData.address
-    if (userData.bankName) userPayload.bankName = userData.bankName
-    if (userData.bankAccount) userPayload.bankAccount = userData.bankAccount
-    
-    const response = await apiClient.put(`/users/update/${id}`, userPayload)
-    return response.data
-  },
-
-  changePassword: async (id: string, newPassword: string) => {
-    const response = await apiClient.put(`/users/changePassword/${id}`, { 
-      id,
-      password: newPassword 
-    })
-    return response.data
-  },
-
-  suspendUser: async (id: string) => {
-    const response = await apiClient.put(`/users/suspend/${id}`)
-    return response.data
-  },
-
-  deleteUser: async (id: string) => {
-    const response = await apiClient.delete(`/users/delete/${id}`)
-    return response.data
-  }
-}
+import { adminService, User } from "./service/adminService"
 
 export function AdminUserManagement() {
   const [users, setUsers] = useState<User[]>([])
@@ -220,7 +93,7 @@ export function AdminUserManagement() {
     const fetchUsers = async () => {
       try {
         setLoading(true)
-        const data = await userService.getAllUsers()
+        const data = await adminService.getAllUsers()
         setUsers(data)
         setError(null)
       } catch (err) {
@@ -235,9 +108,9 @@ export function AdminUserManagement() {
     const fetchInitialData = async () => {
       try {
         const [provincesData, banksData, itemsData] = await Promise.all([
-          userService.getProvinces(),
-          userService.getBanks(),
-          userService.getAllItems()
+          adminService.getProvinces(),
+          adminService.getBanks(),
+          adminService.getAllItems()
         ])
         setProvinces(provincesData)
         setBanks(banksData)
@@ -255,7 +128,7 @@ export function AdminUserManagement() {
     const fetchDistricts = async () => {
       if (newUser.province) {
         try {
-          const districtsData = await userService.getDistrictsByProvince(newUser.province)
+          const districtsData = await adminService.getDistrictsByProvince(newUser.province)
           setDistricts(districtsData)
           setNewUser(prev => ({ ...prev, district: "", school: "" }))
         } catch (err) {
@@ -277,7 +150,7 @@ export function AdminUserManagement() {
         try {
           const selectedDistrict = districts.find(d => d.id === newUser.district)
           if (selectedDistrict) {
-            const schoolsData = await userService.getSchoolsByDistrict(selectedDistrict.district)
+            const schoolsData = await adminService.getSchoolsByDistrict(selectedDistrict.district)
             setSchools(schoolsData)
           }
           setNewUser(prev => ({ ...prev, school: "" }))
@@ -340,8 +213,8 @@ export function AdminUserManagement() {
 
     try {
       setIsProcessing(true)
-      const createdUser = await userService.createUser(newUser)
-      
+      const createdUser = await adminService.createUser(newUser)
+
       if (newUser.role === "SUPPLIER" && createdUser.id) {
         try {
           const selectedDistrict = districts.find(d => d.id === newUser.district)
@@ -355,12 +228,12 @@ export function AdminUserManagement() {
             district: selectedDistrict ? { id: selectedDistrict.id } : null,
             items: newUser.items?.map(itemId => ({ id: itemId })) || []
           }
-          await userService.registerSupplier(supplierPayload)
+          await adminService.registerSupplier(supplierPayload)
         } catch (supplierErr) {
           console.error('Error registering supplier:', supplierErr)
         }
       }
-      
+
       const mappedUser = {
         ...createdUser,
         id: createdUser.id,
@@ -401,11 +274,11 @@ export function AdminUserManagement() {
     if (user) {
       setEditingUserId(userId)
       const userProvince = user.province || (typeof user.district === 'object' ? user.district?.province : null) || ""
-      const userDistrict = typeof user.district === 'string' 
-        ? user.district 
+      const userDistrict = typeof user.district === 'string'
+        ? user.district
         : (typeof user.district === 'object' ? user.district?.id : null) || ""
       const userSchool = typeof user.school === 'string' ? user.school : user.school?.id || ""
-      
+
       setNewUser({
         name: user.name || user.names || "",
         email: user.email || "",
@@ -413,7 +286,7 @@ export function AdminUserManagement() {
         phone: user.phone || "",
         district: userDistrict,
         school: userSchool,
-        password: "", 
+        password: "",
         userStatus: user.userStatus === true || user.userStatus === 'active' ? 'active' : 'inactive',
         province: userProvince,
         tinNumber: user.tinNumber || "",
@@ -423,7 +296,7 @@ export function AdminUserManagement() {
         bankAccount: user.bankAccount || "",
         items: user.items || []
       })
-      
+
       if (user.role === "SUPPLIER" && userId) {
         try {
           const suppliersResponse = await apiClient.get(`/supplier/all`)
@@ -437,36 +310,36 @@ export function AdminUserManagement() {
           console.error('Failed to fetch supplier items:', err)
         }
       }
-      
+
       if (userProvince) {
         try {
-          const districtsData = await userService.getDistrictsByProvince(userProvince)
+          const districtsData = await adminService.getDistrictsByProvince(userProvince)
           setDistricts(districtsData)
         } catch (err) {
           console.error('Failed to fetch districts:', err)
         }
       }
-      
+
       if (userDistrict && userProvince) {
         try {
-          const districtsData = await userService.getDistrictsByProvince(userProvince)
+          const districtsData = await adminService.getDistrictsByProvince(userProvince)
           const selectedDistrict = districtsData.find((d: District) => d.id === userDistrict)
           if (selectedDistrict) {
-            const schoolsData = await userService.getSchoolsByDistrict(selectedDistrict.district)
+            const schoolsData = await adminService.getSchoolsByDistrict(selectedDistrict.district)
             setSchools(schoolsData)
           }
         } catch (err) {
           console.error('Failed to fetch schools:', err)
         }
       }
-      
+
       setIsEditUserOpen(true)
     }
   }
 
   const handleUpdateUser = async () => {
     if (!editingUserId) return
-    
+
     if (!newUser.name || !newUser.email || !newUser.role) {
       toast.error('Please fill in all required fields')
       return
@@ -474,13 +347,13 @@ export function AdminUserManagement() {
 
     try {
       setIsProcessing(true)
-      const updatedUser = await userService.updateUser(editingUserId, newUser)
-      
+      const updatedUser = await adminService.updateUser(editingUserId, newUser)
+
       if (newUser.role === "SUPPLIER" && editingUserId) {
         try {
           const suppliersResponse = await apiClient.get(`/supplier/all`)
           const supplier = suppliersResponse.data.find((s: any) => s.user?.id === editingUserId)
-          
+
           if (supplier) {
             const selectedDistrict = districts.find(d => d.id === newUser.district)
             const supplierPayload = {
@@ -493,7 +366,7 @@ export function AdminUserManagement() {
               district: selectedDistrict ? { id: selectedDistrict.id } : null,
               items: newUser.items?.map(itemId => ({ id: itemId })) || []
             }
-            await userService.updateSupplier(supplier.id, supplierPayload)
+            await adminService.updateSupplier(supplier.id, supplierPayload)
           } else {
             const selectedDistrict = districts.find(d => d.id === newUser.district)
             const supplierPayload = {
@@ -506,13 +379,13 @@ export function AdminUserManagement() {
               district: selectedDistrict ? { id: selectedDistrict.id } : null,
               items: newUser.items?.map(itemId => ({ id: itemId })) || []
             }
-            await userService.registerSupplier(supplierPayload)
+            await adminService.registerSupplier(supplierPayload)
           }
         } catch (supplierErr) {
           console.error('Error updating supplier:', supplierErr)
         }
       }
-      
+
       const mappedUser = {
         ...updatedUser,
         id: updatedUser.id,
@@ -569,7 +442,7 @@ export function AdminUserManagement() {
 
     try {
       setIsProcessing(true)
-      await userService.changePassword(resetPasswordUserId, newPassword)
+      await adminService.changePassword(resetPasswordUserId, newPassword)
       setIsResetPasswordOpen(false)
       setResetPasswordUserId(null)
       setNewPassword("")
@@ -591,11 +464,11 @@ export function AdminUserManagement() {
       switch (action) {
         case 'Edit':
           handleEditUser(userId)
-          setIsProcessing(false) 
-          return 
+          setIsProcessing(false)
+          return
 
         case 'Suspend':
-          await userService.suspendUser(userId)
+          await adminService.suspendUser(userId)
           setUsers(users.map(user =>
             user.id === userId ? { ...user, userStatus: false } : user
           ))
@@ -603,7 +476,7 @@ export function AdminUserManagement() {
           break
 
         case 'Activate':
-          await userService.updateUser(userId, { userStatus: 'active' })
+          await adminService.updateUser(userId, { userStatus: 'active' })
           setUsers(users.map(user =>
             user.id === userId ? { ...user, userStatus: 'active' } : user
           ))
@@ -612,7 +485,7 @@ export function AdminUserManagement() {
 
         case 'Delete':
           if (window.confirm('Are you sure you want to delete this user?')) {
-            await userService.deleteUser(userId)
+            await adminService.deleteUser(userId)
             setUsers(users.filter(user => user.id !== userId))
             toast.success('User deleted successfully')
           }
@@ -621,8 +494,8 @@ export function AdminUserManagement() {
         case 'Reset Password':
           setResetPasswordUserId(userId)
           setIsResetPasswordOpen(true)
-          setIsProcessing(false) 
-          return 
+          setIsProcessing(false)
+          return
       }
     } catch (error: any) {
       console.error(`Error ${action.toLowerCase()} user:`, error)
@@ -674,47 +547,47 @@ export function AdminUserManagement() {
       <main className="flex-1 p-2 sm:p-4 lg:p-6 overflow-auto min-w-0">
         <div className="flex flex-col gap-4 h-full">
           <Card className="h-full flex flex-col">
-              <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-2">
-                <div className="space-y-1">
-                  <CardTitle>Users</CardTitle>
-                  <CardDescription className="hidden sm:block">Manage all system users and their permissions</CardDescription>
+            <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-2">
+              <div className="space-y-1">
+                <CardTitle>Users</CardTitle>
+                <CardDescription className="hidden sm:block">Manage all system users and their permissions</CardDescription>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+                <div className="relative flex-1 min-w-[150px]">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="search"
+                    placeholder="Search by name or email..."
+                    className="pl-8 w-full"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
                 </div>
-                <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
-                  <div className="relative flex-1 min-w-[150px]">
-                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      type="search"
-                      placeholder="Search by name or email..."
-                      className="pl-8 w-full"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-nowrap">
-                    <Select value={selectedRole} onValueChange={setSelectedRole}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Filter by role" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Roles</SelectItem>
-                        <SelectItem value="GOV">Government Official</SelectItem>
-                        <SelectItem value="DISTRICT">District Coordinator</SelectItem>
-                        <SelectItem value="SCHOOL">School Administrator</SelectItem>
-                        <SelectItem value="STOCK_KEEPER">Stock Manager</SelectItem>
-                        <SelectItem value="SUPPLIER">Supplier</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Button onClick={() => setIsAddUserOpen(true)}>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add User
-                    </Button>
-                  </div>
+                <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-nowrap">
+                  <Select value={selectedRole} onValueChange={setSelectedRole}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Filter by role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Roles</SelectItem>
+                      <SelectItem value="GOV">Government Official</SelectItem>
+                      <SelectItem value="DISTRICT">District Coordinator</SelectItem>
+                      <SelectItem value="SCHOOL">School Administrator</SelectItem>
+                      <SelectItem value="STOCK_KEEPER">Stock Manager</SelectItem>
+                      <SelectItem value="SUPPLIER">Supplier</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button onClick={() => setIsAddUserOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add User
+                  </Button>
                 </div>
-              </CardHeader>
-              <CardContent className="flex-1 overflow-auto min-h-0">
-                <div className="rounded-md border">
-                  <div className="relative w-full overflow-auto">
-                    <Table className="min-w-[800px] md:min-w-full">
+              </div>
+            </CardHeader>
+            <CardContent className="flex-1 overflow-auto min-h-0">
+              <div className="rounded-md border">
+                <div className="relative w-full overflow-auto">
+                  <Table className="min-w-[800px] md:min-w-full">
                     <TableHeader>
                       <TableRow>
                         <TableHead>User</TableHead>
@@ -790,55 +663,55 @@ export function AdminUserManagement() {
                             </TableCell>
                             <TableCell className="hidden lg:table-cell">{user.created ? new Date(user.created).toLocaleDateString() : "—"}</TableCell>
                             <TableCell className="text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0">
-                                  <span className="sr-only">Open menu</span>
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuItem onClick={() => handleUserAction("Edit", user.id)}>
-                                  <Edit className="mr-2 h-4 w-4" />
-                                  Edit User
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleUserAction("Reset Password", user.id)}>
-                                  <Settings className="mr-2 h-4 w-4" />
-                                  Reset Password
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                {user.userStatus === "active" ? (
-                                  <DropdownMenuItem onClick={() => handleUserAction("Suspend", user.id)}>
-                                    <Shield className="mr-2 h-4 w-4" />
-                                    Suspend User
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" className="h-8 w-8 p-0">
+                                    <span className="sr-only">Open menu</span>
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                  <DropdownMenuItem onClick={() => handleUserAction("Edit", user.id)}>
+                                    <Edit className="mr-2 h-4 w-4" />
+                                    Edit User
                                   </DropdownMenuItem>
-                                ) : (
-                                  <DropdownMenuItem onClick={() => handleUserAction("Activate", user.id)}>
-                                    <Shield className="mr-2 h-4 w-4" />
-                                    Activate User
+                                  <DropdownMenuItem onClick={() => handleUserAction("Reset Password", user.id)}>
+                                    <Settings className="mr-2 h-4 w-4" />
+                                    Reset Password
                                   </DropdownMenuItem>
-                                )}
-                                <DropdownMenuItem
-                                  onClick={() => handleUserAction("Delete", user.id)}
-                                  className="text-red-600"
-                                >
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  Delete User
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                                  <DropdownMenuSeparator />
+                                  {user.userStatus === "active" ? (
+                                    <DropdownMenuItem onClick={() => handleUserAction("Suspend", user.id)}>
+                                      <Shield className="mr-2 h-4 w-4" />
+                                      Suspend User
+                                    </DropdownMenuItem>
+                                  ) : (
+                                    <DropdownMenuItem onClick={() => handleUserAction("Activate", user.id)}>
+                                      <Shield className="mr-2 h-4 w-4" />
+                                      Activate User
+                                    </DropdownMenuItem>
+                                  )}
+                                  <DropdownMenuItem
+                                    onClick={() => handleUserAction("Delete", user.id)}
+                                    className="text-red-600"
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Delete User
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={6} className="h-24 text-center">
+                            No users found.
                           </TableCell>
                         </TableRow>
-                      ))
-                    ) : (
-                      <TableRow>
-                        <TableCell colSpan={6} className="h-24 text-center">
-                          No users found.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
+                      )}
+                    </TableBody>
                   </Table>
                 </div>
               </div>
@@ -980,7 +853,7 @@ export function AdminUserManagement() {
               </Select>
             </div>
 
-            
+
             {(newUser.role === "DISTRICT" || newUser.role === "SCHOOL") && (
               <div className="grid gap-2">
                 <Label htmlFor="province">Province</Label>
@@ -1002,8 +875,8 @@ export function AdminUserManagement() {
             {(newUser.role === "DISTRICT" || newUser.role === "SCHOOL" || newUser.role === "SUPPLIER") && (
               <div className="grid gap-2">
                 <Label htmlFor="district">District</Label>
-                <Select 
-                  value={newUser.district} 
+                <Select
+                  value={newUser.district}
                   onValueChange={(value) => setNewUser({ ...newUser, district: value })}
                   disabled={!newUser.province}
                 >
@@ -1024,8 +897,8 @@ export function AdminUserManagement() {
             {(newUser.role === "SCHOOL" || newUser.role === "STOCK_KEEPER") && (
               <div className="grid gap-2">
                 <Label htmlFor="school">School</Label>
-                <Select 
-                  value={newUser.school} 
+                <Select
+                  value={newUser.school}
                   onValueChange={(value) => setNewUser({ ...newUser, school: value })}
                   disabled={!newUser.district}
                 >
@@ -1044,8 +917,8 @@ export function AdminUserManagement() {
             )}
 
 
-            
-            {newUser.role === "SUPPLIER"  && (
+
+            {newUser.role === "SUPPLIER" && (
               <div className="grid gap-2">
                 <Label htmlFor="tinNumber">TIN Number</Label>
                 <Input
@@ -1057,9 +930,9 @@ export function AdminUserManagement() {
                 />
               </div>
             )}
- 
-            
-            {newUser.role === "SUPPLIER"  && (
+
+
+            {newUser.role === "SUPPLIER" && (
               <div className="grid gap-2">
                 <Label htmlFor="companyName">Company Name</Label>
                 <Input
@@ -1071,8 +944,8 @@ export function AdminUserManagement() {
                 />
               </div>
             )}
- 
-            {newUser.role === "SUPPLIER"  && (
+
+            {newUser.role === "SUPPLIER" && (
               <div className="grid gap-2">
                 <Label htmlFor="address">Address</Label>
                 <Input
@@ -1084,8 +957,8 @@ export function AdminUserManagement() {
                 />
               </div>
             )}
- 
-            {newUser.role === "SUPPLIER"  && (
+
+            {newUser.role === "SUPPLIER" && (
               <div className="grid gap-2">
                 <Label htmlFor="bankName">Bank Name</Label>
                 <Select value={newUser.bankName} onValueChange={(value) => setNewUser({ ...newUser, bankName: value })}>
@@ -1102,8 +975,8 @@ export function AdminUserManagement() {
                 </Select>
               </div>
             )}
-            
-            {newUser.role === "SUPPLIER"  && (
+
+            {newUser.role === "SUPPLIER" && (
               <div className="grid gap-2">
                 <Label htmlFor="bankAccount">Bank Account Number</Label>
                 <Input
@@ -1254,8 +1127,8 @@ export function AdminUserManagement() {
             {(newUser.role === "DISTRICT" || newUser.role === "SCHOOL" || newUser.role === "SUPPLIER") && (
               <div className="grid gap-2">
                 <Label htmlFor="edit-district">District</Label>
-                <Select 
-                  value={newUser.district} 
+                <Select
+                  value={newUser.district}
                   onValueChange={(value) => setNewUser({ ...newUser, district: value })}
                   disabled={!newUser.province}
                 >
@@ -1276,8 +1149,8 @@ export function AdminUserManagement() {
             {(newUser.role === "SCHOOL" || newUser.role === "STOCK_KEEPER") && (
               <div className="grid gap-2">
                 <Label htmlFor="edit-school">School</Label>
-                <Select 
-                  value={newUser.school} 
+                <Select
+                  value={newUser.school}
                   onValueChange={(value) => setNewUser({ ...newUser, school: value })}
                   disabled={!newUser.district}
                 >

@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Package, Search } from "lucide-react"
-import apiClient from "@/lib/axios"
+import { supplierService } from "./service/supplierService"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, } from "@/components/ui/dialog"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 
@@ -91,17 +91,7 @@ interface BackendOrder {
   [key: string]: any // Allow for additional fields from backend
 }
 
-const orderService = {
-  getOrder: async (id: string) => {
-    const response = await apiClient.get(`/supplierOrder/${id}`)
-    return response.data
-  },
-
-  getAllOrders: async (supplierId: string) => {
-    const response = await apiClient.get(`/supplierOrder/all/${supplierId}`)
-    return response.data
-  },
-}
+// Local service definition removed
 
 // Helper function to map backend order to frontend order
 const mapBackendOrderToFrontend = (backendOrder: BackendOrder): Order => {
@@ -147,7 +137,7 @@ const mapBackendOrderToFrontend = (backendOrder: BackendOrder): Order => {
     const itemId = detail.item?.id
     const itemName = itemId ? (itemMap.get(itemId) || `Item ${itemId}`) : "Unknown Item"
     const quantity = detail.quantity || 0
-    
+
     items.push(itemName)
     quantities.push(`${quantity} kg`)
   })
@@ -195,8 +185,8 @@ export function SupplierOrders() {
           throw new Error("User ID not found. Please login again.")
         }
 
-        const backendOrders: BackendOrder[] = await orderService.getAllOrders(supplierId)
-        
+        const backendOrders: BackendOrder[] = await supplierService.getAllOrders(supplierId)
+
         if (backendOrders && Array.isArray(backendOrders)) {
           const mappedOrders = backendOrders.map(mapBackendOrderToFrontend)
           setOrders(mappedOrders)
@@ -421,7 +411,7 @@ export function SupplierOrders() {
                                   }}
                                 >
                                   View Details
-                                </Button> 
+                                </Button>
                               </div>
                             </TableCell>
                           </TableRow>
@@ -572,7 +562,7 @@ export function SupplierOrders() {
           </DialogContent>
         </Dialog>
       )}
- 
+
     </div>
   )
 }

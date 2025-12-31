@@ -2,6 +2,32 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { format as formatDate } from 'date-fns'
 
+// Helper function to get current user info from localStorage
+export const getCurrentUserInfo = () => {
+  try {
+    const userStr = localStorage.getItem("user")
+    if (!userStr) return null
+
+    const user = JSON.parse(userStr)
+    const role = localStorage.getItem("role") || user.role || ""
+
+    return {
+      id: user.id || localStorage.getItem("userId") || "",
+      names: user.names || "",
+      role: role.trim().toUpperCase().replace(/^ROLE_/, ""),
+      districtId: user.district?.id || localStorage.getItem("districtId") || "",
+      schoolId: user.school?.id || localStorage.getItem("schoolId") || "",
+      districtName: user.district?.name || "",
+      schoolName: user.school?.name || "",
+      province: user.district?.province || user.school?.province || "",
+      supplierName: role.toUpperCase() === "SUPPLIER" ? user.names : ""
+    }
+  } catch (e) {
+    console.error("Error parsing user info from localStorage", e)
+    return null
+  }
+}
+
 // Helper function to load image as base64
 const loadImageAsBase64 = async (imagePath: string): Promise<string> => {
   try {
@@ -23,130 +49,124 @@ const loadImageAsBase64 = async (imagePath: string): Promise<string> => {
 const addReportHeader = async (
   doc: jsPDF,
   reportTitle: string,
-  schoolInfo?: {
-    school?: string
-    province?: string
-    district?: string
-    dateFrom?: Date
-    dateTo?: Date
+  options: {
+    type: 'school' | 'stock' | 'district' | 'supplier' | 'gov'
+    entityInfo: {
+      name?: string
+      province?: string
+      district?: string
+      supplierName?: string
+    }
+    dateFrom?: Date | string
+    dateTo?: Date | string
   }
 ) => {
   const pageWidth = doc.internal.pageSize.getWidth()
-  const pageHeight = doc.internal.pageSize.getHeight()
-  
-  // Set light gray background for entire page
-  doc.setFillColor(240, 240, 240) // Light gray
-  doc.rect(0, 0, pageWidth, pageHeight, 'F')
-  
   let yPos = 15
 
-  // Add logo at top left (circular emblem)
+  // Add logo
   try {
-    const logoBase64 = await loadImageAsBase64('/logo.svg')
+    const logoBase64 = await loadImageAsBase64(`${window.location.origin}/logoSF.png`)
     if (logoBase64) {
-      // Add logo image - positioned at top left, size 30x30mm
-      doc.addImage(logoBase64, 'SVG', 15, yPos, 30, 30)
+      const textWidth = doc.getTextWidth('SCHOOL FEEDING')
+      const logoWidth = 30
+      const logoX = 13 + (textWidth - logoWidth) / 2
+      doc.addImage(logoBase64, 'PNG', logoX, yPos, logoWidth, 30) // Height increased to 30
     }
   } catch (error) {
     console.error('Error adding logo:', error)
-    // Draw a placeholder circle if logo fails
-    doc.setDrawColor(0, 128, 0) // Green
-    doc.setFillColor(255, 255, 255) // White
-    doc.circle(30, yPos + 15, 15, 'FD')
   }
 
-  // Add "SCHOOL FEEDING" in blue, bold, capitalized below logo
-  yPos += 35
-  doc.setTextColor(0, 0, 255) // Blue color (RGB: 0, 0, 255)
-  doc.setFontSize(18)
-  doc.setFont('helvetica', 'bold')
-  doc.text('SCHOOL FEEDING', 15, yPos)
+  yPos += 37
+  // SCHOOL FEEDING (Blue)
+  doc.setTextColor(43, 108, 176) // #2b6cb0
+  doc.setFontSize(12)
+  doc.setFont('times', 'bold')
+  doc.text('SCHOOL FEEDING', 20, yPos)
 
-  yPos += 10
+  yPos += 12
+  doc.setFontSize(11)
 
-  // Add information section with colored labels (matching picture exactly)
-  if (schoolInfo) {
-    doc.setFontSize(11)
-    doc.setFont('helvetica', 'normal')
+  const { type, entityInfo, dateFrom, dateTo } = options
 
-    // School: (red label, black value)
-    doc.setTextColor(255, 0, 0) // Red
-    doc.text('School:', 15, yPos)
-    doc.setTextColor(0, 0, 0) // Black
-    const schoolX = 15 + doc.getTextWidth('School: ') + 2
-    doc.text(schoolInfo.school || 'N/A', schoolX, yPos)
-
-    // Province: (black)
+  // Helper to draw label: value
+  const drawLine = (label: string, value: string, labelColor: [number, number, number]) => {
+    doc.setTextColor(...labelColor)
+    doc.setFont('times', 'bold')
+    doc.text(`${label}:`, 20, yPos)
+    doc.setTextColor(0, 0, 0)
+    doc.setFont('times', 'normal')
+    doc.text(` ${value}`, 20 + doc.getTextWidth(`${label}: `), yPos)
     yPos += 7
-    doc.setTextColor(0, 0, 0) // Black
-    doc.text('Province:', 15, yPos)
-    const provinceX = 15 + doc.getTextWidth('Province: ') + 2
-    doc.text(schoolInfo.province || 'N/A', provinceX, yPos)
+  }
 
-    // District: (orange label, black value)
-    yPos += 7
-    doc.setTextColor(255, 165, 0) // Orange (RGB: 255, 165, 0)
-    doc.text('District:', 15, yPos)
-    doc.setTextColor(0, 0, 0) // Black
-    const districtX = 15 + doc.getTextWidth('District: ') + 2
-    doc.text(schoolInfo.district || 'N/A', districtX, yPos)
+  const BLUE = [26, 54, 93] as [number, number, number] // #1a365d
+  const RED = [229, 62, 62] as [number, number, number] // #e53e3e
+  const GREEN = [46, 125, 50] as [number, number, number] // #2e7d32
+  const ORANGE = [192, 86, 33] as [number, number, number] // #c05621
 
-    // Date range: From/To (red labels, black dates)
-    if (schoolInfo.dateFrom && schoolInfo.dateTo) {
-      yPos += 7
-      doc.setTextColor(255, 0, 0) // Red
-      doc.text('From:', 15, yPos)
-      doc.setTextColor(0, 0, 0) // Black
-      const fromDateX = 15 + doc.getTextWidth('From: ') + 2
-      doc.text(formatDate(schoolInfo.dateFrom, 'dd MMMM yyyy'), fromDateX, yPos)
-      
-      yPos += 7
-      doc.setTextColor(255, 0, 0) // Red
-      doc.text('To:', 15, yPos)
-      doc.setTextColor(0, 0, 0) // Black
-      const toDateX = 15 + doc.getTextWidth('To: ') + 2
-      doc.text(formatDate(schoolInfo.dateTo, 'dd MMMM yyyy'), toDateX, yPos)
-      
-      yPos += 12
-    } else {
-      yPos += 7
-    }
+  if (type === 'school' || type === 'stock') {
+    drawLine('School', entityInfo.name || 'N/A', RED)
+    drawLine('Province', entityInfo.province || 'N/A', BLUE)
+    drawLine('District', entityInfo.district || 'N/A', GREEN)
+  } else if (type === 'district') {
+    drawLine('Province', entityInfo.province || 'N/A', BLUE)
+    drawLine('District', entityInfo.district || 'N/A', GREEN)
+  } else if (type === 'supplier') {
+    drawLine('Supplier', entityInfo.supplierName || 'N/A', RED)
+    drawLine('Province', entityInfo.province || 'N/A', BLUE)
+    drawLine('District', entityInfo.district || 'N/A', GREEN)
+  } else if (type === 'gov') {
+    drawLine('MINEDUC', 'N/A', RED)
+  }
+
+  // Dates (Orange)
+  if (dateFrom && dateTo) {
+    const fromStr = dateFrom instanceof Date ? formatDate(dateFrom, 'd MMMM yyyy') : dateFrom
+    const toStr = dateTo instanceof Date ? formatDate(dateTo, 'd MMMM yyyy') : dateTo
+
+    doc.setTextColor(...ORANGE)
+    doc.setFont('times', 'bold')
+    doc.text('From:', 20, yPos)
+    doc.setTextColor(0, 0, 0)
+    doc.setFont('times', 'normal')
+    doc.text(` ${fromStr}`, 20 + doc.getTextWidth('From: '), yPos)
+
+    const nextX = 20 + doc.getTextWidth('From: ') + doc.getTextWidth(` ${fromStr}`) + 10
+    doc.setTextColor(...ORANGE)
+    doc.setFont('times', 'bold')
+    doc.text('To:', nextX, yPos)
+    doc.setTextColor(0, 0, 0)
+    doc.setFont('times', 'normal')
+    doc.text(` ${toStr}`, nextX + doc.getTextWidth('To: '), yPos)
+    yPos += 15
   } else {
     yPos += 10
   }
 
-  // Center the report title in blue, bold (replace "Title Report" with actual report type)
-  yPos += 5
-  doc.setTextColor(0, 0, 255) // Blue
-  doc.setFontSize(16)
-  doc.setFont('helvetica', 'bold')
+  // Centered Title (Dark Blue)
+  doc.setTextColor(44, 82, 130) // #2c5282
+  doc.setFontSize(16) // Reduced from 22
+  doc.setFont('times', 'bold')
   const titleWidth = doc.getTextWidth(reportTitle)
-  const titleX = (pageWidth - titleWidth) / 2
-  doc.text(reportTitle, titleX, yPos)
-
+  doc.text(reportTitle, (pageWidth - titleWidth) / 2, yPos)
   yPos += 12
 
-  // Reset text color
-  doc.setTextColor(0, 0, 0)
-
-  return yPos // Return Y position after header
+  return yPos
 }
 
 // Helper function to add footer with generator date (matching picture format)
 const addReportFooter = (doc: jsPDF) => {
   const pageHeight = doc.internal.pageSize.getHeight()
   const pageWidth = doc.internal.pageSize.getWidth()
-  
+
   doc.setFontSize(10)
-  doc.setFont('helvetica', 'italic')
-  doc.setTextColor(0, 0, 0) // Black text
-  
+  doc.setFont('times', 'italic')
+  doc.setTextColor(0, 0, 0)
+
   const footerText = `Generator on ${formatDate(new Date(), 'dd MMMM yyyy')}`
   const footerWidth = doc.getTextWidth(footerText)
-  const footerX = pageWidth - footerWidth - 15 // Right aligned with margin
-  const footerY = pageHeight - 12 // Bottom margin
-  
-  doc.text(footerText, footerX, footerY)
+  doc.text(footerText, (pageWidth - footerWidth) / 2, pageHeight - 12)
 }
 
 interface SchoolInfo {
@@ -192,11 +212,11 @@ export const exportFoodTrackingSheetPDF = async (
     // Parse month/year to get date range
     let dateFrom: Date | undefined
     let dateTo: Date | undefined
-    
+
     try {
       // Try to parse month/year (e.g., "November 2025" or "11 2025")
-      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
-                         'July', 'August', 'September', 'October', 'November', 'December']
+      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December']
       const parts = monthYear.split(' ')
       if (parts.length >= 2) {
         const monthStr = parts[0]
@@ -204,7 +224,7 @@ export const exportFoodTrackingSheetPDF = async (
         const monthIndex = monthNames.findIndex(m => m.toLowerCase() === monthStr.toLowerCase())
         const month = monthIndex !== -1 ? monthIndex + 1 : parseInt(monthStr)
         const year = parseInt(yearStr)
-        
+
         if (!isNaN(month) && !isNaN(year)) {
           dateFrom = new Date(year, month - 1, 1)
           const lastDay = new Date(year, month, 0).getDate()
@@ -218,18 +238,21 @@ export const exportFoodTrackingSheetPDF = async (
     // Add header with logo and School Feeding - use actual report title
     // All information is now in the header (School, Province, District, From, To)
     let yPos = await addReportHeader(doc, 'Food Tracking Sheet Report', {
-      school: schoolInfo.name,
-      province: schoolInfo.province,
-      district: schoolInfo.district,
+      type: 'school',
+      entityInfo: {
+        name: schoolInfo.name,
+        province: schoolInfo.province,
+        district: schoolInfo.district,
+      },
       dateFrom,
       dateTo
     })
 
     // Table headers
     const headers = [
-      ['Date', 'Unit (kg, piece, etc.)', 'Stock at start', 'Food received', 
-       'Handed out', 'Signature cook rep', 'Missing', 'Suspected unfit', 
-       'Confirmed unfit', 'Disposed', 'Total', 'Stock at end', 'Remarks']
+      ['Date', 'Unit (kg, piece, etc.)', 'Stock at start', 'Food received',
+        'Handed out', 'Signature cook rep', 'Missing', 'Suspected unfit',
+        'Confirmed unfit', 'Disposed', 'Total', 'Stock at end', 'Remarks']
     ]
 
     // Prepare table data
@@ -259,17 +282,17 @@ export const exportFoodTrackingSheetPDF = async (
         cellPadding: 3,
         overflow: 'linebreak',
         lineColor: [0, 0, 0], // Black borders
-        lineWidth: 0.5, // Thicker borders to match picture
+        lineWidth: 0.1, // Thinner, more attractive borders
         fillColor: [255, 255, 255], // White background for cells
         textColor: [0, 0, 0]
       },
       headStyles: {
-        fillColor: [255, 255, 255], // White background
+        fillColor: [248, 248, 248], // Light gray header
         textColor: [0, 0, 0],
         fontStyle: 'bold',
         fontSize: 7,
         lineColor: [0, 0, 0], // Black borders
-        lineWidth: 0.5
+        lineWidth: 0.1
       },
       columnStyles: {
         0: { cellWidth: 20 }, // Date
@@ -287,9 +310,9 @@ export const exportFoodTrackingSheetPDF = async (
         12: { cellWidth: 40 } // Remarks
       },
       alternateRowStyles: {
-        fillColor: [255, 255, 255], // White background
+        fillColor: [252, 252, 252], // Subtle alternate row color
         lineColor: [0, 0, 0], // Black borders
-        lineWidth: 0.5
+        lineWidth: 0.1
       },
       margin: { top: yPos, left: 15, right: 15 }
     })
@@ -300,7 +323,7 @@ export const exportFoodTrackingSheetPDF = async (
     // Save the PDF
     const fileName = `Food_Tracking_Sheet_${schoolInfo.name?.replace(/\s+/g, '_')}_${foodItem.name?.replace(/\s+/g, '_')}_${monthYear.replace(/\s+/g, '_')}.pdf`
     doc.save(fileName)
-    
+
     return true
   } catch (error) {
     console.error('Error generating PDF:', error)
@@ -316,8 +339,8 @@ export const exportFoodTrackingSheetCSV = (
 ) => {
   try {
     const headers = [
-      'Date', 'Unit', 'Stock at start', 'Food received', 'Handed out', 
-      'Signature cook rep', 'Missing', 'Suspected unfit', 'Confirmed unfit', 
+      'Date', 'Unit', 'Stock at start', 'Food received', 'Handed out',
+      'Signature cook rep', 'Missing', 'Suspected unfit', 'Confirmed unfit',
       'Disposed', 'Total', 'Stock at end', 'Remarks'
     ]
 
@@ -358,14 +381,14 @@ export const exportFoodTrackingSheetCSV = (
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
     const url = URL.createObjectURL(blob)
-    
+
     link.setAttribute('href', url)
     link.setAttribute('download', `Food_Tracking_Sheet_${schoolInfo.name?.replace(/\s+/g, '_')}_${foodItem.name?.replace(/\s+/g, '_')}_${monthYear.replace(/\s+/g, '_')}.csv`)
     link.style.visibility = 'hidden'
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
-    
+
     return true
   } catch (error) {
     console.error('Error generating CSV:', error)
@@ -381,10 +404,9 @@ export const exportFoodTrackingSheetExcel = async (
 ) => {
   try {
     // For Excel, we'll create a CSV-like format that Excel can open
-    // In a production app, you might want to use a library like xlsx
     const headers = [
-      'Date', 'Unit', 'Stock at start', 'Food received', 'Handed out', 
-      'Signature cook rep', 'Missing', 'Suspected unfit', 'Confirmed unfit', 
+      'Date', 'Unit', 'Stock at start', 'Food received', 'Handed out',
+      'Signature cook rep', 'Missing', 'Suspected unfit', 'Confirmed unfit',
       'Disposed', 'Total', 'Stock at end', 'Remarks'
     ]
 
@@ -420,14 +442,14 @@ export const exportFoodTrackingSheetExcel = async (
     const blob = new Blob([excelContent], { type: 'application/vnd.ms-excel' })
     const link = document.createElement('a')
     const url = URL.createObjectURL(blob)
-    
+
     link.setAttribute('href', url)
     link.setAttribute('download', `Food_Tracking_Sheet_${schoolInfo.name?.replace(/\s+/g, '_')}_${foodItem.name?.replace(/\s+/g, '_')}_${monthYear.replace(/\s+/g, '_')}.xls`)
     link.style.visibility = 'hidden'
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
-    
+
     return true
   } catch (error) {
     console.error('Error generating Excel:', error)
@@ -448,6 +470,13 @@ export const generateStockReport = async (
   }
 ) => {
   try {
+    const userInfo = getCurrentUserInfo()
+    const finalSchoolInfo = {
+      school: schoolInfo?.school || userInfo?.schoolName || userInfo?.supplierName || "N/A",
+      province: schoolInfo?.province || userInfo?.province || "N/A",
+      district: schoolInfo?.district || userInfo?.districtName || "N/A",
+    }
+
     if (format === 'pdf') {
       const doc = new jsPDF({
         orientation: 'portrait',
@@ -455,55 +484,53 @@ export const generateStockReport = async (
         format: 'a4'
       })
 
-      // Use reportType as the title (e.g., "Stock Management Report")
       let yPos = await addReportHeader(doc, `${reportType} Report`, {
-        school: schoolInfo?.school,
-        province: schoolInfo?.province,
-        district: schoolInfo?.district,
+        type: 'stock',
+        entityInfo: {
+          name: finalSchoolInfo.school,
+          province: finalSchoolInfo.province,
+          district: finalSchoolInfo.district,
+        },
         dateFrom: dateRange.from,
         dateTo: dateRange.to
       })
-      
-      // Add data table with black borders
+
       if (data && data.length > 0) {
         const headers = Object.keys(data[0])
-        const tableData = data.map((row: any) => headers.map((key) => String(row[key] || '')))
-        
+        const tableData = data.map((row: any) => headers.map((key) => String(row[key] ?? '')))
+
         autoTable(doc, {
           head: [headers],
           body: tableData,
           startY: yPos,
-          styles: { 
+          styles: {
             fontSize: 8,
             cellPadding: 3,
-            lineColor: [0, 0, 0], // Black borders
-            lineWidth: 0.5, // Thicker borders to match picture
-            fillColor: [255, 255, 255], // White background
+            lineColor: [0, 0, 0],
+            lineWidth: 0.5,
+            fillColor: [255, 255, 255],
             textColor: [0, 0, 0]
           },
-          headStyles: { 
-            fillColor: [255, 255, 255], // White background
+          headStyles: {
+            fillColor: [255, 255, 255],
             textColor: [0, 0, 0],
             fontStyle: 'bold',
-            lineColor: [0, 0, 0], // Black borders
+            lineColor: [0, 0, 0],
             lineWidth: 0.5
           },
           alternateRowStyles: {
-            fillColor: [255, 255, 255], // White background
-            lineColor: [0, 0, 0], // Black borders
+            fillColor: [255, 255, 255],
+            lineColor: [0, 0, 0],
             lineWidth: 0.5
           },
           margin: { left: 15, right: 15 }
         })
       }
 
-      // Add footer with generator date
       addReportFooter(doc)
-
       const fileName = `Stock_Report_${reportType.replace(/\s+/g, '_')}_${formatDate(new Date(), 'yyyyMMdd')}.pdf`
       doc.save(fileName)
     } else if (format === 'csv') {
-      // CSV generation
       const headers = data && data.length > 0 ? Object.keys(data[0]) : []
       const csvRows = [
         ['School Feeding Program - Stock Management Report'],
@@ -512,7 +539,7 @@ export const generateStockReport = async (
         [],
         [headers.join(',')]
       ]
-      
+
       if (data) {
         data.forEach((row: any) => {
           csvRows.push([headers.map(key => String(row[key] || '')).join(',')])
@@ -523,7 +550,6 @@ export const generateStockReport = async (
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
       const link = document.createElement('a')
       const url = URL.createObjectURL(blob)
-      
       link.setAttribute('href', url)
       link.setAttribute('download', `Stock_Report_${reportType.replace(/\s+/g, '_')}_${formatDate(new Date(), 'yyyyMMdd')}.csv`)
       link.style.visibility = 'hidden'
@@ -531,7 +557,6 @@ export const generateStockReport = async (
       link.click()
       document.body.removeChild(link)
     }
-
     return true
   } catch (error) {
     console.error('Error generating stock report:', error)
@@ -552,6 +577,13 @@ export const generateSupplierReport = async (
   }
 ) => {
   try {
+    const userInfo = getCurrentUserInfo()
+    const finalInfo = {
+      supplier: schoolInfo?.school || userInfo?.supplierName || userInfo?.names || "N/A",
+      province: schoolInfo?.province || userInfo?.province || "N/A",
+      district: schoolInfo?.district || userInfo?.districtName || "N/A",
+    }
+
     if (format === 'pdf') {
       const doc = new jsPDF({
         orientation: 'portrait',
@@ -559,50 +591,50 @@ export const generateSupplierReport = async (
         format: 'a4'
       })
 
-      // Use reportType as the title (e.g., "Stock Management Report")
       let yPos = await addReportHeader(doc, `${reportType} Report`, {
-        school: schoolInfo?.school,
-        province: schoolInfo?.province,
-        district: schoolInfo?.district,
+        type: 'supplier',
+        entityInfo: {
+          supplierName: finalInfo.supplier,
+          province: finalInfo.province,
+          district: finalInfo.district,
+        },
         dateFrom: dateRange.from,
         dateTo: dateRange.to
       })
-      
+
       if (data && data.length > 0) {
         const headers = Object.keys(data[0])
-        const tableData = data.map((row: any) => headers.map((key) => String(row[key] || '')))
-        
+        const tableData = data.map((row: any) => headers.map((key) => String(row[key] ?? '')))
+
         autoTable(doc, {
           head: [headers],
           body: tableData,
           startY: yPos,
-          styles: { 
+          styles: {
             fontSize: 8,
             cellPadding: 3,
-            lineColor: [0, 0, 0], // Black borders
-            lineWidth: 0.5, // Thicker borders to match picture
-            fillColor: [255, 255, 255], // White background
+            lineColor: [0, 0, 0],
+            lineWidth: 0.5,
+            fillColor: [255, 255, 255],
             textColor: [0, 0, 0]
           },
-          headStyles: { 
-            fillColor: [255, 255, 255], // White background
+          headStyles: {
+            fillColor: [255, 255, 255],
             textColor: [0, 0, 0],
             fontStyle: 'bold',
-            lineColor: [0, 0, 0], // Black borders
+            lineColor: [0, 0, 0],
             lineWidth: 0.5
           },
           alternateRowStyles: {
-            fillColor: [255, 255, 255], // White background
-            lineColor: [0, 0, 0], // Black borders
+            fillColor: [255, 255, 255],
+            lineColor: [0, 0, 0],
             lineWidth: 0.5
           },
           margin: { left: 15, right: 15 }
         })
       }
 
-      // Add footer with generator date
       addReportFooter(doc)
-
       const fileName = `Supplier_Report_${reportType.replace(/\s+/g, '_')}_${formatDate(new Date(), 'yyyyMMdd')}.pdf`
       doc.save(fileName)
     } else if (format === 'csv') {
@@ -614,7 +646,7 @@ export const generateSupplierReport = async (
         [],
         [headers.join(',')]
       ]
-      
+
       if (data) {
         data.forEach((row: any) => {
           csvRows.push([headers.map(key => String(row[key] || '')).join(',')])
@@ -625,7 +657,6 @@ export const generateSupplierReport = async (
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
       const link = document.createElement('a')
       const url = URL.createObjectURL(blob)
-      
       link.setAttribute('href', url)
       link.setAttribute('download', `Supplier_Report_${reportType.replace(/\s+/g, '_')}_${formatDate(new Date(), 'yyyyMMdd')}.csv`)
       link.style.visibility = 'hidden'
@@ -633,7 +664,6 @@ export const generateSupplierReport = async (
       link.click()
       document.body.removeChild(link)
     }
-
     return true
   } catch (error) {
     console.error('Error generating supplier report:', error)
@@ -654,6 +684,12 @@ export const generateDistrictReport = async (
   }
 ) => {
   try {
+    const userInfo = getCurrentUserInfo()
+    const finalInfo = {
+      province: schoolInfo?.province || userInfo?.province || "N/A",
+      district: schoolInfo?.district || userInfo?.districtName || "N/A",
+    }
+
     if (format === 'pdf') {
       const doc = new jsPDF({
         orientation: 'portrait',
@@ -661,50 +697,49 @@ export const generateDistrictReport = async (
         format: 'a4'
       })
 
-      // Use reportType as the title (e.g., "Stock Management Report")
       let yPos = await addReportHeader(doc, `${reportType} Report`, {
-        school: schoolInfo?.school,
-        province: schoolInfo?.province,
-        district: schoolInfo?.district,
+        type: 'district',
+        entityInfo: {
+          province: finalInfo.province,
+          district: finalInfo.district,
+        },
         dateFrom: dateRange.from,
         dateTo: dateRange.to
       })
-      
+
       if (data && data.length > 0) {
         const headers = Object.keys(data[0])
-        const tableData = data.map((row: any) => headers.map((key) => String(row[key] || '')))
-        
+        const tableData = data.map((row: any) => headers.map((key) => String(row[key] ?? '')))
+
         autoTable(doc, {
           head: [headers],
           body: tableData,
           startY: yPos,
-          styles: { 
+          styles: {
             fontSize: 8,
             cellPadding: 3,
-            lineColor: [0, 0, 0], // Black borders
-            lineWidth: 0.5, // Thicker borders to match picture
-            fillColor: [255, 255, 255], // White background
+            lineColor: [0, 0, 0],
+            lineWidth: 0.5,
+            fillColor: [255, 255, 255],
             textColor: [0, 0, 0]
           },
-          headStyles: { 
-            fillColor: [255, 255, 255], // White background
+          headStyles: {
+            fillColor: [255, 255, 255],
             textColor: [0, 0, 0],
             fontStyle: 'bold',
-            lineColor: [0, 0, 0], // Black borders
+            lineColor: [0, 0, 0],
             lineWidth: 0.5
           },
           alternateRowStyles: {
-            fillColor: [255, 255, 255], // White background
-            lineColor: [0, 0, 0], // Black borders
+            fillColor: [255, 255, 255],
+            lineColor: [0, 0, 0],
             lineWidth: 0.5
           },
           margin: { left: 15, right: 15 }
         })
       }
 
-      // Add footer with generator date
       addReportFooter(doc)
-
       const fileName = `District_Report_${reportType.replace(/\s+/g, '_')}_${formatDate(new Date(), 'yyyyMMdd')}.pdf`
       doc.save(fileName)
     } else if (format === 'csv') {
@@ -716,7 +751,7 @@ export const generateDistrictReport = async (
         [],
         [headers.join(',')]
       ]
-      
+
       if (data) {
         data.forEach((row: any) => {
           csvRows.push([headers.map(key => String(row[key] || '')).join(',')])
@@ -727,7 +762,6 @@ export const generateDistrictReport = async (
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
       const link = document.createElement('a')
       const url = URL.createObjectURL(blob)
-      
       link.setAttribute('href', url)
       link.setAttribute('download', `District_Report_${reportType.replace(/\s+/g, '_')}_${formatDate(new Date(), 'yyyyMMdd')}.csv`)
       link.style.visibility = 'hidden'
@@ -735,7 +769,6 @@ export const generateDistrictReport = async (
       link.click()
       document.body.removeChild(link)
     }
-
     return true
   } catch (error) {
     console.error('Error generating district report:', error)
@@ -748,12 +781,7 @@ export const generateGovReport = async (
   reportType: string,
   dateRange: { from?: Date; to?: Date },
   format: 'pdf' | 'csv' | 'excel',
-  data: any,
-  schoolInfo?: {
-    school?: string
-    province?: string
-    district?: string
-  }
+  data: any
 ) => {
   try {
     if (format === 'pdf') {
@@ -763,50 +791,48 @@ export const generateGovReport = async (
         format: 'a4'
       })
 
-      // Use reportType as the title (e.g., "Stock Management Report")
       let yPos = await addReportHeader(doc, `${reportType} Report`, {
-        school: schoolInfo?.school,
-        province: schoolInfo?.province,
-        district: schoolInfo?.district,
+        type: 'gov',
+        entityInfo: {
+          name: 'MINEDUC'
+        },
         dateFrom: dateRange.from,
         dateTo: dateRange.to
       })
-      
+
       if (data && data.length > 0) {
         const headers = Object.keys(data[0])
         const tableData = data.map((row: any) => headers.map((key) => String(row[key] || '')))
-        
+
         autoTable(doc, {
           head: [headers],
           body: tableData,
           startY: yPos,
-          styles: { 
+          styles: {
             fontSize: 8,
             cellPadding: 3,
-            lineColor: [0, 0, 0], // Black borders
-            lineWidth: 0.5, // Thicker borders to match picture
-            fillColor: [255, 255, 255], // White background
+            lineColor: [0, 0, 0],
+            lineWidth: 0.1,
+            fillColor: [255, 255, 255],
             textColor: [0, 0, 0]
           },
-          headStyles: { 
-            fillColor: [255, 255, 255], // White background
+          headStyles: {
+            fillColor: [255, 255, 255],
             textColor: [0, 0, 0],
             fontStyle: 'bold',
-            lineColor: [0, 0, 0], // Black borders
-            lineWidth: 0.5
+            lineColor: [0, 0, 0],
+            lineWidth: 0.1
           },
           alternateRowStyles: {
-            fillColor: [255, 255, 255], // White background
-            lineColor: [0, 0, 0], // Black borders
-            lineWidth: 0.5
+            fillColor: [255, 255, 255],
+            lineColor: [0, 0, 0],
+            lineWidth: 0.1
           },
           margin: { left: 15, right: 15 }
         })
       }
 
-      // Add footer with generator date
       addReportFooter(doc)
-
       const fileName = `Government_Report_${reportType.replace(/\s+/g, '_')}_${formatDate(new Date(), 'yyyyMMdd')}.pdf`
       doc.save(fileName)
     } else if (format === 'csv') {
@@ -818,7 +844,7 @@ export const generateGovReport = async (
         [],
         [headers.join(',')]
       ]
-      
+
       if (data) {
         data.forEach((row: any) => {
           csvRows.push([headers.map(key => String(row[key] || '')).join(',')])
@@ -829,7 +855,6 @@ export const generateGovReport = async (
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
       const link = document.createElement('a')
       const url = URL.createObjectURL(blob)
-      
       link.setAttribute('href', url)
       link.setAttribute('download', `Government_Report_${reportType.replace(/\s+/g, '_')}_${formatDate(new Date(), 'yyyyMMdd')}.csv`)
       link.style.visibility = 'hidden'
@@ -837,11 +862,9 @@ export const generateGovReport = async (
       link.click()
       document.body.removeChild(link)
     }
-
     return true
   } catch (error) {
     console.error('Error generating government report:', error)
     throw error
   }
 }
-

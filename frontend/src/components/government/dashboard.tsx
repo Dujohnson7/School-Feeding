@@ -3,20 +3,11 @@ import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
 import { BarChart3, Building2, DollarSign, Home, MapPinCheck, Users, FileText } from "lucide-react"
 import PageHeader from "@/components/shared/page-header"
-import apiClient from "@/lib/axios"
+import { governmentService } from "./service/governmentService"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 
@@ -102,58 +93,41 @@ export function GovDashboard() {
       setLoading(true)
 
       // Fetch dashboard statistics
-      const statsResponse = await apiClient.get(`/government/dashboard/stats?period=${selectedPeriod}`)
-      if (statsResponse.data) {
-        setStats(statsResponse.data)
-      }
+      const statsData = await governmentService.getDashboardStats(selectedPeriod)
+      if (statsData) setStats(statsData)
 
       // Fetch district performance
-      const districtsResponse = await apiClient.get(`/government/dashboard/districts?period=${selectedPeriod}`)
-      if (districtsResponse.data) {
-        setDistricts(districtsResponse.data)
-      }
+      const districtsData = await governmentService.getDistrictPerformance(selectedPeriod)
+      if (districtsData) setDistricts(districtsData)
 
       // Fetch national overview
-      const overviewResponse = await apiClient.get(`/government/dashboard/national-overview?period=${selectedPeriod}`)
-      if (overviewResponse.data) {
-        setNationalOverview(overviewResponse.data)
-      }
+      const overviewData = await governmentService.getNationalOverview(selectedPeriod)
+      if (overviewData) setNationalOverview(overviewData)
 
       // Fetch monthly food distribution
-      const distributionResponse = await apiClient.get(`/government/dashboard/monthly-distribution?period=${selectedPeriod}`)
-      if (distributionResponse.data) {
-        setMonthlyFoodDistribution(distributionResponse.data)
-      }
+      const distributionData = await governmentService.getMonthlyDistribution(selectedPeriod)
+      if (distributionData) setMonthlyFoodDistribution(distributionData)
 
       // Fetch KPIs
-      const kpisResponse = await apiClient.get(`/government/dashboard/kpis?period=${selectedPeriod}`)
-      if (kpisResponse.data) {
-        setKpis(kpisResponse.data)
-      }
+      const kpisData = await governmentService.getKPIs(selectedPeriod)
+      if (kpisData) setKpis(kpisData)
 
       // Fetch alerts
-      const alertsResponse = await apiClient.get(`/government/dashboard/alerts`)
-      if (alertsResponse.data) {
-        setAlerts(alertsResponse.data)
-      }
+      const alertsData = await governmentService.getAlerts()
+      if (alertsData) setAlerts(alertsData)
 
       // Fetch top districts
-      const topDistrictsResponse = await apiClient.get(`/government/dashboard/top-districts`)
-      if (topDistrictsResponse.data) {
-        setTopDistricts(topDistrictsResponse.data)
-      }
+      const topDistrictsData = await governmentService.getTopDistricts()
+      if (topDistrictsData) setTopDistricts(topDistrictsData)
 
       // Fetch milestones
-      const milestonesResponse = await apiClient.get(`/government/dashboard/milestones`)
-      if (milestonesResponse.data) {
-        setMilestones(milestonesResponse.data)
-      }
+      const milestonesData = await governmentService.getMilestones()
+      if (milestonesData) setMilestones(milestonesData)
 
       // Fetch recent activities
-      const activitiesResponse = await apiClient.get(`/government/dashboard/recent-activities`)
-      if (activitiesResponse.data) {
-        setRecentActivities(activitiesResponse.data)
-      }
+      const activitiesData = await governmentService.getRecentActivities()
+      if (activitiesData) setRecentActivities(activitiesData)
+
     } catch (error: any) {
       console.error("Error fetching dashboard data:", error)
       toast.error("Failed to load dashboard data. Please refresh the page.")

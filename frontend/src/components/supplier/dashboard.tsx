@@ -1,21 +1,11 @@
 import { useEffect, useState } from "react"
-import { Link } from "react-router-dom"
 import { Calendar, Clock, DollarSign, Home, Package, Truck, TrendingUp, FileText } from "lucide-react"
 import PageHeader from "@/components/shared/page-header"
-import apiClient from "@/lib/axios"
+import { supplierService } from "./service/supplierService"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 
@@ -83,27 +73,27 @@ export function SupplierDashboard() {
       }
 
       // Fetch dashboard statistics
-      const statsResponse = await apiClient.get(`/supplier/dashboard/stats?supplierId=${supplierId}`)
-      if (statsResponse.data) {
-        setStats(statsResponse.data)
+      const statsData = await supplierService.getDashboardStats(supplierId)
+      if (statsData) {
+        setStats(statsData)
       }
 
       // Fetch recent orders
-      const ordersResponse = await apiClient.get(`/supplier/dashboard/recent-orders?supplierId=${supplierId}&limit=4`)
-      if (ordersResponse.data) {
-        setRecentOrders(ordersResponse.data)
+      const ordersData = await supplierService.getRecentOrders(supplierId, 4)
+      if (ordersData) {
+        setRecentOrders(ordersData)
       }
 
       // Fetch upcoming deliveries
-      const deliveriesResponse = await apiClient.get(`/supplier/dashboard/upcoming-deliveries?supplierId=${supplierId}&limit=3`)
-      if (deliveriesResponse.data) {
-        setUpcomingDeliveries(deliveriesResponse.data)
+      const deliveriesData = await supplierService.getUpcomingDeliveries(supplierId, 3)
+      if (deliveriesData) {
+        setUpcomingDeliveries(deliveriesData)
       }
 
       // Fetch performance metrics
-      const metricsResponse = await apiClient.get(`/supplier/dashboard/performance?supplierId=${supplierId}`)
-      if (metricsResponse.data) {
-        setPerformanceMetrics(metricsResponse.data)
+      const metricsData = await supplierService.getPerformanceMetrics(supplierId)
+      if (metricsData) {
+        setPerformanceMetrics(metricsData)
       }
     } catch (error: any) {
       console.error("Error fetching dashboard data:", error)

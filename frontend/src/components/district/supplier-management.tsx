@@ -2,8 +2,8 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Edit, Package, Plus, Search, Trash2 } from "lucide-react"
-import apiClient from "@/lib/axios"
 import { toast } from "sonner"
+import { districtService } from "./service/districtService"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -45,31 +45,7 @@ interface Supplier {
   user?: { id: string; email?: string; phone?: string }
 }
 
-const supplierService = {
-  getAllSuppliers: async (districtId?: string) => {
-    if (districtId) {
-      const response = await apiClient.get(`/supplier/all/${districtId}`)
-      return response.data
-    }
-    const response = await apiClient.get(`/supplier/all`)
-    return response.data
-  },
 
-  getSupplier: async (id: string) => {
-    const response = await apiClient.get(`/supplier/${id}`)
-    return response.data
-  },
-
-  getSupplierItems: async (supplierId: string) => {
-    const response = await apiClient.get(`/supplier/items/${supplierId}`)
-    return response.data
-  },
-
-  deleteSupplier: async (id: string) => {
-    const response = await apiClient.delete(`/supplier/delete/${id}`)
-    return response.data
-  },
-}
 
 export function SupplierManagement() {
   const [searchTerm, setSearchTerm] = useState("")
@@ -88,7 +64,12 @@ export function SupplierManagement() {
         setLoading(true)
         setError(null)
         const districtId = localStorage.getItem("districtId")
-        const data = await supplierService.getAllSuppliers(districtId || undefined)
+        let data
+        if (districtId) {
+          data = await districtService.getSuppliersByDistrict(districtId)
+        } else {
+          data = await districtService.getAllSuppliers()
+        }
         setSuppliers(data || [])
       } catch (err: any) {
         // If 404, treat as "no suppliers found" instead of an error
@@ -113,7 +94,7 @@ export function SupplierManagement() {
     const name = supplier.companyName || supplier.name || ""
     const id = supplier.id || ""
     const specialties = supplier.items?.map(i => i.name || "").join(" ") || supplier.specialties?.join(" ") || ""
-    
+
     return (
       name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       id.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -127,7 +108,7 @@ export function SupplierManagement() {
     }
 
     try {
-      await supplierService.deleteSupplier(id)
+      await districtService.deleteSupplier(id)
       setSuppliers(suppliers.filter(s => s.id !== id))
       toast.success("Supplier deleted successfully")
     } catch (err: any) {
@@ -168,7 +149,7 @@ export function SupplierManagement() {
 
   const getRatingStars = (rating?: number) => {
     if (!rating) return <span className="text-sm text-muted-foreground">No rating</span>
-    
+
     const fullStars = Math.floor(rating)
     const hasHalfStar = rating % 1 >= 0.5
 
@@ -267,7 +248,7 @@ export function SupplierManagement() {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <Button  onClick={() => navigate("/add-supplier")}>
+                  <Button onClick={() => navigate("/add-supplier")}>
                     <Plus className="mr-2 h-4 w-4" />
                     Add New Supplier
                   </Button>

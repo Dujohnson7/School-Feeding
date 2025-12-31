@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Calendar, Check, Filter, Package, Plus, Search, X, Eye, Star } from "lucide-react"
-import apiClient from "@/lib/axios"
+import { stockService } from "./service/stockService"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -60,17 +60,7 @@ interface Order {
   }
 }
 
-const receivingService = {
-  getAllReceiving: async (schoolId: string) => {
-    const response = await apiClient.get(`/receiving/all/${schoolId}`)
-    return response.data
-  },
-
-  receiveOrder: async (id: string, rating: number) => {
-    const response = await apiClient.put(`/receiving/receivingOrder/${id}?rating=${rating}`)
-    return response.data
-  },
-}
+// Local service definition removed
 
 export function StockReceiving() {
   const [searchTerm, setSearchTerm] = useState("")
@@ -98,7 +88,7 @@ export function StockReceiving() {
           setError("School ID not found")
           return
         }
-        const data = await receivingService.getAllReceiving(schoolId)
+        const data = await stockService.getAllReceiving(schoolId)
         setDeliveries(Array.isArray(data) ? data : [])
       } catch (err: any) {
         console.error("Error fetching deliveries:", err)
@@ -188,15 +178,15 @@ export function StockReceiving() {
 
     try {
       setIsProcessing(true)
-      await receivingService.receiveOrder(selectedDelivery.id, rating)
-      
+      await stockService.receiveOrder(selectedDelivery.id, rating)
+
       // Refresh the list
       const schoolId = localStorage.getItem("schoolId")
       if (schoolId) {
-        const data = await receivingService.getAllReceiving(schoolId)
+        const data = await stockService.getAllReceiving(schoolId)
         setDeliveries(Array.isArray(data) ? data : [])
       }
-      
+
       toast.success("Order received successfully")
       setReceiveDialogOpen(false)
       setSelectedDelivery(null)
@@ -291,7 +281,7 @@ export function StockReceiving() {
                 <div>
                   <CardTitle>Incoming Deliveries</CardTitle>
                   <CardDescription>Manage and receive incoming food deliveries</CardDescription>
-                </div> 
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -348,7 +338,7 @@ export function StockReceiving() {
                         const deliveryStatus = delivery.deliveryStatus?.toUpperCase() || ""
                         // Show Receive button for SCHEDULED and PROCESSING (not APPROVED or DELIVERED)
                         const canReceive = deliveryStatus === "SCHEDULED" || deliveryStatus === "PROCESSING"
-                        
+
                         return (
                           <TableRow key={delivery.id}>
                             <TableCell className="font-medium">{delivery.id?.substring(0, 8)}...</TableCell>
@@ -523,11 +513,10 @@ export function StockReceiving() {
                     {[...Array(5)].map((_, i) => (
                       <Star
                         key={i}
-                        className={`h-5 w-5 ${
-                          i < selectedDelivery.rating!
-                            ? "fill-amber-400 text-amber-400"
-                            : "fill-gray-300 text-gray-300"
-                        }`}
+                        className={`h-5 w-5 ${i < selectedDelivery.rating!
+                          ? "fill-amber-400 text-amber-400"
+                          : "fill-gray-300 text-gray-300"
+                          }`}
                       />
                     ))}
                     <span className="ml-2 text-sm text-muted-foreground">({selectedDelivery.rating}/5)</span>
@@ -659,11 +648,10 @@ export function StockReceiving() {
                       className="focus:outline-none"
                     >
                       <Star
-                        className={`h-8 w-8 transition-colors ${
-                          star <= rating
-                            ? "fill-amber-400 text-amber-400"
-                            : "fill-gray-300 text-gray-300 hover:fill-amber-200 hover:text-amber-200"
-                        }`}
+                        className={`h-8 w-8 transition-colors ${star <= rating
+                          ? "fill-amber-400 text-amber-400"
+                          : "fill-gray-300 text-gray-300 hover:fill-amber-200 hover:text-amber-200"
+                          }`}
                       />
                     </button>
                   ))}
@@ -742,31 +730,31 @@ export function StockReceiving() {
                   <div className="flex items-center gap-2">
                     <div className="flex-1">
                       <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select item" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="rice">Rice</SelectItem>
-                        <SelectItem value="beans">Beans</SelectItem>
-                        <SelectItem value="maize">Maize</SelectItem>
-                        <SelectItem value="vegetables">Vegetables</SelectItem>
-                        <SelectItem value="fruits">Fruits</SelectItem>
-                        <SelectItem value="oil">Oil</SelectItem>
-                        <SelectItem value="milk">Milk</SelectItem>
-                      </SelectContent>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select item" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="rice">Rice</SelectItem>
+                          <SelectItem value="beans">Beans</SelectItem>
+                          <SelectItem value="maize">Maize</SelectItem>
+                          <SelectItem value="vegetables">Vegetables</SelectItem>
+                          <SelectItem value="fruits">Fruits</SelectItem>
+                          <SelectItem value="oil">Oil</SelectItem>
+                          <SelectItem value="milk">Milk</SelectItem>
+                        </SelectContent>
                       </Select>
                     </div>
                     <Input placeholder="Quantity" className="w-24" />
                     <div className="w-24">
                       <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Unit" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="kg">kg</SelectItem>
-                        <SelectItem value="l">L</SelectItem>
-                        <SelectItem value="pcs">pcs</SelectItem>
-                      </SelectContent>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Unit" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="kg">kg</SelectItem>
+                          <SelectItem value="l">L</SelectItem>
+                          <SelectItem value="pcs">pcs</SelectItem>
+                        </SelectContent>
                       </Select>
                     </div>
                     <Button variant="ghost" size="icon">
