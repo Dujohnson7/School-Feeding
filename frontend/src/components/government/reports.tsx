@@ -1,97 +1,42 @@
 
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import {
-  BarChart3,
-  Calendar,
-  Download,
-  FileText,
-  Filter,
-  Home,
-  Search,
-} from "lucide-react"
+import { Download, FileText } from "lucide-react"
 import { toast } from "sonner"
 import { generateGovReport } from "@/utils/export-utils"
+import { governmentService } from "./service/governmentService"
+import { format as formatDateFns } from "date-fns"
 import { DatePickerWithRange } from "@/components/ui/date-range-picker"
 import type { DateRange } from "react-day-picker"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { HeaderActions } from "@/components/shared/header-actions"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 
 export function GovReports() {
-  const [searchTerm, setSearchTerm] = useState("")
   const [reportType, setReportType] = useState("all")
   const [dateRange, setDateRange] = useState<DateRange | undefined>()
+  const [fiscalYear, setFiscalYear] = useState("2024-2025")
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(5)
   const [selectedReportFormat, setSelectedReportFormat] = useState<Record<string, string>>({})
   const [isGenerating, setIsGenerating] = useState<Record<string, boolean>>({})
-
-  const reports = [
-    {
-      id: "RPT-2025-042",
-      title: "National School Feeding Summary",
-      type: "summary",
-      period: "March 2025",
-      generatedDate: "Apr 1, 2025",
-      status: "completed",
-    },
-    {
-      id: "RPT-2025-041",
-      title: "Budget Utilization Report",
-      type: "financial",
-      period: "Q1 2025",
-      generatedDate: "Mar 31, 2025",
-      status: "completed",
-    },
-    {
-      id: "RPT-2025-040",
-      title: "Nutrition Compliance Analysis",
-      type: "nutrition",
-      period: "March 2025",
-      generatedDate: "Mar 30, 2025",
-      status: "completed",
-    },
-    {
-      id: "RPT-2025-039",
-      title: "Supplier Performance Evaluation",
-      type: "supplier",
-      period: "Q1 2025",
-      generatedDate: "Mar 29, 2025",
-      status: "completed",
-    },
-    {
-      id: "RPT-2025-038",
-      title: "District Performance Comparison",
-      type: "performance",
-      period: "March 2025",
-      generatedDate: "Mar 28, 2025",
-      status: "completed",
-    },
-  ]
-
-  const filteredReports = reports.filter((report) => {
-    const matchesSearch =
-      report.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      report.id.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesType = reportType === "all" || report.type === reportType
-    return matchesSearch && matchesType
-  })
+  const [historyData, setHistoryData] = useState<any[]>([])
+  const [isFetchingHistory, setIsFetchingHistory] = useState(false)
 
   useEffect(() => {
     setPage(1)
-  }, [searchTerm, reportType, dateRange])
+  }, [reportType, dateRange])
 
-  const totalPages = Math.max(1, Math.ceil(filteredReports.length / pageSize))
+  const reportDataToDisplay = historyData
+
+  const totalPages = Math.max(1, Math.ceil(reportDataToDisplay.length / pageSize))
   const startIndex = (page - 1) * pageSize
-  const paginatedReports = filteredReports.slice(startIndex, startIndex + pageSize)
+  const paginatedReports = reportDataToDisplay.slice(startIndex, startIndex + pageSize)
 
   const canPrev = page > 1
   const canNext = page < totalPages
@@ -106,28 +51,98 @@ export function GovReports() {
     return Array.from({ length: end - start + 1 }, (_, i) => start + i)
   }
 
-  const handleGenerateReport = async (type: string) => {
+  const getReportData = async (type: string, fromStr: string, toStr: string) => {
+    switch (type) {
+      case "summary":
+        return await governmentService.getNationalSummaryReport(fromStr, toStr)
+      case "financial":
+        return await governmentService.getNationalFinancialReport(fiscalYear)
+      case "nutrition":
+        return await governmentService.getNationalNutritionAnalysisReport(fromStr, toStr)
+      case "performance":
+        return await governmentService.getNationalDistrictPerformanceReport(fromStr, toStr)
+      case "supplier":
+        return await governmentService.getNationalSupplierEvaluationReport(fromStr, toStr)
+      default:
+        return []
+    }
+  }
+
+  const fetchHistoryReport = async () => {
     try {
+      if (reportType === "all") {
+        toast.error("Please select a specific category to view report data")
+        return
+      }
+
+      let fromStr = ""
+      let toStr = ""
+
+      if (reportType !== "financial") {
+        if (!dateRange?.from || !dateRange?.to) {
+          toast.error("Please select a date range")
+          return
+        }
+        fromStr = formatDateFns(dateRange.from, 'yyyy-MM-dd')
+        toStr = formatDateFns(dateRange.to, 'yyyy-MM-dd')
+      }
+
+      setIsFetchingHistory(true)
+      const data = await getReportData(reportType, fromStr, toStr)
+      setHistoryData(data || [])
+      setPage(1)
+      if (!data || data.length === 0) {
+        toast.info("No data found for the selected period")
+      }
+    } catch (error: any) {
+      console.error("Error fetching report data:", error)
+      toast.error("Failed to fetch report data")
+    } finally {
+      setIsFetchingHistory(false)
+    }
+  }
+
+  const handleGenerateReport = async (type: string, category: string) => {
+    try {
+      let fromStr = ""
+      let toStr = ""
+
+      if (type !== "financial") {
+        if (!dateRange?.from || !dateRange?.to) {
+          toast.error("Please select a date range first")
+          return
+        }
+        fromStr = formatDateFns(dateRange.from, 'yyyy-MM-dd')
+        toStr = formatDateFns(dateRange.to, 'yyyy-MM-dd')
+      }
+
       setIsGenerating(prev => ({ ...prev, [type]: true }))
       const format = (selectedReportFormat[type] || 'pdf') as 'pdf' | 'csv' | 'excel'
 
-      // Sample data - in real app, fetch from API based on type and dateRange
-      const sampleData = [
-        { 'Province': 'Kigali', 'Districts': 3, 'Schools': 150, 'Students': 45000 },
-        { 'Province': 'Eastern', 'Districts': 7, 'Schools': 200, 'Students': 60000 },
-        { 'Province': 'Northern', 'Districts': 5, 'Schools': 120, 'Students': 36000 },
-        { 'Province': 'Western', 'Districts': 7, 'Schools': 180, 'Students': 54000 },
-        { 'Province': 'Southern', 'Districts': 8, 'Schools': 220, 'Students': 66000 }
-      ]
+      const data = await getReportData(type, fromStr, toStr)
+
+      if (!data || data.length === 0) {
+        toast.info("No data found for the selected period")
+        return
+      }
+
+      const formattedData = data.map((item: any) => {
+        const newItem: any = {}
+        Object.keys(item).forEach(key => {
+          const formattedKey = key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())
+          newItem[formattedKey] = item[key]
+        })
+        return newItem
+      })
 
       await generateGovReport(
-        type,
+        category,
         { from: dateRange?.from, to: dateRange?.to },
         format,
-        sampleData
+        formattedData
       )
 
-      toast.success(`${type} report generated successfully`)
+      toast.success(`${category} report generated successfully`)
     } catch (error: any) {
       console.error('Error generating report:', error)
       toast.error(error.message || 'Failed to generate report')
@@ -136,27 +151,44 @@ export function GovReports() {
     }
   }
 
-  const handleDownload = (reportId: string) => {
-    console.log(`Downloading report ${reportId}`)
-    alert(`Report ${reportId} download started.`)
+  const handleDownloadFromTable = async () => {
+    if (historyData.length === 0) return
+    const category = reportCategories.find(c => c.value === reportType)?.label || reportType
+    const format = 'pdf'
+
+    const formattedData = historyData.map((item: any) => {
+      const newItem: any = {}
+      Object.keys(item).forEach(key => {
+        const formattedKey = key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())
+        newItem[formattedKey] = item[key]
+      })
+      return newItem
+    })
+
+    await generateGovReport(
+      category,
+      { from: dateRange?.from, to: dateRange?.to },
+      format,
+      formattedData
+    )
   }
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "completed":
-        return <Badge className="bg-green-600 hover:bg-green-700">Completed</Badge>
-      case "processing":
-        return (
-          <Badge variant="outline" className="bg-blue-100 text-blue-800 hover:bg-blue-100">
-            Processing
-          </Badge>
-        )
-      case "failed":
-        return <Badge variant="destructive">Failed</Badge>
-      default:
-        return <Badge variant="outline">Unknown</Badge>
-    }
+  const getTableColumns = () => {
+    if (historyData.length === 0) return []
+    return Object.keys(historyData[0])
   }
+
+  const formatHeader = (key: string) => {
+    return key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())
+  }
+
+  const reportCategories = [
+    { value: "summary", label: "National Summary", description: "Comprehensive overview of the program" },
+    { value: "financial", label: "Financial Report", description: "Budget and expenditure analysis" },
+    { value: "nutrition", label: "Nutrition Analysis", description: "Nutritional standards compliance" },
+    { value: "performance", label: "District Performance", description: "Performance across districts" },
+    { value: "supplier", label: "Supplier Evaluation", description: "Supplier performance metrics" },
+  ]
 
   return (
     <div className="flex-1">
@@ -184,307 +216,169 @@ export function GovReports() {
 
             <TabsContent value="generate" className="space-y-6">
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>National Summary Report</CardTitle>
-                    <CardDescription>Comprehensive overview of the school feeding program</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Date Range</label>
-                        <DatePickerWithRange date={dateRange} setDate={setDateRange} />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Report Format</label>
-                        <Select
-                          value={selectedReportFormat["summary"] || "pdf"}
-                          onValueChange={(value) => setSelectedReportFormat(prev => ({ ...prev, "summary": value }))}
+                {reportCategories.map((cat) => (
+                  <Card key={cat.value}>
+                    <CardHeader>
+                      <CardTitle>{cat.label}</CardTitle>
+                      <CardDescription>{cat.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {cat.value === "financial" ? (
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">Fiscal Year</label>
+                            <Select value={fiscalYear} onValueChange={setFiscalYear}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="2023-2024">2023-2024</SelectItem>
+                                <SelectItem value="2024-2025">2024-2025</SelectItem>
+                                <SelectItem value="2025-2026">2025-2026</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">Date Range</label>
+                            <DatePickerWithRange date={dateRange} setDate={setDateRange} />
+                          </div>
+                        )}
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Report Format</label>
+                          <Select
+                            value={selectedReportFormat[cat.value] || "pdf"}
+                            onValueChange={(value) => setSelectedReportFormat(prev => ({ ...prev, [cat.value]: value }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="pdf">PDF Report</SelectItem>
+                              <SelectItem value="excel">Excel Spreadsheet</SelectItem>
+                              <SelectItem value="csv">CSV Data</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <Button
+                          className="w-full"
+                          onClick={() => handleGenerateReport(cat.value, cat.label)}
+                          disabled={isGenerating[cat.value]}
                         >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pdf">PDF Report</SelectItem>
-                            <SelectItem value="excel">Excel Spreadsheet</SelectItem>
-                            <SelectItem value="csv">CSV Data</SelectItem>
-                          </SelectContent>
-                        </Select>
+                          {isGenerating[cat.value] ? "Generating..." : "Generate Report"}
+                        </Button>
                       </div>
-                      <Button
-                        className="w-full"
-                        onClick={() => handleGenerateReport("National Summary")}
-                        disabled={isGenerating["summary"]}
-                      >
-                        {isGenerating["summary"] ? "Generating..." : "Generate Report"}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Financial Report</CardTitle>
-                    <CardDescription>Budget utilization and financial analysis</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Date Range</label>
-                        <DatePickerWithRange date={dateRange} setDate={setDateRange} />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Report Format</label>
-                        <Select
-                          value={selectedReportFormat["financial"] || "pdf"}
-                          onValueChange={(value) => setSelectedReportFormat(prev => ({ ...prev, "financial": value }))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pdf">PDF Report</SelectItem>
-                            <SelectItem value="excel">Excel Spreadsheet</SelectItem>
-                            <SelectItem value="csv">CSV Data</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <Button
-                        className="w-full"
-                        onClick={() => handleGenerateReport("Financial")}
-                        disabled={isGenerating["financial"]}
-                      >
-                        {isGenerating["financial"] ? "Generating..." : "Generate Report"}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Nutrition Analysis</CardTitle>
-                    <CardDescription>Nutritional standards compliance and analysis</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Date Range</label>
-                        <DatePickerWithRange date={dateRange} setDate={setDateRange} />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Report Format</label>
-                        <Select
-                          value={selectedReportFormat["nutrition"] || "pdf"}
-                          onValueChange={(value) => setSelectedReportFormat(prev => ({ ...prev, "nutrition": value }))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pdf">PDF Report</SelectItem>
-                            <SelectItem value="excel">Excel Spreadsheet</SelectItem>
-                            <SelectItem value="csv">CSV Data</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <Button
-                        className="w-full"
-                        onClick={() => handleGenerateReport("Nutrition Analysis")}
-                        disabled={isGenerating["nutrition"]}
-                      >
-                        {isGenerating["nutrition"] ? "Generating..." : "Generate Report"}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>District Performance</CardTitle>
-                    <CardDescription>Performance comparison across districts</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Date Range</label>
-                        <DatePickerWithRange date={dateRange} setDate={setDateRange} />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Report Format</label>
-                        <Select
-                          value={selectedReportFormat["performance"] || "pdf"}
-                          onValueChange={(value) => setSelectedReportFormat(prev => ({ ...prev, "performance": value }))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pdf">PDF Report</SelectItem>
-                            <SelectItem value="excel">Excel Spreadsheet</SelectItem>
-                            <SelectItem value="csv">CSV Data</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <Button
-                        className="w-full"
-                        onClick={() => handleGenerateReport("District Performance")}
-                        disabled={isGenerating["performance"]}
-                      >
-                        {isGenerating["performance"] ? "Generating..." : "Generate Report"}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Supplier Evaluation</CardTitle>
-                    <CardDescription>Supplier performance and compliance report</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Date Range</label>
-                        <DatePickerWithRange date={dateRange} setDate={setDateRange} />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Report Format</label>
-                        <Select
-                          value={selectedReportFormat["supplier"] || "pdf"}
-                          onValueChange={(value) => setSelectedReportFormat(prev => ({ ...prev, "supplier": value }))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pdf">PDF Report</SelectItem>
-                            <SelectItem value="excel">Excel Spreadsheet</SelectItem>
-                            <SelectItem value="csv">CSV Data</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <Button
-                        className="w-full"
-                        onClick={() => handleGenerateReport("Supplier Evaluation")}
-                        disabled={isGenerating["supplier"]}
-                      >
-                        {isGenerating["supplier"] ? "Generating..." : "Generate Report"}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             </TabsContent>
 
             <TabsContent value="history" className="space-y-6">
               <Card>
-                <CardHeader>
-                  <CardTitle>Report History</CardTitle>
-                  <CardDescription>Previously generated reports and downloads</CardDescription>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-7">
+                  <div>
+                    <CardTitle>Report Data View</CardTitle>
+                    <CardDescription>View live government report data</CardDescription>
+                  </div>
+                  {historyData.length > 0 && (
+                    <Button variant="outline" size="sm" onClick={handleDownloadFromTable}>
+                      <Download className="mr-2 h-4 w-4" />
+                      Download view
+                    </Button>
+                  )}
                 </CardHeader>
                 <CardContent>
-                  <div className="mb-6 flex flex-col gap-4 md:flex-row">
-                    <div className="flex-1">
-                      <div className="relative">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          type="search"
-                          placeholder="Search reports..."
-                          className="w-full pl-8"
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                        />
+                  <div className="mb-6 space-y-4">
+                    <div className="flex flex-wrap gap-4 items-end">
+                      <div className="flex flex-col gap-2">
+                        <label className="text-sm font-medium">Category:</label>
+                        <Select value={reportType} onValueChange={setReportType}>
+                          <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="Select Category" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">Select Categories</SelectItem>
+                            {reportCategories.map((cat) => (
+                              <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <div className="flex items-center gap-2">
-                        <Filter className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">Filter:</span>
-                      </div>
-                      <Select value={reportType} onValueChange={setReportType}>
-                        <SelectTrigger className="w-[130px]">
-                          <SelectValue placeholder="Type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Types</SelectItem>
-                          <SelectItem value="summary">Summary</SelectItem>
-                          <SelectItem value="financial">Financial</SelectItem>
-                          <SelectItem value="nutrition">Nutrition</SelectItem>
-                          <SelectItem value="supplier">Supplier</SelectItem>
-                          <SelectItem value="performance">Performance</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Select value={dateRange} onValueChange={setDateRange}>
-                        <SelectTrigger className="w-[130px]">
-                          <SelectValue placeholder="Period" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="week">This Week</SelectItem>
-                          <SelectItem value="month">This Month</SelectItem>
-                          <SelectItem value="quarter">This Quarter</SelectItem>
-                          <SelectItem value="year">This Year</SelectItem>
-                        </SelectContent>
-                      </Select>
+
+                      {reportType === "financial" ? (
+                        <div className="flex flex-col gap-2">
+                          <label className="text-sm font-medium">Fiscal Year:</label>
+                          <Select value={fiscalYear} onValueChange={setFiscalYear}>
+                            <SelectTrigger className="w-[150px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="2023-2024">2023-2024</SelectItem>
+                              <SelectItem value="2024-2025">2024-2025</SelectItem>
+                              <SelectItem value="2025-2026">2025-2026</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-2">
+                          <label className="text-sm font-medium">Date Range:</label>
+                          <DatePickerWithRange date={dateRange} setDate={setDateRange} />
+                        </div>
+                      )}
+
+                      <Button
+                        onClick={fetchHistoryReport}
+                        disabled={isFetchingHistory}
+                        className="bg-primary hover:bg-primary/90"
+                      >
+                        {isFetchingHistory ? "Fetching..." : "View Report Data"}
+                      </Button>
                     </div>
                   </div>
 
-                  <div className="rounded-md border">
+                  <div className="rounded-md border overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Report ID</TableHead>
-                          <TableHead>Title</TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Period</TableHead>
-                          <TableHead>Generated</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
+                          {historyData.length > 0 ? (
+                            getTableColumns().map((col) => (
+                              <TableHead key={col} className="whitespace-nowrap">
+                                {formatHeader(col)}
+                              </TableHead>
+                            ))
+                          ) : (
+                            <TableHead>No data available. Select filters and click "View Report Data".</TableHead>
+                          )}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredReports.length > 0 ? (
-                          paginatedReports.map((report) => (
-                            <TableRow key={report.id}>
-                              <TableCell className="font-medium">{report.id}</TableCell>
-                              <TableCell>{report.title}</TableCell>
-                              <TableCell className="capitalize">{report.type}</TableCell>
-                              <TableCell>{report.period}</TableCell>
-                              <TableCell>
-                                <div className="flex items-center">
-                                  <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
-                                  {report.generatedDate}
-                                </div>
-                              </TableCell>
-                              <TableCell>{getStatusBadge(report.status)}</TableCell>
-                              <TableCell className="text-right">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleDownload(report.id)}
-                                  disabled={report.status !== "completed"}
-                                >
-                                  <Download className="mr-2 h-4 w-4" />
-                                  Download
-                                </Button>
-                              </TableCell>
+                        {reportDataToDisplay.length > 0 ? (
+                          paginatedReports.map((item, idx) => (
+                            <TableRow key={idx}>
+                              {getTableColumns().map((col) => (
+                                <TableCell key={col} className="whitespace-nowrap">
+                                  {item[col] !== null && item[col] !== undefined ? String(item[col]) : "-"}
+                                </TableCell>
+                              ))}
                             </TableRow>
                           ))
                         ) : (
                           <TableRow>
-                            <TableCell colSpan={8} className="h-24 text-center">
-                              No reports found.
+                            <TableCell colSpan={getTableColumns().length || 1} className="h-24 text-center">
+                              {isFetchingHistory ? "Loading data..." : "No results to display."}
                             </TableCell>
                           </TableRow>
                         )}
                       </TableBody>
                     </Table>
                   </div>
+
                   <div className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <span className="text-sm">
-                        Showing {filteredReports.length === 0 ? 0 : startIndex + 1}–
-                        {Math.min(startIndex + pageSize, filteredReports.length)} of {filteredReports.length}
+                      <span>
+                        Showing {Math.min(reportDataToDisplay.length, (page - 1) * pageSize + 1)}–
+                        {Math.min(page * pageSize, reportDataToDisplay.length)} of {reportDataToDisplay.length}
                       </span>
                       <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1) }}>
                         <SelectTrigger className="w-[110px]">
@@ -503,7 +397,7 @@ export function GovReports() {
                         <PaginationItem>
                           <PaginationPrevious
                             onClick={(e) => { e.preventDefault(); if (canPrev) setPage((p) => p - 1) }}
-                            className={!canPrev ? "pointer-events-none opacity-50" : ""}
+                            className={!canPrev ? "pointer-events-none opacity-50 cursor-not-allowed" : "cursor-pointer"}
                             href="#"
                           />
                         </PaginationItem>
@@ -514,6 +408,7 @@ export function GovReports() {
                               href="#"
                               isActive={p === page}
                               onClick={(e) => { e.preventDefault(); setPage(p) }}
+                              className="cursor-pointer"
                             >
                               {p}
                             </PaginationLink>
@@ -523,7 +418,7 @@ export function GovReports() {
                         <PaginationItem>
                           <PaginationNext
                             onClick={(e) => { e.preventDefault(); if (canNext) setPage((p) => p + 1) }}
-                            className={!canNext ? "pointer-events-none opacity-50" : ""}
+                            className={!canNext ? "pointer-events-none opacity-50 cursor-not-allowed" : "cursor-pointer"}
                             href="#"
                           />
                         </PaginationItem>

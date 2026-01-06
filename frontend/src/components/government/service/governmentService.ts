@@ -79,6 +79,58 @@ export const governmentService = {
     },
 
     //================
+    // New Dashboard Endpoints
+    //================
+    getTotalSchool: async () => {
+        const response = await apiClient.get(`/govDashboard/totalSchool`)
+        return response.data
+    },
+    getTotalStudent: async () => {
+        const response = await apiClient.get(`/govDashboard/totalStudent`)
+        return response.data
+    },
+    getTotalDistricts: async () => {
+        const response = await apiClient.get(`/govDashboard/totalDistrict`)
+        return response.data
+    },
+    getCurrentBudget: async () => {
+        const response = await apiClient.get(`/govDashboard/currentBudget`)
+        return response.data
+    },
+    getProvincePerformance: async () => {
+        const response = await apiClient.get(`/govDashboard/findProvincePerformance`)
+        return response.data
+    },
+    getMonthlyFoodDistributionNew: async () => {
+        const response = await apiClient.get(`/govDashboard/findMonthlyFoodDistribution`)
+        return response.data
+    },
+    getNutritionComplianceRate: async () => {
+        const response = await apiClient.get(`/govDashboard/nutritionComplianceRate`)
+        return response.data
+    },
+    getOnTimeDeliveryRate: async () => {
+        const response = await apiClient.get(`/govDashboard/onTimeDeliveryRate`)
+        return response.data
+    },
+    getSupplierPerformanceRate: async () => {
+        const response = await apiClient.get(`/govDashboard/supplierPerformanceRate`)
+        return response.data
+    },
+    getBudgetParticipationRate: async () => {
+        const response = await apiClient.get(`/govDashboard/budgetParticipationRate`)
+        return response.data
+    },
+    getDistrictPerformanceDetails: async () => {
+        const response = await apiClient.get(`/govDashboard/findDistrictPerformance`)
+        return response.data
+    },
+    getNationalDistrictBudgetPerformance: async () => {
+        const response = await apiClient.get(`/govDashboard/findNationalDistrictBudgetPerformance`)
+        return response.data
+    },
+
+    //================
     // Analytics
     //================
 
@@ -128,6 +180,10 @@ export const governmentService = {
     //================
     getAllDistricts: async () => {
         const response = await apiClient.get(`/district/all`)
+        return response.data
+    },
+    getAllUsers: async () => {
+        const response = await apiClient.get(`/users/all`)
         return response.data
     },
     getDistrict: async (id: string) => {
@@ -237,8 +293,8 @@ export const governmentService = {
         return response.data
     },
 
-    getNationalFinancialReport: async (fromDate: string, toDate: string): Promise<NationalFinancialReport[]> => {
-        const response = await apiClient.get(`/govReport/nationalFinancialReport`, { params: { fromDate, toDate } })
+    getNationalFinancialReport: async (fiscalYear: string): Promise<NationalFinancialReport[]> => {
+        const response = await apiClient.get(`/govReport/nationalFinancialReport`, { params: { fiscalYear } })
         return response.data
     },
 

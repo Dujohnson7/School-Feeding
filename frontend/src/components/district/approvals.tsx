@@ -22,9 +22,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 import { toast } from "sonner"
-
-// API_BASE_URL removed - using apiClient from @/lib/axios instead
-
+ 
 interface ApiRequestItem {
   id: string
   requestStatus: string
@@ -136,7 +134,7 @@ export function DistrictApprovals() {
           // Map frontend status to backend enum values
           const statusMap: Record<string, string> = {
             pending: "PENDING",
-            approved: "COMPLETED",
+            approved: "APPROVE",
             rejected: "REJECTED",
           }
           const requestStatus = statusMap[statusFilter] || "PENDING"
@@ -272,7 +270,7 @@ export function DistrictApprovals() {
       // Map backend status to frontend status
       const statusMap: Record<string, "pending" | "approved" | "rejected"> = {
         PENDING: "pending",
-        COMPLETED: "approved",
+        APPROVE: "approved",
         REJECTED: "rejected",
       }
       const frontendStatus = statusMap[request.requestStatus] || "pending"
@@ -307,7 +305,7 @@ export function DistrictApprovals() {
       let refreshData: ApiRequestItem[] = []
 
       if (statusFilter !== "all") {
-        const requestStatus = statusFilter === "pending" ? "PENDING" : statusFilter === "approved" ? "COMPLETED" : "REJECTED"
+        const requestStatus = statusFilter === "pending" ? "PENDING" : statusFilter === "approved" ? "APPROVE" : "REJECTED"
         refreshData = await districtService.getRequestsByStatus(districtId, requestStatus)
       } else {
         refreshData = await districtService.getAllRequests(districtId)

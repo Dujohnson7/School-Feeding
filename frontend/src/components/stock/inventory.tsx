@@ -4,7 +4,8 @@ import { Link } from "react-router-dom"
 import { ArrowUpDown, Download, Filter, Package, Search } from "lucide-react"
 import { stockService } from "./service/stockService"
 import { toast } from "sonner"
-import { format } from "date-fns"
+import { generateStockReport } from "@/utils/export-utils"
+
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,22 +14,10 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { exportFoodTrackingSheetPDF, exportFoodTrackingSheetCSV, exportFoodTrackingSheetExcel } from "@/utils/export-utils"
+
+
+
+
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 
 interface Stock {
@@ -63,12 +52,8 @@ export function StockInventory() {
   const [error, setError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(5)
-  const [exportDialogOpen, setExportDialogOpen] = useState(false)
-  const [selectedItem, setSelectedItem] = useState<string>("")
-  const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), "yyyy-MM"))
-  const [exportFormat, setExportFormat] = useState<string>("pdf")
   const [isExporting, setIsExporting] = useState(false)
-  const [distributions, setDistributions] = useState<any[]>([])
+
 
   // Fetch inventory on component mount
   useEffect(() => {
@@ -100,21 +85,7 @@ export function StockInventory() {
     fetchInventory()
   }, [])
 
-  // Fetch distributions for tracking sheet
-  useEffect(() => {
-    const fetchDistributions = async () => {
-      try {
-        const schoolId = localStorage.getItem("schoolId")
-        if (!schoolId) return
 
-        const data = await stockService.getAllDistributions(schoolId)
-        setDistributions(Array.isArray(data) ? data : [])
-      } catch (err) {
-        console.error("Error fetching distributions:", err)
-      }
-    }
-    fetchDistributions()
-  }, [])
 
   useEffect(() => {
     setPage(1)
@@ -205,122 +176,42 @@ export function StockInventory() {
     )
   }
 
-  const handleExport = (format: string) => {
-    setExportFormat(format)
-    setExportDialogOpen(true)
-  }
-
-  const handleGenerateTrackingSheet = async () => {
-    if (!selectedItem) {
-      toast.error("Please select a food item")
-      return
-    }
-
+  const handleExportPDF = async () => {
     try {
       setIsExporting(true)
-      const schoolId = localStorage.getItem("schoolId")
+
       const user = JSON.parse(localStorage.getItem("user") || "null")
 
-      // Get school info
+      const districtName = typeof user?.district === 'string'
+        ? user.district
+        : (user?.district?.district || user?.district?.name || "N/A")
+
       const schoolInfo = {
-        name: user?.school?.name || inventoryItems[0]?.school?.name || "N/A",
-        id: schoolId || "N/A",
-        district: user?.district?.district || user?.district || "N/A",
-        community: "N/A" // You may need to add this to your data model
+        school: user?.school?.name || inventoryItems[0]?.school?.name || "N/A",
+        province: user?.district?.province || user?.school?.province || "N/A",
+        district: districtName,
       }
 
-      // Get selected item details
-      const item = inventoryItems.find(i => i.item?.id === selectedItem)
-      if (!item || !item.item) {
-        toast.error("Item not found")
-        return
-      }
 
-      const foodItem = {
-        id: item.item.id,
-        name: item.item.name || "N/A",
-        unit: item.item.unit || "kg"
-      }
+      // Prepare data with only requested fields
+      const exportData = filteredItems.map(item => ({
+        "Item Name": item.item?.name || "N/A",
+        "Quantity": `${item.quantity || 0} ${item.item?.unit || "kg"}`,
+        "Stock Status": item.stockState || "NORMAL"
+      }))
 
-      // Get month and year
-      const [year, month] = selectedMonth.split("-")
-      const monthYear = `${format(new Date(parseInt(year), parseInt(month) - 1, 1), "MMMM")} ${year}`
+      await generateStockReport(
+        "Inventory",
+        { from: undefined, to: undefined },
+        'pdf',
+        exportData,
+        schoolInfo
+      )
 
-      // Prepare inventory data from distributions
-      // Filter distributions by month and item
-      const monthStart = new Date(parseInt(year), parseInt(month) - 1, 1)
-      const monthEnd = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59)
-
-      const relevantDistributions = distributions.filter(dist => {
-        const distDate = new Date(dist.created || dist.date || "")
-        return distDate >= monthStart && distDate <= monthEnd &&
-          dist.stockOutItemDetails?.some((itemDetail: any) => itemDetail.item?.id === selectedItem)
-      })
-
-      // Generate daily data (simplified - you may need to adjust based on your data structure)
-      const daysInMonth = new Date(parseInt(year), parseInt(month), 0).getDate()
-      const inventoryData: Array<{
-        date: string
-        stockAtStart: number
-        foodReceived: number
-        handedOut: number
-        missing: number
-        suspectedUnfit: number
-        confirmedUnfit: number
-        disposed: number
-        stockAtEnd: number
-        remarks: string
-      }> = []
-
-      let currentStock = item.quantity || 0
-
-      for (let i = 0; i < daysInMonth; i++) {
-        const date = new Date(parseInt(year), parseInt(month) - 1, i + 1)
-        const dayDistributions = relevantDistributions.filter(dist => {
-          const distDate = new Date(dist.created || dist.date || "")
-          return distDate.getDate() === date.getDate()
-        })
-
-        const totalHandedOut = dayDistributions.reduce((sum, dist) => {
-          const itemDetail = dist.stockOutItemDetails?.find((itemDetail: any) => itemDetail.item?.id === selectedItem)
-          return sum + (itemDetail?.quantity || 0)
-        }, 0)
-
-        const stockAtStart = currentStock
-        const foodReceived = 0 // You may need to fetch this from receiving records
-        const stockAtEnd = stockAtStart + foodReceived - totalHandedOut
-        currentStock = Math.max(0, stockAtEnd)
-
-        inventoryData.push({
-          date: date.toISOString(),
-          stockAtStart: Math.max(0, stockAtStart),
-          foodReceived: foodReceived,
-          handedOut: totalHandedOut,
-          missing: 0,
-          suspectedUnfit: 0,
-          confirmedUnfit: 0,
-          disposed: 0,
-          stockAtEnd: Math.max(0, stockAtEnd),
-          remarks: ""
-        })
-      }
-
-      // Export based on format
-      if (exportFormat === "pdf") {
-        await exportFoodTrackingSheetPDF(schoolInfo, foodItem, monthYear, inventoryData)
-        toast.success("Food Tracking Sheet exported as PDF")
-      } else if (exportFormat === "csv") {
-        exportFoodTrackingSheetCSV(schoolInfo, foodItem, monthYear, inventoryData)
-        toast.success("Food Tracking Sheet exported as CSV")
-      } else if (exportFormat === "excel") {
-        await exportFoodTrackingSheetExcel(schoolInfo, foodItem, monthYear, inventoryData)
-        toast.success("Food Tracking Sheet exported as Excel")
-      }
-
-      setExportDialogOpen(false)
+      toast.success("Inventory report exported successfully")
     } catch (err: any) {
-      console.error("Error exporting tracking sheet:", err)
-      toast.error(err.message || "Failed to export tracking sheet")
+      console.error("Error exporting inventory:", err)
+      toast.error(err.message || "Failed to export inventory")
     } finally {
       setIsExporting(false)
     }
@@ -397,19 +288,10 @@ export function StockInventory() {
                       <SelectItem value="CRITICAL">Critical</SelectItem>
                     </SelectContent>
                   </Select>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline">
-                        <Download className="mr-2 h-4 w-4" />
-                        Export
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleExport("csv")}>Export as CSV</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleExport("pdf")}>Export as PDF</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleExport("excel")}>Export as Excel</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <Button variant="outline" onClick={handleExportPDF} disabled={isExporting}>
+                    <Download className="mr-2 h-4 w-4" />
+                    {isExporting ? "Exporting..." : "Export PDF"}
+                  </Button>
                 </div>
               </div>
 
@@ -509,78 +391,7 @@ export function StockInventory() {
         </main>
       </div>
 
-      {/* Export Dialog */}
-      <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Export Food Tracking Sheet</DialogTitle>
-            <DialogDescription>
-              Generate a food tracking sheet in the format of Annex 3
-            </DialogDescription>
-          </DialogHeader>
 
-          <div className="grid gap-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="food-item">Food Item *</Label>
-              <Select value={selectedItem} onValueChange={setSelectedItem}>
-                <SelectTrigger id="food-item">
-                  <SelectValue placeholder="Select food item" />
-                </SelectTrigger>
-                <SelectContent>
-                  {inventoryItems
-                    .filter(item => item.item?.name)
-                    .map((item) => (
-                      <SelectItem key={item.item?.id} value={item.item?.id || ""}>
-                        {item.item?.name} ({item.quantity || 0} {item.item?.unit || "kg"})
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="month">Month / Year *</Label>
-              <Input
-                id="month"
-                type="month"
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="format">Export Format *</Label>
-              <Select value={exportFormat} onValueChange={setExportFormat}>
-                <SelectTrigger id="format">
-                  <SelectValue placeholder="Select format" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pdf">PDF Document</SelectItem>
-                  <SelectItem value="csv">CSV File</SelectItem>
-                  <SelectItem value="excel">Excel Spreadsheet</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setExportDialogOpen(false)}
-              disabled={isExporting}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleGenerateTrackingSheet}
-              disabled={isExporting || !selectedItem}
-            >
-              {isExporting ? "Exporting..." : "Generate & Export"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

@@ -1,7 +1,10 @@
-
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import { Calendar, Download, FileText, Filter, Home, Package, Search, Truck, Users, } from "lucide-react"
+import { Calendar, Download, FileText, Filter, Home, Package, Truck, Users, } from "lucide-react"
+import { toast } from "sonner"
+import { generateSchoolReport } from "@/utils/export-utils"
+import { schoolService } from "./service/schoolService"
+import { format as formatDateFns } from "date-fns"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,85 +19,24 @@ import type { DateRange } from "react-day-picker"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 
 export function SchoolReports() {
-  const [searchTerm, setSearchTerm] = useState("")
   const [reportType, setReportType] = useState("all")
   const [dateRange, setDateRange] = useState<DateRange | undefined>()
-  const [statusFilter, setStatusFilter] = useState("all")
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(5)
-
-  const reports = [
-    {
-      id: "SCRPT-2025-042",
-      title: "Monthly Feeding Report",
-      type: "feeding",
-      category: "Student Feeding",
-      period: "March 2025",
-      generatedDate: "2025-04-01",
-      status: "completed",
-      size: "1.2 MB",
-      author: "School Admin",
-    },
-    {
-      id: "SCRPT-2025-041",
-      title: "Student Attendance Report",
-      type: "attendance",
-      category: "Student Attendance",
-      period: "March 2025",
-      generatedDate: "2025-03-31",
-      status: "completed",
-      size: "890 KB",
-      author: "Class Teacher",
-    },
-    {
-      id: "SCRPT-2025-040",
-      title: "Inventory Status Report",
-      type: "inventory",
-      category: "Stock Management",
-      period: "March 2025",
-      generatedDate: "2025-03-30",
-      status: "processing",
-      size: "1.5 MB",
-      author: "Stock Manager",
-    },
-    {
-      id: "SCRPT-2025-039",
-      title: "Nutrition Compliance Report",
-      type: "nutrition",
-      category: "Health & Nutrition",
-      period: "Q1 2025",
-      generatedDate: "2025-03-29",
-      status: "completed",
-      size: "750 KB",
-      author: "Nutrition Officer",
-    },
-  ]
-
-  const filteredReports = reports.filter((report) => {
-    const matchesSearch =
-      report.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      report.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      report.category.toLowerCase().includes(searchTerm.toLowerCase())
-
-    const matchesType = reportType === "all" || report.type === reportType
-    const matchesStatus = statusFilter === "all" || report.status === statusFilter
-
-    let matchesDate = true
-    if (dateRange?.from && dateRange?.to) {
-      const reportDate = new Date(report.generatedDate)
-      matchesDate = reportDate >= dateRange.from && reportDate <= dateRange.to
-    }
-
-    return matchesSearch && matchesType && matchesStatus && matchesDate
-  })
+  const [selectedReportFormat, setSelectedReportFormat] = useState<Record<string, string>>({})
+  const [isGenerating, setIsGenerating] = useState<Record<string, boolean>>({})
+  const [historyData, setHistoryData] = useState<any[]>([])
+  const [isFetchingHistory, setIsFetchingHistory] = useState(false)
 
   useEffect(() => {
     setPage(1)
-  }, [searchTerm, reportType, statusFilter, dateRange])
+  }, [reportType, dateRange])
 
-  const totalPages = Math.max(1, Math.ceil(filteredReports.length / pageSize))
+  const reportDataToDisplay = historyData
+
+  const totalPages = Math.max(1, Math.ceil(reportDataToDisplay.length / pageSize))
   const startIndex = (page - 1) * pageSize
-  const paginatedReports = filteredReports.slice(startIndex, startIndex + pageSize)
+  const paginatedReports = reportDataToDisplay.slice(startIndex, startIndex + pageSize)
 
   const canPrev = page > 1
   const canNext = page < totalPages
@@ -109,14 +51,137 @@ export function SchoolReports() {
     return Array.from({ length: end - start + 1 }, (_, i) => start + i)
   }
 
-  const handleGenerateReport = (type: string, category: string) => {
-    console.log(`Generating ${type} report for ${category}`)
-    alert(`${type} report generation started. You will be notified when it's ready.`)
+  const getReportData = async (type: string, schoolId: string, fromStr: string, toStr: string) => {
+    switch (type) {
+      case "feeding":
+        const feedingRes = await schoolService.getStudentFeedingSummaryReport(schoolId, fromStr, toStr)
+        return feedingRes.feedingTable || []
+      case "stock":
+        return await schoolService.getSchoolStockManagementReport(schoolId, fromStr, toStr)
+      case "financial":
+        return await schoolService.getSchoolFinancialSummaryReport(schoolId, fromStr, toStr)
+      case "performance":
+        return await schoolService.getSchoolPerformanceIndicatorsReport(schoolId, fromStr, toStr)
+      default:
+        return []
+    }
   }
 
-  const handleDownload = (reportId: string) => {
-    console.log(`Downloading report ${reportId}`)
-    alert(`Report ${reportId} download started.`)
+  const fetchHistoryReport = async () => {
+    try {
+      if (reportType === "all") {
+        toast.error("Please select a specific category to view report data")
+        return
+      }
+      if (!dateRange?.from || !dateRange?.to) {
+        toast.error("Please select a date range")
+        return
+      }
+
+      const schoolId = localStorage.getItem("schoolId")
+      if (!schoolId) {
+        toast.error("School ID not found")
+        return
+      }
+
+      setIsFetchingHistory(true)
+      const fromStr = formatDateFns(dateRange.from, 'yyyy-MM-dd')
+      const toStr = formatDateFns(dateRange.to, 'yyyy-MM-dd')
+
+      const data = await getReportData(reportType, schoolId, fromStr, toStr)
+      setHistoryData(data || [])
+      setPage(1)
+      if (!data || data.length === 0) {
+        toast.info("No data found for the selected period")
+      }
+    } catch (error: any) {
+      console.error("Error fetching report data:", error)
+      toast.error("Failed to fetch report data")
+    } finally {
+      setIsFetchingHistory(false)
+    }
+  }
+
+  const handleGenerateReport = async (type: string, category: string) => {
+    try {
+      if (!dateRange?.from || !dateRange?.to) {
+        toast.error("Please select a date range first")
+        return
+      }
+
+      const schoolId = localStorage.getItem("schoolId")
+      if (!schoolId) {
+        toast.error("School ID not found")
+        return
+      }
+
+      setIsGenerating(prev => ({ ...prev, [type]: true }))
+      const format = (selectedReportFormat[type] || 'pdf') as 'pdf' | 'csv' | 'excel'
+
+      const fromStr = formatDateFns(dateRange.from, 'yyyy-MM-dd')
+      const toStr = formatDateFns(dateRange.to, 'yyyy-MM-dd')
+
+      const data = await getReportData(type, schoolId, fromStr, toStr)
+
+      if (!data || data.length === 0) {
+        toast.info("No data found for the selected period")
+        return
+      }
+
+      const formattedData = data.map((item: any) => {
+        const newItem: any = {}
+        Object.keys(item).forEach(key => {
+          const formattedKey = key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())
+          newItem[formattedKey] = item[key]
+        })
+        return newItem
+      })
+
+      await generateSchoolReport(
+        category,
+        { from: dateRange.from, to: dateRange.to },
+        format,
+        formattedData
+      )
+
+      toast.success(`${category} report generated successfully`)
+    } catch (error: any) {
+      console.error('Error generating report:', error)
+      toast.error(error.message || 'Failed to generate report')
+    } finally {
+      setIsGenerating(prev => ({ ...prev, [type]: false }))
+    }
+  }
+
+  const handleDownloadFromTable = async () => {
+    if (historyData.length === 0) return
+    const category = reportCategories.find(c => c.value === reportType)?.label || reportType
+    const format = 'pdf'
+
+    const formattedData = historyData.map((item: any) => {
+      const newItem: any = {}
+      Object.keys(item).forEach(key => {
+        const formattedKey = key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())
+        newItem[formattedKey] = item[key]
+      })
+      return newItem
+    })
+
+    await generateSchoolReport(
+      category,
+      { from: dateRange?.from, to: dateRange?.to },
+      format,
+      formattedData
+    )
+  }
+
+  const getTableColumns = () => {
+    if (historyData.length === 0) return []
+    return Object.keys(historyData[0])
+  }
+
+  const formatHeader = (key: string) => {
+    return key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())
   }
 
   const getStatusBadge = (status: string) => {
@@ -138,13 +203,7 @@ export function SchoolReports() {
 
   const reportCategories = [
     { value: "feeding", label: "Student Feeding", description: "Daily feeding statistics and meal participation" },
-    {
-      value: "attendance",
-      label: "Student Attendance",
-      description: "Attendance patterns and meal participation rates",
-    },
-    { value: "inventory", label: "Stock Management", description: "Inventory levels and consumption tracking" },
-    { value: "nutrition", label: "Health & Nutrition", description: "Nutritional compliance and health metrics" },
+    { value: "stock", label: "Stock Management", description: "Inventory levels and consumption tracking" },
     { value: "financial", label: "Financial Summary", description: "Budget utilization and cost analysis" },
     { value: "performance", label: "School Performance", description: "Overall school feeding program performance" },
   ]
@@ -189,7 +248,10 @@ export function SchoolReports() {
                         </div>
                         <div className="space-y-2">
                           <label className="text-sm font-medium">Report Format</label>
-                          <Select defaultValue="pdf">
+                          <Select
+                            value={selectedReportFormat[category.value] || "pdf"}
+                            onValueChange={(value) => setSelectedReportFormat(prev => ({ ...prev, [category.value]: value }))}
+                          >
                             <SelectTrigger>
                               <SelectValue />
                             </SelectTrigger>
@@ -200,8 +262,12 @@ export function SchoolReports() {
                             </SelectContent>
                           </Select>
                         </div>
-                        <Button className="w-full" onClick={() => handleGenerateReport(category.value, category.label)}>
-                          Generate Report
+                        <Button
+                          className="w-full"
+                          onClick={() => handleGenerateReport(category.value, category.label)}
+                          disabled={isGenerating[category.value]}
+                        >
+                          {isGenerating[category.value] ? "Generating..." : "Generate Report"}
                         </Button>
                       </div>
                     </CardContent>
@@ -212,131 +278,94 @@ export function SchoolReports() {
 
             <TabsContent value="history" className="space-y-6">
               <Card>
-                <CardHeader>
-                  <CardTitle>Report History</CardTitle>
-                  <CardDescription>Previously generated school reports</CardDescription>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-7">
+                  <div>
+                    <CardTitle>Report Data View</CardTitle>
+                    <CardDescription>View live school report data</CardDescription>
+                  </div>
+                  {historyData.length > 0 && (
+                    <Button variant="outline" size="sm" onClick={handleDownloadFromTable}>
+                      <Download className="mr-2 h-4 w-4" />
+                      Download 
+                    </Button>
+                  )}
                 </CardHeader>
                 <CardContent>
                   <div className="mb-6 space-y-4">
-                    <div className="flex flex-col gap-4 md:flex-row">
-                      <div className="flex-1">
-                        <div className="relative">
-                          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                          <Input
-                            type="search"
-                            placeholder="Search reports by title, ID, or category..."
-                            className="w-full pl-8"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap gap-4">
-                      <div className="flex items-center gap-2">
-                        <Filter className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm font-medium">Filters:</span>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <label className="text-sm">Category:</label>
+                    <div className="flex flex-wrap gap-4 items-end">
+                      <div className="flex flex-col gap-2">
+                        <label className="text-sm font-medium">Category:</label>
                         <Select value={reportType} onValueChange={setReportType}>
-                          <SelectTrigger className="w-[140px]">
-                            <SelectValue placeholder="All Types" />
+                          <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="Select Category" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="all">All Categories</SelectItem>
+                            <SelectItem value="all">Select Categories</SelectItem>
                             <SelectItem value="feeding">Student Feeding</SelectItem>
-                            <SelectItem value="attendance">Attendance</SelectItem>
-                            <SelectItem value="inventory">Stock Management</SelectItem>
-                            <SelectItem value="nutrition">Nutrition</SelectItem>
+                            <SelectItem value="stock">Stock Management</SelectItem>
+                            <SelectItem value="financial">Financial Summary</SelectItem>
+                            <SelectItem value="performance">Performance Indicators</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        <label className="text-sm">Status:</label>
-                        <Select value={statusFilter} onValueChange={setStatusFilter}>
-                          <SelectTrigger className="w-[120px]">
-                            <SelectValue placeholder="All Status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Status</SelectItem>
-                            <SelectItem value="completed">Completed</SelectItem>
-                            <SelectItem value="processing">Processing</SelectItem>
-                            <SelectItem value="failed">Failed</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <label className="text-sm">Date Range:</label>
+                      <div className="flex flex-col gap-2">
+                        <label className="text-sm font-medium">Date Range:</label>
                         <DatePickerWithRange date={dateRange} setDate={setDateRange} />
                       </div>
+
+                      <Button
+                        onClick={fetchHistoryReport}
+                        disabled={isFetchingHistory}
+                        className="bg-primary hover:bg-primary/90"
+                      >
+                        {isFetchingHistory ? "Fetching..." : "View Report Data"}
+                      </Button>
                     </div>
                   </div>
 
-                  <div className="rounded-md border">
+                  <div className="rounded-md border overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Report ID</TableHead>
-                          <TableHead>Title</TableHead>
-                          <TableHead>Category</TableHead>
-                          <TableHead>Period</TableHead>
-                          <TableHead>Generated</TableHead>
-                          <TableHead>Author</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Size</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
+                          {historyData.length > 0 ? (
+                            getTableColumns().map((col) => (
+                              <TableHead key={col} className="whitespace-nowrap">
+                                {formatHeader(col)}
+                              </TableHead>
+                            ))
+                          ) : (
+                            <TableHead>No data available. Select filters and click "View Report Data".</TableHead>
+                          )}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredReports.length > 0 ? (
-                          paginatedReports.map((report) => (
-                            <TableRow key={report.id}>
-                              <TableCell className="font-medium">{report.id}</TableCell>
-                              <TableCell>{report.title}</TableCell>
-                              <TableCell>{report.category}</TableCell>
-                              <TableCell>{report.period}</TableCell>
-                              <TableCell>
-                                <div className="flex items-center">
-                                  <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
-                                  {new Date(report.generatedDate).toLocaleDateString()}
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-sm text-muted-foreground">{report.author}</TableCell>
-                              <TableCell>{getStatusBadge(report.status)}</TableCell>
-                              <TableCell>{report.size}</TableCell>
-                              <TableCell className="text-right">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleDownload(report.id)}
-                                  disabled={report.status !== "completed"}
-                                >
-                                  <Download className="mr-2 h-4 w-4" />
-                                  Download
-                                </Button>
-                              </TableCell>
+                        {reportDataToDisplay.length > 0 ? (
+                          paginatedReports.map((item, idx) => (
+                            <TableRow key={idx}>
+                              {getTableColumns().map((col) => (
+                                <TableCell key={col} className="whitespace-nowrap">
+                                  {item[col] !== null && item[col] !== undefined ? String(item[col]) : "-"}
+                                </TableCell>
+                              ))}
                             </TableRow>
                           ))
                         ) : (
                           <TableRow>
-                            <TableCell colSpan={9} className="h-24 text-center">
-                              No reports found matching your criteria.
+                            <TableCell colSpan={getTableColumns().length || 1} className="h-24 text-center">
+                              {isFetchingHistory ? "Loading data..." : "No results to display."}
                             </TableCell>
                           </TableRow>
                         )}
                       </TableBody>
                     </Table>
                   </div>
+
                   <div className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <span className="text-sm">
-                        Showing {filteredReports.length === 0 ? 0 : startIndex + 1}–
-                        {Math.min(startIndex + pageSize, filteredReports.length)} of {filteredReports.length}
+                      <span>
+                        Showing {Math.min(reportDataToDisplay.length, (page - 1) * pageSize + 1)}–
+                        {Math.min(page * pageSize, reportDataToDisplay.length)} of {reportDataToDisplay.length}
                       </span>
                       <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1) }}>
                         <SelectTrigger className="w-[110px]">
@@ -355,7 +384,7 @@ export function SchoolReports() {
                         <PaginationItem>
                           <PaginationPrevious
                             onClick={(e) => { e.preventDefault(); if (canPrev) setPage((p) => p - 1) }}
-                            className={!canPrev ? "pointer-events-none opacity-50" : ""}
+                            className={!canPrev ? "pointer-events-none opacity-50 cursor-not-allowed" : "cursor-pointer"}
                             href="#"
                           />
                         </PaginationItem>
@@ -366,6 +395,7 @@ export function SchoolReports() {
                               href="#"
                               isActive={p === page}
                               onClick={(e) => { e.preventDefault(); setPage(p) }}
+                              className="cursor-pointer"
                             >
                               {p}
                             </PaginationLink>
@@ -375,7 +405,7 @@ export function SchoolReports() {
                         <PaginationItem>
                           <PaginationNext
                             onClick={(e) => { e.preventDefault(); if (canNext) setPage((p) => p + 1) }}
-                            className={!canNext ? "pointer-events-none opacity-50" : ""}
+                            className={!canNext ? "pointer-events-none opacity-50 cursor-not-allowed" : "cursor-pointer"}
                             href="#"
                           />
                         </PaginationItem>

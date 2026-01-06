@@ -3,25 +3,37 @@ import apiClient from "@/lib/axios"
 export interface DeliveryPerformanceReport {
     orderId: string;
     school: string;
-    itemsDelivered: string;
-    quantity: string;
     deliveryDate: string;
     status: string;
     delay: string;
 }
 
+export interface DeliveryPerformanceResponse {
+    deliveryTable: DeliveryPerformanceReport[];
+    totalOrders: number;
+    onTimeDeliveries: number;
+    lateDeliveries: number;
+    cancelledOrders: number;
+}
+
 export interface SupplierFinancialReport {
     item: string;
     quantitySupplied: number;
-    unit: string;
     unitPrice: number;
     totalRevenue: number;
+}
+
+export interface FinancialAnalysisResponse {
+    financialTable: SupplierFinancialReport[];
+    totalRevenue: number;
+    clearedPayments: number;
+    pendingPayments: number;
+    paymentCompletionRate: string;
 }
 
 export interface QualityAssuranceReport {
     deliveryDate: string;
     order: string;
-    qualityStatus: string;
     remarks: string;
 }
 
@@ -37,26 +49,114 @@ export interface OperationsOverviewReport {
     value: string;
 }
 
+export interface Order {
+    id: string
+    created?: string
+    updated?: string
+    requestItem?: {
+        id?: string
+        description?: string
+        requestStatus?: string
+        school?: {
+            id?: string
+            name?: string
+            address?: string
+            email?: string
+            phone?: string
+            student?: number
+            directorNames?: string
+            district?: {
+                id?: string
+                province?: string
+                district?: string
+            }
+        }
+        district?: {
+            id?: string
+            province?: string
+            district?: string
+        }
+        requestItemDetails?: Array<{
+            id?: string
+            quantity?: number
+            item?: {
+                id?: string
+                name?: string
+                perStudent?: number
+                description?: string
+            }
+        }>
+    }
+    supplier?: {
+        id?: string
+        names?: string
+        email?: string
+        phone?: string
+        companyName?: string
+        items?: Array<{
+            id?: string
+            name?: string
+            perStudent?: number
+            description?: string
+        }>
+    }
+    deliveryDate?: string | null
+    expectedDate?: string | null
+    deliveryStatus?: "APPROVED" | "SCHEDULED" | "PROCESSING" | "DELIVERED" | "CANCELLED" | "REJECTED"
+    orderPrice?: number
+    orderPayState?: "PENDING" | "PAID" | "PAYED" | "CANCELLED"
+    rating?: number
+}
+
 export const supplierService = {
 
     // =======================
     // Dashboard
     // =======================
 
-    getDashboardStats: async (supplierId: string) => {
-        const response = await apiClient.get(`/supplier/dashboard/stats?supplierId=${supplierId}`)
+    getMonthlyRevenue: async (supplierId: string): Promise<number> => {
+        const response = await apiClient.get(`/supplierDashboard/monthlyRevenue/${supplierId}`)
         return response.data
     },
-    getRecentOrders: async (supplierId: string, limit: number = 4) => {
-        const response = await apiClient.get(`/supplier/dashboard/recent-orders?supplierId=${supplierId}&limit=${limit}`)
+    getActiveOrderBySupplier: async (supplierId: string): Promise<number> => {
+        const response = await apiClient.get(`/supplierDashboard/activeOrderBySupplier/${supplierId}`)
         return response.data
     },
-    getUpcomingDeliveries: async (supplierId: string, limit: number = 3) => {
-        const response = await apiClient.get(`/supplier/dashboard/upcoming-deliveries?supplierId=${supplierId}&limit=${limit}`)
+    findPendingDeliveriesBySupplierId: async (supplierId: string): Promise<number> => {
+        const response = await apiClient.get(`/supplierDashboard/pendingDeliveriesBySupplierId/${supplierId}`)
         return response.data
     },
+    findAvgPerformanceScore: async (supplierId: string): Promise<number> => {
+        const response = await apiClient.get(`/supplierDashboard/avgPerformanceScore/${supplierId}`)
+        return response.data
+    },
+    findAverageRatingMonthly: async (supplierId: string): Promise<number> => {
+        const response = await apiClient.get(`/supplierDashboard/averageRatingMonthly/${supplierId}`)
+        return response.data
+    },
+    findOrderByCompleted: async (supplierId: string): Promise<number> => {
+        const response = await apiClient.get(`/supplierDashboard/orderByCompleted/${supplierId}`)
+        return response.data
+    },
+    findFoodDelivered: async (supplierId: string): Promise<number> => {
+        const response = await apiClient.get(`/supplierDashboard/foodDelivered/${supplierId}`)
+        return response.data
+    },
+    findSchoolServedBySupplierId: async (supplierId: string): Promise<number> => {
+        const response = await apiClient.get(`/supplierDashboard/schoolServedBySupplierId/${supplierId}`)
+        return response.data
+    },
+    getRecentDeliveriesBySupplier: async (supplierId: string): Promise<Order[]> => {
+        const response = await apiClient.get(`/supplierDashboard/recentDeliveriesBySupplier/${supplierId}`)
+        return response.data
+    },
+    getUpcomingDeliveries: async (supplierId: string): Promise<Order[]> => {
+        const response = await apiClient.get(`/supplierDashboard/upcomingDeliveries/${supplierId}`)
+        return response.data
+    },
+  
     getPerformanceMetrics: async (supplierId: string) => {
-        const response = await apiClient.get(`/supplier/dashboard/performance?supplierId=${supplierId}`)
+        const response = await apiClient.get(`/supplierDashboard/performance?supplierId=${supplierId}`)
         return response.data
     },
 
@@ -98,12 +198,12 @@ export const supplierService = {
     // Reports
     // =======================
 
-    getDeliveryPerformanceReport: async (supplierId: string, fromDate: string, toDate: string): Promise<DeliveryPerformanceReport[]> => {
+    getDeliveryPerformanceReport: async (supplierId: string, fromDate: string, toDate: string): Promise<DeliveryPerformanceResponse> => {
         const response = await apiClient.get(`/supplierReport/deliveryPerformance`, { params: { supplierId, fromDate, toDate } })
         return response.data
     },
 
-    getFinancialAnalysisReport: async (supplierId: string, fromDate: string, toDate: string): Promise<SupplierFinancialReport[]> => {
+    getFinancialAnalysisReport: async (supplierId: string, fromDate: string, toDate: string): Promise<FinancialAnalysisResponse> => {
         const response = await apiClient.get(`/supplierReport/financialAnalysis`, { params: { supplierId, fromDate, toDate } })
         return response.data
     },

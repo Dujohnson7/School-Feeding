@@ -8,6 +8,13 @@ export interface StudentFeedingReport {
     studentsServed: number;
 }
 
+export interface StudentFeedingSummaryResponse {
+    feedingTable: StudentFeedingReport[];
+    totalFeedingDays: number;
+    totalMealsServed: number;
+    averageFoodPerStudentPerDay: number;
+}
+
 export interface SchoolStockManagementReport {
     item: string;
     openingStock: number;
@@ -36,6 +43,7 @@ export interface SchoolStats {
     normalPriorityRequests: number
     nextDeliveryDate: string
     nextDeliveryTime: string
+    nextDeliveryStatus: string
     studentsFedToday: number
     totalRegisteredStudents: number
 }
@@ -54,6 +62,36 @@ export interface UpcomingSchedule {
     date: string
     time: string
     status: "Scheduled" | "Upcoming"
+}
+
+export interface DeliveryScheduleDTO {
+    id?: string;
+    deliveryDate?: string;
+    deliveryTime?: string;
+    deliveryStatus?: string;
+    status?: string;
+    items?: string;
+    supplierName?: string;
+}
+
+export interface Order {
+    id: string;
+    orderDate?: string;
+    deliveryDate: string;
+    deliveryStatus: string;
+    status?: string;
+    orderPrice: number;
+    orderPayState: string;
+    supplier?: {
+        names: string;
+        name?: string;
+        companyName?: string;
+        items?: any[];
+    };
+    requestItem?: {
+        description: string;
+        requestItemDetails?: any[];
+    };
 }
 
 export interface Item {
@@ -85,8 +123,28 @@ export const schoolService = {
         const response = await apiClient.get(`/schoolDashboard/stats?schoolId=${schoolId}`)
         return response.data
     },
+    getFoodStockLevel: async (schoolId: string) => {
+        const response = await apiClient.get(`/schoolDashboard/foodStockLevel/${schoolId}`)
+        return response.data
+    },
     getTotalStudent: async (schoolId: string) => {
         const response = await apiClient.get(`/schoolDashboard/totalStudent/${schoolId}`)
+        return response.data
+    },
+    getPendingRequestCount: async (schoolId: string) => {
+        const response = await apiClient.get(`/schoolDashboard/pendingRequest/${schoolId}`)
+        return response.data
+    },
+    getStudentServedCount: async (schoolId: string) => {
+        const response = await apiClient.get(`/schoolDashboard/totalStudentServed/${schoolId}`)
+        return response.data
+    },
+    getDeliveryState: async (schoolId: string) => {
+        const response = await apiClient.get(`/schoolDashboard/deliveryState/${schoolId}`)
+        return response.data
+    },
+    getAllRecentDeliveries: async (schoolId: string) => {
+        const response = await apiClient.get(`/schoolDashboard/allRecentDeliveriesBySchool/${schoolId}`)
         return response.data
     },
     getRecentDeliveries: async (schoolId: string, limit: number = 5) => {
@@ -141,7 +199,7 @@ export const schoolService = {
     // School Reports
     // =======================
 
-    getStudentFeedingSummaryReport: async (schoolId: string, fromDate: string, toDate: string): Promise<StudentFeedingReport[]> => {
+    getStudentFeedingSummaryReport: async (schoolId: string, fromDate: string, toDate: string): Promise<StudentFeedingSummaryResponse> => {
         const response = await apiClient.get(`/schoolReport/studentFeedingSummaryReport`, { params: { schoolId, fromDate, toDate } })
         return response.data
     },

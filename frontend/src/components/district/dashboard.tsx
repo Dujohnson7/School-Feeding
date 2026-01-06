@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import { Check, FileText, Package, School, Truck } from "lucide-react"
+import { Check, FileText, Package, School, Truck, Clock } from "lucide-react"
 import PageHeader from "@/components/shared/page-header"
 import { toast } from "sonner"
 import { districtService } from "./service/districtService"
@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface DashboardStats {
   totalSchools: number
@@ -36,13 +37,15 @@ interface StockLevel {
 interface RecentRequest {
   schoolName: string
   items: string
-  priority: "High" | "Medium" | "Low"
+  status: string
 }
 
 interface UpcomingDelivery {
   schoolName: string
   items: string
   deliveryDate: string
+  supplierName?: string
+  status?: string
 }
 
 interface PerformanceMetrics {
@@ -77,6 +80,7 @@ export function DistrictDashboard() {
     budgetUtilization: 0,
   })
   const [monthlyDistribution, setMonthlyDistribution] = useState<MonthlyDistribution[]>([])
+  const [nearDeadlineDeliveries, setNearDeadlineDeliveries] = useState<UpcomingDelivery[]>([])
 
   useEffect(() => {
     fetchDashboardData()
@@ -93,29 +97,153 @@ export function DistrictDashboard() {
         return
       }
 
-      // Fetch dashboard statistics
-      const statsData = await districtService.getDashboardStats(districtId)
-      if (statsData) setStats(statsData)
+      // Fetch stats and items in parallel with individual error handling
+      const fetchStat = async (func: any, fallback: any) => {
+        try {
+          return await func(districtId)
+        } catch (err) {
+          console.error(`Error fetching stat:`, err)
+          return fallback
+        }
+      }
+
+      const [totalSchools, pendingRequests, activeSuppliers, foodDistributed, allItems] = await Promise.all([
+        fetchStat(districtService.getTotalSchoolDistrict, 0),
+        fetchStat(districtService.getTotalRequestDistrict, 0),
+        fetchStat(districtService.getTotalDistrictSupplier, 0),
+        fetchStat(districtService.getTotalFoodDistributed, 0),
+        districtService.getAllItems().catch(() => [])
+      ])
+
+      // Create item name lookup map
+      const itemMap = new Map()
+      if (allItems && Array.isArray(allItems)) {
+        allItems.forEach((item: any) => {
+          itemMap.set(item.id, item.name)
+        })
+      }
+
+      setStats(prev => ({
+        ...prev,
+        totalSchools: totalSchools || 0,
+        pendingRequests: pendingRequests || 0,
+        activeSuppliers: activeSuppliers || 0,
+        foodDistributed: `${foodDistributed || 0}t`
+      }))
+
+      // Fetch district details for the name
+      try {
+        const today = new Date().toISOString().split('T')[0]
+        const lastYear = new Date()
+        lastYear.setFullYear(lastYear.getFullYear() - 1)
+        const fromDate = lastYear.toISOString().split('T')[0]
+        const overview = await districtService.getDistrictOverviewReport(districtId, fromDate, today)
+        if (overview && overview.length > 0) {
+          setStats(prev => ({ ...prev, districtName: overview[0].districtName }))
+        }
+      } catch (err) {
+        console.error("Error fetching district overview name:", err)
+      }
+
+      // Fetch analytics for performance metrics
+      try {
+        const analytics = await districtService.getAnalyticsStats(districtId, "monthly")
+        if (analytics) {
+          setPerformanceMetrics({
+            requestProcessingTime: analytics.avgProcessingDays || 2,
+            deliveryAccuracy: analytics.deliveryAccuracy || 95,
+            schoolSatisfaction: analytics.satisfactionRate || 88,
+            budgetUtilization: analytics.budgetUtilization || 75
+          })
+        }
+      } catch (err) {
+        console.error("Error fetching analytics stats:", err)
+      }
+
+      // Fetch recent requests from verified endpoint
+      try {
+        const allRequests = await districtService.getAllRequests(districtId)
+        if (allRequests && Array.isArray(allRequests)) {
+          // Sort by creation date or ID to get recent ones
+          const sortedRequests = [...allRequests].sort((a: any, b: any) => {
+            const dateA = a.created ? new Date(a.created).getTime() : 0
+            const dateB = b.created ? new Date(b.created).getTime() : 0
+            return dateB - dateA
+          })
+
+          const formattedRequests: RecentRequest[] = sortedRequests.slice(0, 5).map((item: any) => ({
+            schoolName: item.school?.name || item.school?.school || "Unknown School",
+            items: item.requestItemDetails?.map((detail: any) => {
+              const itemName = detail.item?.name || itemMap.get(detail.item?.id) || "Items"
+              return itemName
+            }).join(", ") || item.description || "Items",
+            status: item.requestStatus
+          }))
+          setRecentRequests(formattedRequests)
+        }
+      } catch (err) {
+        console.error("Error fetching recent requests:", err)
+      }
+
+      // Fetch recent deliveries (Complete Deliveries)
+      const recentDeliveriesData = await districtService.getRecentDeliveriesByDistrict(districtId)
+      if (recentDeliveriesData && Array.isArray(recentDeliveriesData)) {
+        const formattedDeliveries: UpcomingDelivery[] = recentDeliveriesData.map((order: any) => ({
+          schoolName: order.requestItem?.school?.name || "Unknown School",
+          supplierName: order.supplier?.companyName || order.supplier?.names || "Unknown Supplier",
+          items: order.requestItem?.requestItemDetails?.map((detail: any) => {
+            return detail.item?.name || itemMap.get(detail.item?.id) || "Food Items"
+          }).join(", ") || "Food Items",
+          deliveryDate: order.deliveryDate ? new Date(order.deliveryDate).toLocaleDateString() : "TBD"
+        }))
+        setUpcomingDeliveries(formattedDeliveries)
+      }
 
       // Fetch stock levels
-      const stockData = await districtService.getStockLevels(districtId)
-      if (stockData) setStockLevels(stockData)
-
-      // Fetch recent requests
-      const requestsData = await districtService.getRecentRequests(districtId)
-      if (requestsData) setRecentRequests(requestsData)
-
-      // Fetch upcoming deliveries
-      const deliveriesData = await districtService.getUpcomingDeliveries(districtId)
-      if (deliveriesData) setUpcomingDeliveries(deliveriesData)
-
-      // Fetch performance metrics
-      const metricsData = await districtService.getPerformanceMetrics(districtId)
-      if (metricsData) setPerformanceMetrics(metricsData)
+      const stockData = await districtService.getStockPercentageByCategory(districtId)
+      if (stockData && Array.isArray(stockData)) {
+        const formattedStock: StockLevel[] = stockData.map((item: any) => ({
+          itemName: item[0],
+          percentage: Math.round(item[1])
+        }))
+        setStockLevels(formattedStock)
+      }
 
       // Fetch monthly distribution
       const distributionData = await districtService.getMonthlyDistribution(districtId)
-      if (distributionData) setMonthlyDistribution(distributionData)
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+      // Initialize with zeros for all months to ensure chart is always visible
+      let formattedDistribution: MonthlyDistribution[] = monthNames.map(name => ({ month: name, value: 0 }))
+
+      if (distributionData && Array.isArray(distributionData)) {
+        distributionData.forEach((item: any) => {
+          const monthIdx = item[0] - 1
+          if (monthIdx >= 0 && monthIdx < 12) {
+            formattedDistribution[monthIdx].value = item[1]
+          }
+        })
+      }
+      setMonthlyDistribution(formattedDistribution)
+
+      // Fetch deliveries near deadline
+      try {
+        const nearDeadlineData = await districtService.getDeliveriesNearToDeadlineByDistrict(districtId)
+        if (nearDeadlineData && Array.isArray(nearDeadlineData)) {
+          const formatted: UpcomingDelivery[] = nearDeadlineData.map((order: any) => ({
+            schoolName: order.requestItem?.school?.name || "Unknown School",
+            supplierName: order.supplier?.companyName || order.supplier?.names || "Unknown Supplier",
+            status: order.deliveryStatus,
+            items: order.requestItem?.requestItemDetails?.map((detail: any) => {
+              return detail.item?.name || itemMap.get(detail.item?.id) || "Food Items"
+            }).join(", ") || "Food Items",
+            deliveryDate: order.expectedDate ? new Date(order.expectedDate).toLocaleDateString() : "Urgent"
+          }))
+          setNearDeadlineDeliveries(formatted)
+        }
+      } catch (err) {
+        console.error("Error fetching near deadline deliveries:", err)
+      }
 
     } catch (error: any) {
       console.error("Error fetching dashboard data:", error)
@@ -125,16 +253,17 @@ export function DistrictDashboard() {
     }
   }
 
-  const getPriorityBadge = (priority: string) => {
-    switch (priority) {
-      case "High":
-        return <Badge variant="destructive">High</Badge>
-      case "Medium":
-        return <Badge variant="outline" className="bg-amber-100 text-amber-800 hover:bg-amber-100">Medium</Badge>
-      case "Low":
-        return <Badge variant="outline" className="bg-green-100 text-green-800 hover:bg-green-100">Low</Badge>
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "PENDING":
+        return <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-200">Pending</Badge>
+      case "APPROVE":
+      case "APPROVED":
+        return <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">Approved</Badge>
+      case "REJECTED":
+        return <Badge variant="destructive">Rejected</Badge>
       default:
-        return <Badge variant="outline">Medium</Badge>
+        return <Badge variant="outline">{status}</Badge>
     }
   }
   return (
@@ -148,8 +277,8 @@ export function DistrictDashboard() {
           homeTo="/district-dashboard"
           HomeIcon={Package}
           profileTo="/district-profile"
-          userName="District Coordinator"
-          userEmail="coordinator@district.rw"
+          userName={stats.districtName ? `${stats.districtName} Coordinator` : "District Coordinator"}
+          userEmail={`coordinator@${stats.districtName?.toLowerCase() || 'district'}.rw`}
           avatarSrc="/userIcon.png"
           avatarFallback="DC"
         />
@@ -209,36 +338,19 @@ export function DistrictDashboard() {
                 <div className="space-y-4">
                   <div className="grid gap-4 md:grid-cols-2">
                     {loading && stockLevels.length === 0 ? (
-                      <>
-                        <div>
+                      Array.from({ length: 4 }).map((_, i) => (
+                        <div key={i}>
                           <div className="mb-2 flex items-center justify-between">
-                            <div className="text-sm font-medium">Rice Stock</div>
-                            <div className="text-sm text-muted-foreground">78%</div>
+                            <Skeleton className="h-4 w-24" />
+                            <Skeleton className="h-4 w-12" />
                           </div>
-                          <Progress value={78} className="h-2" />
+                          <Skeleton className="h-2 w-full" />
                         </div>
-                        <div>
-                          <div className="mb-2 flex items-center justify-between">
-                            <div className="text-sm font-medium">Beans Stock</div>
-                            <div className="text-sm text-muted-foreground">65%</div>
-                          </div>
-                          <Progress value={65} className="h-2" />
-                        </div>
-                        <div>
-                          <div className="mb-2 flex items-center justify-between">
-                            <div className="text-sm font-medium">Maize Stock</div>
-                            <div className="text-sm text-muted-foreground">42%</div>
-                          </div>
-                          <Progress value={42} className="h-2" />
-                        </div>
-                        <div>
-                          <div className="mb-2 flex items-center justify-between">
-                            <div className="text-sm font-medium">Vegetables Stock</div>
-                            <div className="text-sm text-muted-foreground">25%</div>
-                          </div>
-                          <Progress value={25} className="h-2" />
-                        </div>
-                      </>
+                      ))
+                    ) : stockLevels.length === 0 ? (
+                      <div className="col-span-2 text-center py-8 text-muted-foreground italic text-sm">
+                        No category stock data available
+                      </div>
                     ) : (
                       stockLevels.map((stock, index) => (
                         <div key={index}>
@@ -256,49 +368,31 @@ export function DistrictDashboard() {
                     <h3 className="mb-4 text-sm font-medium">Monthly Distribution</h3>
                     <div className="h-[200px] w-full bg-muted/50">
                       <div className="flex h-full items-end justify-between px-2">
-                        {loading && monthlyDistribution.length === 0 ? (
-                          <>
-                            <div className="h-[40%] w-[8%] bg-primary"></div>
-                            <div className="h-[60%] w-[8%] bg-primary"></div>
-                            <div className="h-[75%] w-[8%] bg-primary"></div>
-                            <div className="h-[90%] w-[8%] bg-primary"></div>
-                            <div className="h-[65%] w-[8%] bg-primary"></div>
-                            <div className="h-[45%] w-[8%] bg-primary"></div>
-                            <div className="h-[55%] w-[8%] bg-primary"></div>
-                            <div className="h-[70%] w-[8%] bg-primary"></div>
-                            <div className="h-[50%] w-[8%] bg-primary"></div>
-                            <div className="h-[30%] w-[8%] bg-primary"></div>
-                          </>
+                        {loading && monthlyDistribution.every(m => m.value === 0) ? (
+                          Array.from({ length: 12 }).map((_, i) => (
+                            <div key={i} className="h-[5%] w-[6%] bg-primary/20 animate-pulse"></div>
+                          ))
                         ) : (
                           monthlyDistribution.map((month, index) => {
-                            const maxValue = Math.max(...monthlyDistribution.map(m => m.value), 100)
+                            const maxValue = Math.max(...monthlyDistribution.map(m => m.value), 10)
                             const height = (month.value / maxValue) * 100
+                            // If value is 0, show a tiny sliver or nothing, but keep the slot
                             return (
-                              <div key={index} className="h-[8%] w-[8%] bg-primary" style={{ height: `${Math.max(10, height)}%` }}></div>
+                              <div
+                                key={index}
+                                className={`w-[6%] transition-all duration-500 ${month.value > 0 ? "bg-primary" : "bg-primary/10"}`}
+                                style={{ height: `${Math.max(2, height)}%` }}
+                                title={`${month.month}: ${month.value}`}
+                              ></div>
                             )
                           })
                         )}
                       </div>
                     </div>
-                    <div className="mt-2 flex justify-between text-xs text-muted-foreground">
-                      {loading && monthlyDistribution.length === 0 ? (
-                        <>
-                          <div>Jan</div>
-                          <div>Feb</div>
-                          <div>Mar</div>
-                          <div>Apr</div>
-                          <div>May</div>
-                          <div>Jun</div>
-                          <div>Jul</div>
-                          <div>Aug</div>
-                          <div>Sep</div>
-                          <div>Oct</div>
-                        </>
-                      ) : (
-                        monthlyDistribution.map((month, index) => (
-                          <div key={index}>{month.month}</div>
-                        ))
-                      )}
+                    <div className="mt-2 flex justify-between text-[10px] text-muted-foreground overflow-hidden">
+                      {monthlyDistribution.map((month, index) => (
+                        <div key={index} className="w-[8%] text-center">{month.month}</div>
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -330,7 +424,7 @@ export function DistrictDashboard() {
                           <p className="font-medium">{request.schoolName}</p>
                           <p className="text-sm text-muted-foreground">{request.items}</p>
                         </div>
-                        {getPriorityBadge(request.priority)}
+                        {getStatusBadge(request.status)}
                       </div>
                     ))
                   )}
@@ -346,40 +440,80 @@ export function DistrictDashboard() {
             </Card>
           </div>
 
-          <div className="mt-6 grid gap-4 md:grid-cols-2">
+          <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             <Card>
               <CardHeader>
-                <CardTitle>Upcoming Deliveries</CardTitle>
-                <CardDescription>Scheduled food deliveries to schools</CardDescription>
+                <CardTitle className="flex items-center gap-2 text-rose-600">
+                  <Clock className="h-4 w-4" />
+                  Urgent Deliveries
+                </CardTitle>
+                <CardDescription>Deliveries near to deadline</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {loading && upcomingDeliveries.length === 0 ? (
-                    <>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">Loading...</p>
-                          <p className="text-sm text-muted-foreground">Please wait</p>
-                        </div>
-                        <p className="text-sm">-</p>
+                  {loading && nearDeadlineDeliveries.length === 0 ? (
+                    Array.from({ length: 3 }).map((_, i) => (
+                      <div key={i} className="flex justify-between items-center">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-4 w-16" />
                       </div>
-                    </>
-                  ) : upcomingDeliveries.length === 0 ? (
-                    <div className="text-center text-sm text-muted-foreground py-4">No upcoming deliveries</div>
+                    ))
+                  ) : nearDeadlineDeliveries.length === 0 ? (
+                    <div className="text-center text-sm text-muted-foreground py-4 italic">No urgent deliveries</div>
                   ) : (
-                    upcomingDeliveries.map((delivery, index) => (
-                      <div key={index} className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">{delivery.schoolName}</p>
-                          <p className="text-sm text-muted-foreground">{delivery.items}</p>
+                    nearDeadlineDeliveries.map((delivery, index) => (
+                      <div key={index} className="flex items-center justify-between border-b border-muted pb-2 last:border-0 last:pb-0">
+                        <div className="min-w-0 pr-2">
+                          <p className="font-medium truncate text-sm">{delivery.schoolName}</p>
+                          <p className="text-[10px] text-muted-foreground truncate">
+                            {delivery.supplierName && <span className="text-primary font-semibold">{delivery.supplierName} • </span>}
+                            {delivery.items}
+                          </p>
                         </div>
-                        <p className="text-sm">{delivery.deliveryDate}</p>
+                        <Badge variant="outline" className="text-[10px] whitespace-nowrap bg-rose-50 text-rose-700 border-rose-200">
+                          Due: {delivery.deliveryDate}
+                        </Badge>
                       </div>
                     ))
                   )}
                 </div>
               </CardContent>
             </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Complete Deliveries</CardTitle>
+                <CardDescription>Completed food deliveries for schools</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {loading && upcomingDeliveries.length === 0 ? (
+                    Array.from({ length: 3 }).map((_, i) => (
+                      <div key={i} className="flex justify-between items-center">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-4 w-16" />
+                      </div>
+                    ))
+                  ) : upcomingDeliveries.length === 0 ? (
+                    <div className="text-center text-sm text-muted-foreground py-4 italic">No completed deliveries</div>
+                  ) : (
+                    upcomingDeliveries.map((delivery, index) => (
+                      <div key={index} className="flex items-center justify-between border-b border-muted pb-2 last:border-0 last:pb-0">
+                        <div className="min-w-0 pr-2">
+                          <p className="font-medium truncate text-sm">{delivery.schoolName}</p>
+                          <p className="text-[10px] text-muted-foreground truncate">
+                            {delivery.supplierName && <span className="text-primary font-semibold">{delivery.supplierName} • </span>}
+                            {delivery.items}
+                          </p>
+                        </div>
+                        <p className="text-xs font-mono">{delivery.deliveryDate}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <CardTitle>District Performance</CardTitle>

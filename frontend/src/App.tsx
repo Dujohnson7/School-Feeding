@@ -25,6 +25,7 @@ import DistrictBudget from '@/pages/district-budget/page'
 import DistrictReports from '@/pages/district-reports/page'
 import AddSupplier from '@/components/district/add-supplier'
 import ManageSuppliers from '@/pages/manage-suppliers/page'
+import DistrictDeliveries from '@/pages/district-deliveries/page'
 
 // Government pages
 import GovDashboard from '@/components/government/dashboard'
@@ -68,14 +69,14 @@ function App() {
           <Route path="/otp" element={<OTPPage />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-          
+
           {/* Admin Routes */}
           <Route path="/admin-dashboard" element={<ProtectedRoute><RoleLayout role="admin"><AdminDashboard /></RoleLayout></ProtectedRoute>} />
           <Route path="/admin-profile" element={<ProtectedRoute><RoleLayout role="admin"><Profile /></RoleLayout></ProtectedRoute>} />
           <Route path="/admin-users" element={<ProtectedRoute><RoleLayout role="admin"><AdminUsers /></RoleLayout></ProtectedRoute>} />
           <Route path="/admin-logs" element={<ProtectedRoute><RoleLayout role="admin"><AdminLogs /></RoleLayout></ProtectedRoute>} />
           <Route path="/admin-settings" element={<ProtectedRoute><RoleLayout role="admin"><AdminSettings /></RoleLayout></ProtectedRoute>} />
-          
+
           {/* District Routes */}
           <Route path="/district-dashboard" element={<ProtectedRoute><RoleLayout role="district"><DistrictDashboard /></RoleLayout></ProtectedRoute>} />
           <Route path="/district-profile" element={<ProtectedRoute><RoleLayout role="district"><Profile /></RoleLayout></ProtectedRoute>} />
@@ -84,7 +85,8 @@ function App() {
           <Route path="/district-reports" element={<ProtectedRoute><RoleLayout role="district"><DistrictReports /></RoleLayout></ProtectedRoute>} />
           <Route path="/add-supplier" element={<ProtectedRoute><RoleLayout role="district"><AddSupplier /></RoleLayout></ProtectedRoute>} />
           <Route path="/manage-suppliers" element={<ProtectedRoute><RoleLayout role="district"><ManageSuppliers /></RoleLayout></ProtectedRoute>} />
-          
+          <Route path="/district-deliveries" element={<ProtectedRoute><RoleLayout role="district"><DistrictDeliveries /></RoleLayout></ProtectedRoute>} />
+
           {/* Government Routes */}
           <Route path="/gov-dashboard" element={<ProtectedRoute><RoleLayout role="government"><GovDashboard /></RoleLayout></ProtectedRoute>} />
           <Route path="/gov-profile" element={<ProtectedRoute><RoleLayout role="government"><Profile /></RoleLayout></ProtectedRoute>} />
@@ -94,8 +96,8 @@ function App() {
           <Route path="/gov-analytics" element={<ProtectedRoute><RoleLayout role="government"><GovAnalytics /></RoleLayout></ProtectedRoute>} />
           <Route path="/gov-budget" element={<ProtectedRoute><RoleLayout role="government"><GovBudget /></RoleLayout></ProtectedRoute>} />
           <Route path="/gov-reports" element={<ProtectedRoute><RoleLayout role="government"><GovReports /></RoleLayout></ProtectedRoute>} />
-           
-          
+
+
           {/* School Routes */}
           <Route path="/school-dashboard" element={<ProtectedRoute><RoleLayout role="school"><SchoolDashboard /></RoleLayout></ProtectedRoute>} />
           <Route path="/school-profile" element={<ProtectedRoute><RoleLayout role="school"><Profile /></RoleLayout></ProtectedRoute>} />
@@ -104,7 +106,7 @@ function App() {
           <Route path="/request-food-list" element={<ProtectedRoute><RoleLayout role="school"><RequestFoodList /></RoleLayout></ProtectedRoute>} />
           <Route path="/track-delivery" element={<ProtectedRoute><RoleLayout role="school"><TrackDelivery /></RoleLayout></ProtectedRoute>} />
           <Route path="/manage-stock-managers" element={<ProtectedRoute><RoleLayout role="school"><ManageStockManagers /></RoleLayout></ProtectedRoute>} />
-          
+
           {/* Stock Routes */}
           <Route path="/stock-dashboard" element={<ProtectedRoute><RoleLayout role="stock"><StockDashboard /></RoleLayout></ProtectedRoute>} />
           <Route path="/stock-profile" element={<ProtectedRoute><RoleLayout role="stock"><Profile /></RoleLayout></ProtectedRoute>} />
@@ -112,7 +114,7 @@ function App() {
           <Route path="/stock-inventory" element={<ProtectedRoute><RoleLayout role="stock"><StockInventory /></RoleLayout></ProtectedRoute>} />
           <Route path="/stock-receiving" element={<ProtectedRoute><RoleLayout role="stock"><StockReceiving /></RoleLayout></ProtectedRoute>} />
           <Route path="/stock-reports" element={<ProtectedRoute><RoleLayout role="stock"><StockReports /></RoleLayout></ProtectedRoute>} />
-          
+
           {/* Supplier Routes */}
           <Route path="/supplier-dashboard" element={<ProtectedRoute><RoleLayout role="supplier"><SupplierDashboard /></RoleLayout></ProtectedRoute>} />
           <Route path="/supplier-profile" element={<ProtectedRoute><RoleLayout role="supplier"><Profile /></RoleLayout></ProtectedRoute>} />

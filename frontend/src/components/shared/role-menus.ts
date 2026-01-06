@@ -30,8 +30,9 @@ export const roleMenus: Record<RoleKey, { title: string; url: string; icon: any 
   ],
   district: [
     { title: "Dashboard", url: "/district-dashboard", icon: Home },
-    { title: "School Approvals", url: "/district-approvals", icon: ClipboardList }, 
+    { title: "School Approvals", url: "/district-approvals", icon: ClipboardList },
     { title: "Manage Suppliers", url: "/manage-suppliers", icon: Truck },
+    { title: "Deliveries", url: "/district-deliveries", icon: Package },
     { title: "Budget", url: "/district-budget", icon: FileText },
     { title: "Reports", url: "/district-reports", icon: FileText },
     { title: "Profile", url: "/district-profile", icon: Settings },

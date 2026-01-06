@@ -76,8 +76,9 @@ export function StockReports() {
       setHistoryData(data || [])
       setPage(1)
       if (!data || data.length === 0) {
-        toast.info("No data found for the selected period")
+        toast.error("No data found for the selected period")
       }
+
     } catch (error: any) {
       console.error("Error fetching report data:", error)
       toast.error("Failed to fetch report data")
@@ -115,7 +116,7 @@ export function StockReports() {
       }
 
       setIsGenerating(prev => ({ ...prev, [type]: true }))
-      const format = (selectedReportFormat[type] || 'pdf') as 'pdf' | 'csv' | 'excel'
+      const format = (selectedReportFormat[type] || 'pdf') as 'pdf' | 'csv'
 
       const fromStr = formatDateFns(dateRange.from, 'yyyy-MM-dd')
       const toStr = formatDateFns(dateRange.to, 'yyyy-MM-dd')
@@ -123,9 +124,10 @@ export function StockReports() {
       const data = await getReportData(type, schoolId, fromStr, toStr)
 
       if (!data || data.length === 0) {
-        toast.info("No data found for the selected period")
+        toast.error("No data found for the selected period")
         return
       }
+
 
       const formattedData = data.map((item: any) => {
         const newItem: any = {}
@@ -155,7 +157,7 @@ export function StockReports() {
   const handleDownloadFromTable = async () => {
     if (historyData.length === 0) return
     const category = reportCategories.find(c => c.value === reportType)?.label || reportType
-    const format = 'pdf' // Default for table download
+    const format = 'pdf'
 
     const formattedData = historyData.map((item: any) => {
       const newItem: any = {}
@@ -261,7 +263,6 @@ export function StockReports() {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="pdf">PDF Report</SelectItem>
-                              <SelectItem value="excel">Excel Spreadsheet</SelectItem>
                               <SelectItem value="csv">CSV Data</SelectItem>
                             </SelectContent>
                           </Select>
@@ -284,13 +285,12 @@ export function StockReports() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <div>
-                    <CardTitle>Report Data View</CardTitle>
-                    <CardDescription>View live stock management data based on filters</CardDescription>
+                    <CardTitle>Stock Report</CardTitle>
                   </div>
                   {historyData.length > 0 && (
                     <Button variant="outline" size="sm" onClick={handleDownloadFromTable}>
                       <Download className="mr-2 h-4 w-4" />
-                      Download view
+                      Download
                     </Button>
                   )}
                 </CardHeader>
@@ -323,7 +323,7 @@ export function StockReports() {
                         disabled={isFetchingHistory}
                         className="bg-primary hover:bg-primary/90"
                       >
-                        {isFetchingHistory ? "Fetching..." : "View Report Data"}
+                        {isFetchingHistory ? "Fetching..." : "Generate Report"}
                       </Button>
                     </div>
                   </div>
@@ -339,7 +339,7 @@ export function StockReports() {
                               </TableHead>
                             ))
                           ) : (
-                            <TableHead>No data available. Select filters and click "View Report Data".</TableHead>
+                            <TableHead>No data available. Select filters and click "Generate Report".</TableHead>
                           )}
                         </TableRow>
                       </TableHeader>

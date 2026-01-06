@@ -11,17 +11,30 @@ export const getCurrentUserInfo = () => {
     const user = JSON.parse(userStr)
     const role = localStorage.getItem("role") || user.role || ""
 
+    // Handle different district object structures
+    let districtName = ""
+    if (user.district) {
+      if (typeof user.district === 'string') {
+        districtName = user.district
+      } else if (user.district.district) {
+        districtName = user.district.district
+      } else if (user.district.name) {
+        districtName = user.district.name
+      }
+    }
+
     return {
       id: user.id || localStorage.getItem("userId") || "",
       names: user.names || "",
       role: role.trim().toUpperCase().replace(/^ROLE_/, ""),
       districtId: user.district?.id || localStorage.getItem("districtId") || "",
       schoolId: user.school?.id || localStorage.getItem("schoolId") || "",
-      districtName: user.district?.name || "",
+      districtName: districtName || localStorage.getItem("districtName") || "",
       schoolName: user.school?.name || "",
       province: user.district?.province || user.school?.province || "",
       supplierName: role.toUpperCase() === "SUPPLIER" ? user.names : ""
     }
+
   } catch (e) {
     console.error("Error parsing user info from localStorage", e)
     return null
@@ -865,6 +878,113 @@ export const generateGovReport = async (
     return true
   } catch (error) {
     console.error('Error generating government report:', error)
+    throw error
+  }
+}
+
+// School Report Generation
+export const generateSchoolReport = async (
+  reportType: string,
+  dateRange: { from?: Date; to?: Date },
+  format: 'pdf' | 'csv' | 'excel',
+  data: any,
+  schoolInfo?: {
+    school?: string
+    province?: string
+    district?: string
+  }
+) => {
+  try {
+    const userInfo = getCurrentUserInfo()
+    const finalSchoolInfo = {
+      school: schoolInfo?.school || userInfo?.schoolName || "N/A",
+      province: schoolInfo?.province || userInfo?.province || "N/A",
+      district: schoolInfo?.district || userInfo?.districtName || "N/A",
+    }
+
+    if (format === 'pdf') {
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      })
+
+      let yPos = await addReportHeader(doc, `${reportType} Report`, {
+        type: 'school',
+        entityInfo: {
+          name: finalSchoolInfo.school,
+          province: finalSchoolInfo.province,
+          district: finalSchoolInfo.district,
+        },
+        dateFrom: dateRange.from,
+        dateTo: dateRange.to
+      })
+
+      if (data && data.length > 0) {
+        const headers = Object.keys(data[0])
+        const tableData = data.map((row: any) => headers.map((key) => String(row[key] ?? '')))
+
+        autoTable(doc, {
+          head: [headers],
+          body: tableData,
+          startY: yPos,
+          styles: {
+            fontSize: 8,
+            cellPadding: 3,
+            lineColor: [0, 0, 0],
+            lineWidth: 0.1,
+            fillColor: [255, 255, 255],
+            textColor: [0, 0, 0]
+          },
+          headStyles: {
+            fillColor: [255, 255, 255],
+            textColor: [0, 0, 0],
+            fontStyle: 'bold',
+            lineColor: [0, 0, 0],
+            lineWidth: 0.1
+          },
+          alternateRowStyles: {
+            fillColor: [255, 255, 255],
+            lineColor: [0, 0, 0],
+            lineWidth: 0.1
+          },
+          margin: { left: 15, right: 15 }
+        })
+      }
+
+      addReportFooter(doc)
+      const fileName = `School_Report_${reportType.replace(/\s+/g, '_')}_${formatDate(new Date(), 'yyyyMMdd')}.pdf`
+      doc.save(fileName)
+    } else if (format === 'csv') {
+      const headers = data && data.length > 0 ? Object.keys(data[0]) : []
+      const csvRows = [
+        ['School Feeding Program - School Management Report'],
+        [`Report Type: ${reportType}`],
+        [`Generated: ${formatDate(new Date(), 'dd/MM/yyyy HH:mm')}`],
+        [],
+        [headers.join(',')]
+      ]
+
+      if (data) {
+        data.forEach((row: any) => {
+          csvRows.push([headers.map(key => String(row[key] || '')).join(',')])
+        })
+      }
+
+      const csvContent = csvRows.map(row => row.join(',')).join('\n')
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      const url = URL.createObjectURL(blob)
+      link.setAttribute('href', url)
+      link.setAttribute('download', `School_Report_${reportType.replace(/\s+/g, '_')}_${formatDate(new Date(), 'yyyyMMdd')}.csv`)
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    }
+    return true
+  } catch (error) {
+    console.error('Error generating school report:', error)
     throw error
   }
 }

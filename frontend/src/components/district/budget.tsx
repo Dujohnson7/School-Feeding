@@ -2,9 +2,7 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import {
-  Home,
   Package,
-  FileText,
   Users,
   DollarSign,
   Download,
@@ -12,8 +10,6 @@ import {
   TrendingUp,
   AlertCircle,
   School,
-  Truck,
-  Check,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -25,6 +21,8 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
+import { toast } from "sonner"
+import { budgetService, BudgetDistrict, BudgetSchool } from "../government/service/budgetService"
 
 export function DistrictBudget() {
   const [searchTerm, setSearchTerm] = useState("")
@@ -35,60 +33,6 @@ export function DistrictBudget() {
   const [pageHist, setPageHist] = useState(1)
   const [pageSizeHist, setPageSizeHist] = useState(5)
 
-  // Mock budget data for Nyarugenge District
-  const districtBudget = {
-    totalAllocated: 3200000000, // 3.2 billion RWF
-    spent: 2800000000, // 2.8 billion RWF
-    remaining: 400000000, // 400 million RWF
-    schools: 89,
-    studentsServed: 45600,
-  }
-
-  const schoolAllocations = [
-    {
-      id: 1,
-      school: "Kigali Primary School",
-      allocated: 180000000,
-      spent: 165000000,
-      students: 850,
-      status: "On Track",
-    },
-    {
-      id: 2,
-      school: "Nyamirambo Secondary School",
-      allocated: 220000000,
-      spent: 195000000,
-      students: 1200,
-      status: "On Track",
-    },
-    { id: 3, school: "Remera High School", allocated: 160000000, spent: 140000000, students: 750, status: "On Track" },
-    { id: 4, school: "Gasabo Elementary", allocated: 140000000, spent: 125000000, students: 680, status: "On Track" },
-    { id: 5, school: "Kimisagara Primary", allocated: 120000000, spent: 110000000, students: 580, status: "On Track" },
-    { id: 6, school: "Nyakabanda Secondary", allocated: 200000000, spent: 170000000, students: 950, status: "At Risk" },
-    { id: 7, school: "Muhima Primary", allocated: 100000000, spent: 85000000, students: 480, status: "On Track" },
-    { id: 8, school: "Biryogo Elementary", allocated: 90000000, spent: 80000000, students: 420, status: "On Track" },
-  ]
-
-  const budgetHistory = [
-    { id: 1, year: "2025", allocated: 3200000000, received: "2024-12-15", status: "Active" },
-    { id: 2, year: "2024", allocated: 2900000000, received: "2023-12-10", status: "Completed" },
-    { id: 3, year: "2023", allocated: 2600000000, received: "2022-12-08", status: "Completed" },
-    { id: 4, year: "2022", allocated: 2400000000, received: "2021-12-12", status: "Completed" },
-  ]
-
-  const monthlySpending = [
-    { month: "Jan", budgeted: 266666667, actual: 245000000 },
-    { month: "Feb", budgeted: 266666667, actual: 258000000 },
-    { month: "Mar", budgeted: 266666667, actual: 272000000 },
-    { month: "Apr", budgeted: 266666667, actual: 251000000 },
-    { month: "May", budgeted: 266666667, actual: 264000000 },
-    { month: "Jun", budgeted: 266666667, actual: 248000000 },
-    { month: "Jul", budgeted: 266666667, actual: 269000000 },
-    { month: "Aug", budgeted: 266666667, actual: 255000000 },
-    { month: "Sep", budgeted: 266666667, actual: 261000000 },
-    { month: "Oct", budgeted: 266666667, actual: 267000000 },
-  ]
-
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-RW", {
       style: "currency",
@@ -98,10 +42,56 @@ export function DistrictBudget() {
     }).format(amount)
   }
 
-  const filteredSchools = schoolAllocations.filter(
-    (school) =>
-      school.school.toLowerCase().includes(searchTerm.toLowerCase()) &&
-      (selectedSchool === "all" || school.school === selectedSchool),
+  const [districtBudgetData, setDistrictBudgetData] = useState<BudgetDistrict[]>([])
+  const [budgetSchools, setBudgetSchools] = useState<BudgetSchool[]>([])
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    fetchDistrictBudgetData()
+  }, [])
+
+  const fetchDistrictBudgetData = async () => {
+    const districtId = localStorage.getItem("districtId")
+    if (!districtId) {
+      toast.error("District ID not found")
+      return
+    }
+
+    try {
+      setLoading(true)
+      const budgetGovData = await budgetService.getAllBudgetGovDistrict()
+      // Note: We might want to store different things in different states
+      // but let's see how they were used before.
+
+      const budgetData = await budgetService.getBudgetDistrictsByDistrictId(districtId)
+      setDistrictBudgetData(budgetData)
+
+      const schoolsData = await budgetService.getBudgetSchoolsByDistrictId(districtId)
+      setBudgetSchools(schoolsData)
+    } catch (error) {
+      console.error("Error fetching district budget data:", error)
+      toast.error("Failed to load budget data")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Calculate overview totals based on fetched data
+  const currentBudget = districtBudgetData[0] || null
+  const activeFiscalYear = currentBudget?.budgetGov?.fiscalYear || "N/A"
+
+  const overview = {
+    totalAllocated: districtBudgetData.reduce((acc, curr) => acc + curr.budget, 0),
+    spent: districtBudgetData.reduce((acc, curr) => acc + curr.spentBudget, 0),
+    remaining: districtBudgetData.reduce((acc, curr) => acc + (curr.budget - curr.spentBudget), 0),
+    schools: budgetSchools.length,
+    studentsServed: budgetSchools.reduce((acc, curr) => acc + (curr.school?.totalStudents || 0), 0),
+  }
+
+  const filteredSchools = budgetSchools.filter(
+    (bs) =>
+      bs.school?.schoolName?.toLowerCase().includes(searchTerm.toLowerCase()) &&
+      (selectedSchool === "all" || bs.school?.schoolName === selectedSchool),
   )
 
   useEffect(() => {
@@ -123,9 +113,9 @@ export function DistrictBudget() {
     return Array.from({ length: end - start + 1 }, (_, i) => start + i)
   }
 
-  const totalPagesHist = Math.max(1, Math.ceil(budgetHistory.length / pageSizeHist))
+  const totalPagesHist = Math.max(1, Math.ceil(districtBudgetData.length / pageSizeHist))
   const startHist = (pageHist - 1) * pageSizeHist
-  const paginatedHistory = budgetHistory.slice(startHist, startHist + pageSizeHist)
+  // const paginatedHistory = districtBudgetData.slice(startHist, startHist + pageSizeHist) // If needed later
   const canPrevHist = pageHist > 1
   const canNextHist = pageHist < totalPagesHist
   const getHistPageWindow = () => {
@@ -138,6 +128,9 @@ export function DistrictBudget() {
     return Array.from({ length: end - start + 1 }, (_, i) => start + i)
   }
 
+  // Placeholder for monthly spending since we don't have it in the API yet
+  const monthlySpending: any[] = []
+
   return (
     <div className="flex-1">
       {/* Main Content */}
@@ -149,7 +142,7 @@ export function DistrictBudget() {
             <span className="sr-only">Home</span>
           </Link>
           <div className="w-full flex-1">
-            <h1 className="text-lg font-semibold">District Budget - Nyarugenge</h1>
+            <h1 className="text-lg font-semibold">District Budget</h1>
           </div>
           <HeaderActions role="district" />
         </header>
@@ -164,8 +157,8 @@ export function DistrictBudget() {
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(districtBudget.totalAllocated)}</div>
-                <p className="text-xs text-muted-foreground">FY 2025</p>
+                <div className="text-2xl font-bold">{formatCurrency(overview.totalAllocated)}</div>
+                <p className="text-xs text-muted-foreground">FY {activeFiscalYear}</p>
               </CardContent>
             </Card>
             <Card>
@@ -174,8 +167,10 @@ export function DistrictBudget() {
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(districtBudget.spent)}</div>
-                <p className="text-xs text-muted-foreground">87.5% utilized</p>
+                <div className="text-2xl font-bold">{formatCurrency(overview.spent)}</div>
+                <p className="text-xs text-muted-foreground">
+                  {overview.totalAllocated > 0 ? ((overview.spent / overview.totalAllocated) * 100).toFixed(1) : 0}% utilized
+                </p>
               </CardContent>
             </Card>
             <Card>
@@ -184,8 +179,10 @@ export function DistrictBudget() {
                 <AlertCircle className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(districtBudget.remaining)}</div>
-                <p className="text-xs text-muted-foreground">12.5% remaining</p>
+                <div className="text-2xl font-bold">{formatCurrency(overview.remaining)}</div>
+                <p className="text-xs text-muted-foreground">
+                  {overview.totalAllocated > 0 ? ((overview.remaining / overview.totalAllocated) * 100).toFixed(1) : 0}% remaining
+                </p>
               </CardContent>
             </Card>
             <Card>
@@ -194,8 +191,8 @@ export function DistrictBudget() {
                 <School className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{districtBudget.schools}</div>
-                <p className="text-xs text-muted-foreground">In district</p>
+                <div className="text-2xl font-bold">{overview.schools}</div>
+                <p className="text-xs text-muted-foreground">With budget</p>
               </CardContent>
             </Card>
             <Card>
@@ -204,8 +201,8 @@ export function DistrictBudget() {
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{districtBudget.studentsServed.toLocaleString()}</div>
-                <p className="text-xs text-muted-foreground">Daily meals</p>
+                <div className="text-2xl font-bold">{overview.studentsServed.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground">Beneficiaries</p>
               </CardContent>
             </Card>
           </div>
@@ -215,7 +212,7 @@ export function DistrictBudget() {
               <TabsList>
                 <TabsTrigger value="schools">School Allocations</TabsTrigger>
                 <TabsTrigger value="spending">Monthly Spending</TabsTrigger>
-                <TabsTrigger value="history">Budget History</TabsTrigger>
+                <TabsTrigger value="history">Budget Fiscal Year</TabsTrigger>
               </TabsList>
               <Button variant="outline">
                 <Download className="mr-2 h-4 w-4" />
@@ -241,11 +238,6 @@ export function DistrictBudget() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Schools</SelectItem>
-                    {schoolAllocations.map((school) => (
-                      <SelectItem key={school.id} value={school.school}>
-                        {school.school}
-                      </SelectItem>
-                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -258,30 +250,32 @@ export function DistrictBudget() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {filteredSchools.length > 0 ? paginatedSchools.map((school) => (
-                      <div key={school.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    {filteredSchools.length > 0 ? paginatedSchools.map((bs) => (
+                      <div key={bs.id} className="flex items-center justify-between p-4 border rounded-lg">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
-                            <h3 className="font-medium">{school.school}</h3>
-                            <Badge variant={school.status === "On Track" ? "default" : "destructive"}>
-                              {school.status}
+                            <h3 className="font-medium">{bs.school?.schoolName || "Unknown School"}</h3>
+                            <Badge variant={bs.budgetStatus === "ON_TRACK" ? "default" : "destructive"}>
+                              {bs.budgetStatus}
                             </Badge>
                           </div>
-                          <p className="text-sm text-muted-foreground">{school.students} students</p>
+                          <p className="text-sm text-muted-foreground">{bs.school?.totalStudents || 0} students</p>
                           <div className="flex items-center gap-4 text-sm">
-                            <span>Allocated: {formatCurrency(school.allocated)}</span>
-                            <span>Spent: {formatCurrency(school.spent)}</span>
+                            <span>Allocated: {formatCurrency(bs.budget)}</span>
+                            <span>Spent: {formatCurrency(bs.spentBudget)}</span>
                           </div>
                         </div>
                         <div className="text-right space-y-2">
                           <div className="text-sm font-medium">
-                            {((school.spent / school.allocated) * 100).toFixed(1)}% utilized
+                            {bs.budget > 0 ? ((bs.spentBudget / bs.budget) * 100).toFixed(1) : 0}% utilized
                           </div>
-                          <Progress value={(school.spent / school.allocated) * 100} className="w-[100px]" />
+                          <Progress value={bs.budget > 0 ? (bs.spentBudget / bs.budget) * 100 : 0} className="w-[100px]" />
                         </div>
                       </div>
                     )) : (
-                      <div className="text-center text-sm text-muted-foreground">No schools found.</div>
+                      <div className="text-center text-sm text-muted-foreground">
+                        {loading ? "Loading school allocations..." : "No schools found."}
+                      </div>
                     )}
                   </div>
                 </CardContent>
@@ -371,29 +365,31 @@ export function DistrictBudget() {
             <TabsContent value="history" className="space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle>Budget History</CardTitle>
-                  <CardDescription>Historical budget allocations received from government</CardDescription>
+                  <CardTitle>Budget Fiscal Year</CardTitle>
+                  <CardDescription>Budget allocations received from government</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {budgetHistory.length > 0 ? paginatedHistory.map((budget) => (
-                      <div key={budget.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    {districtBudgetData.length > 0 ? districtBudgetData.map((bd) => (
+                      <div key={bd.id} className="flex items-center justify-between p-4 border rounded-lg">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
-                            <h3 className="font-medium">FY {budget.year}</h3>
-                            <Badge variant={budget.status === "Active" ? "default" : "secondary"}>
-                              {budget.status}
+                            <h3 className="font-medium">FY {bd.budgetGov?.fiscalYear || "N/A"}</h3>
+                            <Badge variant={bd.budgetGov?.eFiscalState === "ACTIVE" ? "default" : "secondary"}>
+                              {bd.budgetGov?.eFiscalState || "N/A"}
                             </Badge>
                           </div>
-                          <p className="text-sm text-muted-foreground">Received on {budget.received}</p>
+                          <p className="text-sm text-muted-foreground">Received allocation from central government</p>
                         </div>
                         <div className="text-right">
-                          <div className="font-medium">{formatCurrency(budget.allocated)}</div>
+                          <div className="font-medium">{formatCurrency(bd.budget)}</div>
                           <div className="text-sm text-muted-foreground">Total Allocated</div>
                         </div>
                       </div>
                     )) : (
-                      <div className="text-center text-sm text-muted-foreground">No history found.</div>
+                      <div className="text-center text-sm text-muted-foreground">
+                        {loading ? "Loading history..." : "No history found."}
+                      </div>
                     )}
                   </div>
                 </CardContent>
@@ -401,8 +397,8 @@ export function DistrictBudget() {
               <div className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <span className="text-sm">
-                    Showing {budgetHistory.length === 0 ? 0 : startHist + 1}–
-                    {Math.min(startHist + pageSizeHist, budgetHistory.length)} of {budgetHistory.length}
+                    Showing {districtBudgetData.length === 0 ? 0 : startHist + 1}–
+                    {Math.min(startHist + pageSizeHist, districtBudgetData.length)} of {districtBudgetData.length}
                   </span>
                   <Select value={String(pageSizeHist)} onValueChange={(v) => { setPageSizeHist(Number(v)); setPageHist(1) }}>
                     <SelectTrigger className="w-[110px]">
@@ -451,7 +447,7 @@ export function DistrictBudget() {
             </TabsContent>
           </Tabs>
         </main>
-      </div>
-    </div>
+      </div >
+    </div >
   )
 }

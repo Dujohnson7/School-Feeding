@@ -1,114 +1,41 @@
 
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import {
-  Calendar,
-  Check,
-  Download,
-  FileText,
-  Filter,
-  Home,
-  Package,
-  Search,
-  Truck,
-} from "lucide-react"
+import { Download, FileText } from "lucide-react"
 import { toast } from "sonner"
 import { generateDistrictReport } from "@/utils/export-utils"
+import { districtService } from "./service/districtService"
+import { format as formatDateFns } from "date-fns"
+import { DatePickerWithRange } from "@/components/ui/date-range-picker"
+import type { DateRange } from "react-day-picker"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { HeaderActions } from "@/components/shared/header-actions"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { DatePickerWithRange } from "@/components/ui/date-range-picker"
-import type { DateRange } from "react-day-picker"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 
 export function DistrictReports() {
-  const [searchTerm, setSearchTerm] = useState("")
   const [reportType, setReportType] = useState("all")
   const [dateRange, setDateRange] = useState<DateRange | undefined>()
-  const [statusFilter, setStatusFilter] = useState("all")
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(5)
   const [selectedReportFormat, setSelectedReportFormat] = useState<Record<string, string>>({})
   const [isGenerating, setIsGenerating] = useState<Record<string, boolean>>({})
-
-  const reports = [
-    {
-      id: "DRPT-2025-042",
-      title: "Nyarugenge District Monthly Report",
-      type: "monthly",
-      category: "District Overview",
-      period: "March 2025",
-      generatedDate: "2025-04-01",
-      status: "completed",
-      size: "1.2 MB",
-      author: "District Coordinator",
-    },
-    {
-      id: "DRPT-2025-041",
-      title: "School Performance Analysis",
-      type: "performance",
-      category: "Performance Analysis",
-      period: "Q1 2025",
-      generatedDate: "2025-03-31",
-      status: "completed",
-      size: "890 KB",
-      author: "Education Officer",
-    },
-    {
-      id: "DRPT-2025-040",
-      title: "Supplier Delivery Report",
-      type: "delivery",
-      category: "Supply Chain",
-      period: "March 2025",
-      generatedDate: "2025-03-30",
-      status: "processing",
-      size: "1.5 MB",
-      author: "Logistics Manager",
-    },
-    {
-      id: "DRPT-2025-039",
-      title: "Budget Utilization Summary",
-      type: "financial",
-      category: "Financial Analysis",
-      period: "Q1 2025",
-      generatedDate: "2025-03-29",
-      status: "completed",
-      size: "750 KB",
-      author: "Finance Officer",
-    },
-  ]
-
-  const filteredReports = reports.filter((report) => {
-    const matchesSearch =
-      report.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      report.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      report.category.toLowerCase().includes(searchTerm.toLowerCase())
-
-    const matchesType = reportType === "all" || report.type === reportType
-    const matchesStatus = statusFilter === "all" || report.status === statusFilter
-
-    let matchesDate = true
-    if (dateRange?.from && dateRange?.to) {
-      const reportDate = new Date(report.generatedDate)
-      matchesDate = reportDate >= dateRange.from && reportDate <= dateRange.to
-    }
-
-    return matchesSearch && matchesType && matchesStatus && matchesDate
-  })
+  const [historyData, setHistoryData] = useState<any[]>([])
+  const [isFetchingHistory, setIsFetchingHistory] = useState(false)
 
   useEffect(() => {
     setPage(1)
-  }, [searchTerm, reportType, statusFilter, dateRange])
+  }, [reportType, dateRange])
 
-  const totalPages = Math.max(1, Math.ceil(filteredReports.length / pageSize))
+  const reportDataToDisplay = historyData
+
+  const totalPages = Math.max(1, Math.ceil(reportDataToDisplay.length / pageSize))
   const startIndex = (page - 1) * pageSize
-  const paginatedReports = filteredReports.slice(startIndex, startIndex + pageSize)
+  const paginatedReports = reportDataToDisplay.slice(startIndex, startIndex + pageSize)
 
   const canPrev = page > 1
   const canNext = page < totalPages
@@ -123,31 +50,137 @@ export function DistrictReports() {
     return Array.from({ length: end - start + 1 }, (_, i) => start + i)
   }
 
-  const handleGenerateReport = (type: string, category: string) => {
-    console.log(`Generating ${type} report for ${category}`)
-    alert(`${type} report generation started. You will be notified when it's ready.`)
-  }
-
-  const handleDownload = (reportId: string) => {
-    console.log(`Downloading report ${reportId}`)
-    alert(`Report ${reportId} download started.`)
-  }
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "completed":
-        return <Badge className="bg-green-600 hover:bg-green-700">Completed</Badge>
-      case "processing":
-        return (
-          <Badge variant="outline" className="bg-blue-100 text-blue-800 hover:bg-blue-100">
-            Processing
-          </Badge>
-        )
-      case "failed":
-        return <Badge variant="destructive">Failed</Badge>
-      default:
-        return <Badge variant="outline">Unknown</Badge>
+  const getReportData = async (type: string, fromStr: string, toStr: string) => {
+    const districtId = localStorage.getItem("districtId")
+    if (!districtId) {
+      toast.error("District ID not found")
+      return []
     }
+
+    switch (type) {
+      case "district":
+        return await districtService.getDistrictOverviewReport(districtId, fromStr, toStr)
+      case "schools":
+        return await districtService.getDistrictSchoolPerformanceReport(districtId, fromStr, toStr)
+      case "suppliers":
+        return await districtService.getDistrictSupplierDistributionReport(districtId, fromStr, toStr)
+      case "financial":
+        return await districtService.getDistrictFinancialAnalysisReport(districtId, fromStr, toStr)
+      case "nutrition":
+        return await districtService.getDistrictNutritionComplianceReport(districtId, fromStr, toStr)
+      case "metrics":
+        return await districtService.getDistrictSupplyChainMetricsReport(districtId, fromStr, toStr)
+      case "payments":
+        return await districtService.getDistrictSupplierPaymentReport(districtId, fromStr, toStr)
+      default:
+        return []
+    }
+  }
+
+  const fetchHistoryReport = async () => {
+    try {
+      if (reportType === "all") {
+        toast.error("Please select a specific category to view report data")
+        return
+      }
+
+      if (!dateRange?.from || !dateRange?.to) {
+        toast.error("Please select a date range")
+        return
+      }
+
+      const fromStr = formatDateFns(dateRange.from, 'yyyy-MM-dd')
+      const toStr = formatDateFns(dateRange.to, 'yyyy-MM-dd')
+
+      setIsFetchingHistory(true)
+      const data = await getReportData(reportType, fromStr, toStr)
+      setHistoryData(data || [])
+      setPage(1)
+      if (!data || data.length === 0) {
+        toast.info("No data found for the selected period")
+      }
+    } catch (error: any) {
+      console.error("Error fetching report data:", error)
+      toast.error("Failed to fetch report data")
+    } finally {
+      setIsFetchingHistory(false)
+    }
+  }
+
+  const handleGenerateReport = async (type: string, category: string) => {
+    try {
+      if (!dateRange?.from || !dateRange?.to) {
+        toast.error("Please select a date range first")
+        return
+      }
+
+      const fromStr = formatDateFns(dateRange.from, 'yyyy-MM-dd')
+      const toStr = formatDateFns(dateRange.to, 'yyyy-MM-dd')
+
+      setIsGenerating(prev => ({ ...prev, [type]: true }))
+      const format = (selectedReportFormat[type] || 'pdf') as 'pdf' | 'csv' | 'excel'
+
+      const data = await getReportData(type, fromStr, toStr)
+
+      if (!data || data.length === 0) {
+        toast.info("No data found for the selected period")
+        return
+      }
+
+      const formattedData = data.map((item: any) => {
+        const newItem: any = {}
+        Object.keys(item).forEach(key => {
+          const formattedKey = key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())
+          newItem[formattedKey] = item[key]
+        })
+        return newItem
+      })
+
+      await generateDistrictReport(
+        category,
+        { from: dateRange.from, to: dateRange.to },
+        format,
+        formattedData
+      )
+
+      toast.success(`${category} report generated successfully`)
+    } catch (error: any) {
+      console.error('Error generating report:', error)
+      toast.error(error.message || 'Failed to generate report')
+    } finally {
+      setIsGenerating(prev => ({ ...prev, [type]: false }))
+    }
+  }
+
+  const handleDownloadFromTable = async () => {
+    if (historyData.length === 0) return
+    const category = reportCategories.find(c => c.value === reportType)?.label || reportType
+    const format = 'pdf'
+
+    const formattedData = historyData.map((item: any) => {
+      const newItem: any = {}
+      Object.keys(item).forEach(key => {
+        const formattedKey = key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())
+        newItem[formattedKey] = item[key]
+      })
+      return newItem
+    })
+
+    await generateDistrictReport(
+      category,
+      { from: dateRange?.from, to: dateRange?.to },
+      format,
+      formattedData
+    )
+  }
+
+  const getTableColumns = () => {
+    if (historyData.length === 0) return []
+    return Object.keys(historyData[0])
+  }
+
+  const formatHeader = (key: string) => {
+    return key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())
   }
 
   const reportCategories = [
@@ -155,7 +188,9 @@ export function DistrictReports() {
     { value: "schools", label: "School Performance", description: "Individual school analysis and metrics" },
     { value: "suppliers", label: "Supply Chain", description: "Supplier performance and delivery tracking" },
     { value: "financial", label: "Financial Analysis", description: "Budget utilization and cost analysis" },
-    { value: "nutrition", label: "Nutrition Compliance", description: "Nutritional standards and health metrics" }, 
+    { value: "nutrition", label: "Nutrition Compliance", description: "Nutritional standards compliance" },
+    { value: "metrics", label: "Supply Chain Metrics", description: "Key supply chain indicators" },
+    { value: "payments", label: "Supplier Payments", description: "Payment tracking and balances" },
   ]
 
   return (
@@ -179,7 +214,7 @@ export function DistrictReports() {
           <Tabs defaultValue="generate" className="w-full">
             <TabsList className="mb-6">
               <TabsTrigger value="generate">Generate Reports</TabsTrigger>
-              <TabsTrigger value="history">Report History</TabsTrigger>
+              <TabsTrigger value="history">Report Data View</TabsTrigger>
             </TabsList>
 
             <TabsContent value="generate" className="space-y-6">
@@ -198,7 +233,7 @@ export function DistrictReports() {
                         </div>
                         <div className="space-y-2">
                           <label className="text-sm font-medium">Report Format</label>
-                          <Select 
+                          <Select
                             value={selectedReportFormat[category.value] || "pdf"}
                             onValueChange={(value) => setSelectedReportFormat(prev => ({ ...prev, [category.value]: value }))}
                           >
@@ -212,8 +247,8 @@ export function DistrictReports() {
                             </SelectContent>
                           </Select>
                         </div>
-                        <Button 
-                          className="w-full" 
+                        <Button
+                          className="w-full"
                           onClick={() => handleGenerateReport(category.value, category.label)}
                           disabled={isGenerating[category.value]}
                         >
@@ -228,131 +263,93 @@ export function DistrictReports() {
 
             <TabsContent value="history" className="space-y-6">
               <Card>
-                <CardHeader>
-                  <CardTitle>Report History</CardTitle>
-                  <CardDescription>Previously generated district reports</CardDescription>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-7">
+                  <div>
+                    <CardTitle>Report Data View</CardTitle>
+                    <CardDescription>View live district report data</CardDescription>
+                  </div>
+                  {historyData.length > 0 && (
+                    <Button variant="outline" size="sm" onClick={handleDownloadFromTable}>
+                      <Download className="mr-2 h-4 w-4" />
+                      Download view
+                    </Button>
+                  )}
                 </CardHeader>
                 <CardContent>
                   <div className="mb-6 space-y-4">
-                    <div className="flex flex-col gap-4 md:flex-row">
-                      <div className="flex-1">
-                        <div className="relative">
-                          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                          <Input
-                            type="search"
-                            placeholder="Search reports by title, ID, or category..."
-                            className="w-full pl-8"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap gap-4">
-                      <div className="flex items-center gap-2">
-                        <Filter className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm font-medium">Filters:</span>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <label className="text-sm">Category:</label>
+                    <div className="flex flex-wrap gap-4 items-end">
+                      <div className="flex flex-col gap-2">
+                        <label className="text-sm font-medium">Category:</label>
                         <Select value={reportType} onValueChange={setReportType}>
-                          <SelectTrigger className="w-[140px]">
-                            <SelectValue placeholder="All Types" />
+                          <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="Select Category" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="all">All Categories</SelectItem>
-                            <SelectItem value="monthly">District Overview</SelectItem>
-                            <SelectItem value="performance">Performance</SelectItem>
-                            <SelectItem value="delivery">Supply Chain</SelectItem>
-                            <SelectItem value="financial">Financial</SelectItem>
+                            <SelectItem value="all">Select Categories</SelectItem>
+                            {reportCategories.map((cat) => (
+                              <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        <label className="text-sm">Status:</label>
-                        <Select value={statusFilter} onValueChange={setStatusFilter}>
-                          <SelectTrigger className="w-[120px]">
-                            <SelectValue placeholder="All Status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Status</SelectItem>
-                            <SelectItem value="completed">Completed</SelectItem>
-                            <SelectItem value="processing">Processing</SelectItem>
-                            <SelectItem value="failed">Failed</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <label className="text-sm">Date Range:</label>
+                      <div className="flex flex-col gap-2">
+                        <label className="text-sm font-medium">Date Range:</label>
                         <DatePickerWithRange date={dateRange} setDate={setDateRange} />
                       </div>
+
+                      <Button
+                        onClick={fetchHistoryReport}
+                        disabled={isFetchingHistory}
+                        className="bg-primary hover:bg-primary/90"
+                      >
+                        {isFetchingHistory ? "Fetching..." : "View Report Data"}
+                      </Button>
                     </div>
                   </div>
 
-                  <div className="rounded-md border">
+                  <div className="rounded-md border overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Report ID</TableHead>
-                          <TableHead>Title</TableHead>
-                          <TableHead>Category</TableHead>
-                          <TableHead>Period</TableHead>
-                          <TableHead>Generated</TableHead>
-                          <TableHead>Author</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Size</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
+                          {historyData.length > 0 ? (
+                            getTableColumns().map((col) => (
+                              <TableHead key={col} className="whitespace-nowrap">
+                                {formatHeader(col)}
+                              </TableHead>
+                            ))
+                          ) : (
+                            <TableHead>No data available. Select filters and click "View Report Data".</TableHead>
+                          )}
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredReports.length > 0 ? (
-                          paginatedReports.map((report) => (
-                            <TableRow key={report.id}>
-                              <TableCell className="font-medium">{report.id}</TableCell>
-                              <TableCell>{report.title}</TableCell>
-                              <TableCell>{report.category}</TableCell>
-                              <TableCell>{report.period}</TableCell>
-                              <TableCell>
-                                <div className="flex items-center">
-                                  <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
-                                  {new Date(report.generatedDate).toLocaleDateString()}
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-sm text-muted-foreground">{report.author}</TableCell>
-                              <TableCell>{getStatusBadge(report.status)}</TableCell>
-                              <TableCell>{report.size}</TableCell>
-                              <TableCell className="text-right">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleDownload(report.id)}
-                                  disabled={report.status !== "completed"}
-                                >
-                                  <Download className="mr-2 h-4 w-4" />
-                                  Download
-                                </Button>
-                              </TableCell>
+                        {reportDataToDisplay.length > 0 ? (
+                          paginatedReports.map((item, idx) => (
+                            <TableRow key={idx}>
+                              {getTableColumns().map((col) => (
+                                <TableCell key={col} className="whitespace-nowrap">
+                                  {item[col] !== null && item[col] !== undefined ? String(item[col]) : "-"}
+                                </TableCell>
+                              ))}
                             </TableRow>
                           ))
                         ) : (
                           <TableRow>
-                            <TableCell colSpan={9} className="h-24 text-center">
-                              No reports found matching your criteria.
+                            <TableCell colSpan={getTableColumns().length || 1} className="h-24 text-center">
+                              {isFetchingHistory ? "Loading data..." : "No results to display."}
                             </TableCell>
                           </TableRow>
                         )}
                       </TableBody>
                     </Table>
                   </div>
+
                   <div className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <span className="text-sm">
-                        Showing {filteredReports.length === 0 ? 0 : startIndex + 1}–
-                        {Math.min(startIndex + pageSize, filteredReports.length)} of {filteredReports.length}
+                      <span>
+                        Showing {Math.min(reportDataToDisplay.length, (page - 1) * pageSize + 1)}–
+                        {Math.min(page * pageSize, reportDataToDisplay.length)} of {reportDataToDisplay.length}
                       </span>
                       <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1) }}>
                         <SelectTrigger className="w-[110px]">
@@ -371,7 +368,7 @@ export function DistrictReports() {
                         <PaginationItem>
                           <PaginationPrevious
                             onClick={(e) => { e.preventDefault(); if (canPrev) setPage((p) => p - 1) }}
-                            className={!canPrev ? "pointer-events-none opacity-50" : ""}
+                            className={!canPrev ? "pointer-events-none opacity-50 cursor-not-allowed" : "cursor-pointer"}
                             href="#"
                           />
                         </PaginationItem>
@@ -382,6 +379,7 @@ export function DistrictReports() {
                               href="#"
                               isActive={p === page}
                               onClick={(e) => { e.preventDefault(); setPage(p) }}
+                              className="cursor-pointer"
                             >
                               {p}
                             </PaginationLink>
@@ -391,7 +389,7 @@ export function DistrictReports() {
                         <PaginationItem>
                           <PaginationNext
                             onClick={(e) => { e.preventDefault(); if (canNext) setPage((p) => p + 1) }}
-                            className={!canNext ? "pointer-events-none opacity-50" : ""}
+                            className={!canNext ? "pointer-events-none opacity-50 cursor-not-allowed" : "cursor-pointer"}
                             href="#"
                           />
                         </PaginationItem>

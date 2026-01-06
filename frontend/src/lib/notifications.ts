@@ -25,10 +25,10 @@ export const notificationService = {
       // Fetch pending school requests
       try {
         const requestsResponse = await apiClient.get(
-          `/requestRequestItem/districtRequest/${districtId}`
+          `/respondDistrict/districtRequest/${districtId}`
         )
         const requests = Array.isArray(requestsResponse.data) ? requestsResponse.data : []
-        
+
         requests.forEach((request: any) => {
           if (request.requestStatus === "PENDING") {
             const schoolName = request.school?.name || "A school"
@@ -49,10 +49,10 @@ export const notificationService = {
       // Fetch orders with status changes from suppliers
       try {
         const ordersResponse = await apiClient.get(
-          `/supplierOrder/district/${districtId}`
+          `/districtDelivery/deliveriesByDistrict/${districtId}`
         )
         const orders = Array.isArray(ordersResponse.data) ? ordersResponse.data : []
-        
+
         orders.forEach((order: any) => {
           if (order.deliveryStatus && order.deliveryStatus !== "APPROVED") {
             const supplierName = order.supplier?.companyName || order.supplier?.names || "A supplier"
@@ -95,7 +95,7 @@ export const notificationService = {
           `/requestRequestItem/schoolRequest/${schoolId}`
         )
         const requests = Array.isArray(requestsResponse.data) ? requestsResponse.data : []
-        
+
         requests.forEach((request: any) => {
           if (request.requestStatus && request.requestStatus !== "PENDING") {
             const status = request.requestStatus.toLowerCase().replace("_", " ")
@@ -118,7 +118,7 @@ export const notificationService = {
           `/track/current/${schoolId}`
         )
         const orders = Array.isArray(trackResponse.data) ? trackResponse.data : []
-        
+
         orders.forEach((order: any) => {
           if (order.deliveryStatus && order.deliveryStatus !== "SCHEDULED") {
             const supplierName = order.supplier?.companyName || order.supplier?.names || "Supplier"
@@ -163,7 +163,7 @@ export const notificationService = {
           `/supplierOrder/all/${supplierId}`
         )
         const orders = Array.isArray(ordersResponse.data) ? ordersResponse.data : []
-        
+
         orders.forEach((order: any) => {
           // New orders assigned
           if (order.deliveryStatus === "APPROVED" || order.deliveryStatus === "SCHEDULED") {
@@ -217,7 +217,7 @@ export const notificationService = {
           `/budget/all`
         )
         const budgets = Array.isArray(budgetResponse.data) ? budgetResponse.data : []
-        
+
         budgets.forEach((budget: any) => {
           if (budget.status && budget.status !== "APPROVED") {
             const districtName = budget.district?.district || "A district"
@@ -230,8 +230,11 @@ export const notificationService = {
             })
           }
         })
-      } catch (err) {
-        console.error("Error fetching budget status:", err)
+      } catch (err: any) {
+        // Silently handle 403/400 errors as these might be permission issues
+        if (err.response?.status !== 403 && err.response?.status !== 400) {
+          console.error("Error fetching budget status:", err)
+        }
       }
 
       // Fetch completed deliveries
@@ -240,7 +243,7 @@ export const notificationService = {
           `/supplierDelivery/all`
         )
         const deliveries = Array.isArray(deliveriesResponse.data) ? deliveriesResponse.data : []
-        
+
         deliveries.forEach((delivery: any) => {
           if (delivery.deliveryStatus === "DELIVERED") {
             const districtName = delivery.requestItem?.district?.district || "A district"
@@ -253,8 +256,11 @@ export const notificationService = {
             })
           }
         })
-      } catch (err) {
-        console.error("Error fetching completed deliveries:", err)
+      } catch (err: any) {
+        // Silently handle 403/400 errors
+        if (err.response?.status !== 400 && err.response?.status !== 403) {
+          console.error("Error fetching completed deliveries:", err)
+        }
       }
     } catch (err) {
       console.error("Error fetching government notifications:", err)
@@ -281,11 +287,11 @@ export const notificationService = {
           `/users/all`
         )
         const users = Array.isArray(usersResponse.data) ? usersResponse.data : []
-        
+
         // Get users created in the last 7 days
         const sevenDaysAgo = new Date()
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-        
+
         users.forEach((user: any) => {
           if (user.created) {
             const createdDate = new Date(user.created)
@@ -332,11 +338,11 @@ export const notificationService = {
           `/inventory/all/${schoolId}`
         )
         const inventory = Array.isArray(inventoryResponse.data) ? inventoryResponse.data : []
-        
+
         const now = new Date()
         const thirtyDaysFromNow = new Date()
         thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30)
-        
+
         inventory.forEach((item: any) => {
           // Low stock notification
           if (item.quantity && item.item?.perStudent) {
@@ -378,7 +384,7 @@ export const notificationService = {
           `/receiving/all/${schoolId}`
         )
         const orders = Array.isArray(receivingResponse.data) ? receivingResponse.data : []
-        
+
         orders.forEach((order: any) => {
           if (order.deliveryStatus && order.deliveryStatus !== "SCHEDULED") {
             const supplierName = order.supplier?.companyName || order.supplier?.names || "Supplier"

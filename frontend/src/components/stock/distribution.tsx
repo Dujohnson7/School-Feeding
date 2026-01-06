@@ -1,7 +1,8 @@
 
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import { Calendar, Download, Edit, Package, Plus, Search, Trash2 } from "lucide-react"
+import { Calendar, Edit, Package, Plus, Search, Trash2 } from "lucide-react"
+
 import { stockService } from "./service/stockService"
 import { schoolService } from "../school/service/schoolService"
 import { toast } from "sonner"
@@ -23,13 +24,8 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { exportFoodTrackingSheetPDF, exportFoodTrackingSheetCSV, exportFoodTrackingSheetExcel } from "@/utils/export-utils"
+
+
 
 interface Item {
   id: string
@@ -461,123 +457,7 @@ export function StockDistribution() {
     }
   }
 
-  const handleExportDistribution = async (format: string) => {
-    try {
-      const schoolId = localStorage.getItem("schoolId")
-      const user = JSON.parse(localStorage.getItem("user") || "null")
 
-      if (!schoolId || distributions.length === 0) {
-        toast.error("No distribution data available to export")
-        return
-      }
-
-      // Get school info
-      const schoolInfo = {
-        name: distributions[0]?.school?.name || user?.school?.name || "N/A",
-        id: schoolId,
-        district: user?.district?.district || user?.district || "N/A",
-        community: "N/A"
-      }
-
-      // Group distributions by item and month
-      const distributionsByItem = new Map<string, any[]>()
-
-      distributions.forEach(dist => {
-        dist.stockOutItemDetails?.forEach((itemDetail: any) => {
-          const itemId = itemDetail.item?.id
-          if (itemId) {
-            if (!distributionsByItem.has(itemId)) {
-              distributionsByItem.set(itemId, [])
-            }
-            distributionsByItem.get(itemId)?.push(dist)
-          }
-        })
-      })
-
-      // For each item, create a tracking sheet
-      for (const [itemId, itemDistributions] of distributionsByItem.entries()) {
-        const item = availableItems.find(i => i.id === itemId)
-        if (!item) continue
-
-        // Get the month from the first distribution
-        const firstDist = itemDistributions[0]
-        const distDate = new Date(firstDist.created || firstDist.date || new Date())
-        const monthYear = `${distDate.toLocaleString('en-US', { month: 'long' })} ${distDate.getFullYear()}`
-        const [year, month] = [distDate.getFullYear(), distDate.getMonth() + 1]
-
-        // Get inventory item for stock info
-        const inventoryItem = inventoryItems.find(inv => inv.item?.id === itemId)
-
-        const foodItem = {
-          id: itemId,
-          name: item.name || "N/A",
-          unit: (inventoryItem?.item as any)?.unit || "kg"
-        }
-
-        // Generate daily data
-        const daysInMonth = new Date(year, month, 0).getDate()
-        const inventoryData: Array<{
-          date: string
-          stockAtStart: number
-          foodReceived: number
-          handedOut: number
-          missing: number
-          suspectedUnfit: number
-          confirmedUnfit: number
-          disposed: number
-          stockAtEnd: number
-          remarks: string
-        }> = []
-
-        let currentStock = inventoryItem?.quantity || 0
-
-        for (let i = 0; i < daysInMonth; i++) {
-          const date = new Date(year, month - 1, i + 1)
-          const dayDistributions = itemDistributions.filter(dist => {
-            const distDate = new Date(dist.created || dist.date || "")
-            return distDate.getDate() === date.getDate() && distDate.getMonth() === date.getMonth()
-          })
-
-          const totalHandedOut = dayDistributions.reduce((sum, dist) => {
-            const itemDetail = dist.stockOutItemDetails?.find((detail: any) => detail.item?.id === itemId)
-            return sum + (itemDetail?.quantity || 0)
-          }, 0)
-
-          const stockAtStart = currentStock
-          const foodReceived = 0
-          const stockAtEnd = stockAtStart + foodReceived - totalHandedOut
-          currentStock = Math.max(0, stockAtEnd)
-
-          inventoryData.push({
-            date: date.toISOString(),
-            stockAtStart: Math.max(0, stockAtStart),
-            foodReceived: foodReceived,
-            handedOut: totalHandedOut,
-            missing: 0,
-            suspectedUnfit: 0,
-            confirmedUnfit: 0,
-            disposed: 0,
-            stockAtEnd: Math.max(0, stockAtEnd),
-            remarks: ""
-          })
-        }
-
-        // Export based on format
-        if (format === "pdf") {
-          await exportFoodTrackingSheetPDF(schoolInfo, foodItem, monthYear, inventoryData)
-        } else if (format === "csv") {
-          exportFoodTrackingSheetCSV(schoolInfo, foodItem, monthYear, inventoryData)
-        } else if (format === "excel") {
-          await exportFoodTrackingSheetExcel(schoolInfo, foodItem, monthYear, inventoryData)
-        }
-      }
-
-      toast.success(`Distribution tracking sheets exported as ${format.toUpperCase()}`)
-    } catch (err: any) {
-      console.error("Error exporting distribution:", err)
-      toast.error(err.message || "Failed to export distribution data")
-    }
-  }
 
   if (loading) {
     return (
@@ -627,25 +507,7 @@ export function StockDistribution() {
                   <CardDescription>Manage and track food distribution to kitchens</CardDescription>
                 </div>
                 <div className="flex gap-2">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline">
-                        <Download className="mr-2 h-4 w-4" />
-                        Export
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleExportDistribution("pdf")}>
-                        Export as PDF
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleExportDistribution("csv")}>
-                        Export as CSV
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleExportDistribution("excel")}>
-                        Export as Excel
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+
                   <Button onClick={() => setNewDistributionOpen(true)}>
                     <Plus className="mr-2 h-4 w-4" />
                     New Distribution
@@ -1174,7 +1036,9 @@ export function StockDistribution() {
                 setSelectedDistribution(null)
                 setNewDistribution({
                   date: new Date().toISOString().split('T')[0],
-                  schoolId: "",
+                  schoolId: localStorage.getItem("schoolId") || "",
+                  mealType: "LAUNCH",
+                  studentServed: 0,
                   items: []
                 })
               }}

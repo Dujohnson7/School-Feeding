@@ -20,7 +20,6 @@ import {
 } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 import { useNavigate } from "react-router-dom"
@@ -54,39 +53,46 @@ export function SupplierManagement() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(5)
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [pendingRequests, setPendingRequests] = useState<any[]>([])
+  const [selectedRequest, setSelectedRequest] = useState<string>("")
   const [loading, setLoading] = useState(true)
+  const [assignLoading, setAssignLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
 
   useEffect(() => {
-    const fetchSuppliers = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true)
         setError(null)
         const districtId = localStorage.getItem("districtId")
-        let data
-        if (districtId) {
-          data = await districtService.getSuppliersByDistrict(districtId)
-        } else {
-          data = await districtService.getAllSuppliers()
+        if (!districtId) {
+          toast.error("District ID not found")
+          return
         }
-        setSuppliers(data || [])
+
+        const [suppliersData, requestsData] = await Promise.all([
+          districtService.getSuppliersByDistrict(districtId),
+          districtService.getRequestsByStatus(districtId, "PENDING")
+        ])
+
+        setSuppliers(suppliersData || [])
+        setPendingRequests(requestsData || [])
       } catch (err: any) {
-        // If 404, treat as "no suppliers found" instead of an error
         if (err.response?.status === 404) {
           setSuppliers([])
-          setError(null)
+          setPendingRequests([])
         } else {
-          console.error("Error fetching suppliers:", err)
-          setError(err.response?.data || "Failed to fetch suppliers")
-          toast.error("Failed to load suppliers")
+          console.error("Error fetching data:", err)
+          setError(err.response?.data || "Failed to fetch data")
+          toast.error("Failed to load information")
         }
       } finally {
         setLoading(false)
       }
     }
 
-    fetchSuppliers()
+    fetchData()
   }, [])
 
   // Filter suppliers based on search term
@@ -139,12 +145,45 @@ export function SupplierManagement() {
   const handleAssignOrder = (supplier: Supplier) => {
     setSelectedSupplier(supplier)
     setAssignDialogOpen(true)
+    setSelectedRequest("")
   }
 
-  const submitAssignment = () => {
-    // In a real app, you would submit the assignment to your backend
-    console.log(`Assigning order to ${selectedSupplier?.name}`)
-    setAssignDialogOpen(false)
+  const submitAssignment = async () => {
+    if (!selectedRequest || !selectedSupplier) {
+      toast.error("Please select a request item")
+      return
+    }
+
+    try {
+      setAssignLoading(true)
+      const request = pendingRequests.find(r => r.id === selectedRequest)
+      if (!request) return
+
+      // Calculate total price based on request item details
+      const totalPrice = request.requestItemDetails?.reduce((acc: number, detail: any) => {
+        return acc + (detail.item?.price * detail.quantity)
+      }, 0) || 0
+
+      await districtService.assignOrder({
+        requestItem: { id: selectedRequest },
+        supplier: { id: selectedSupplier.id },
+        orderPrice: totalPrice
+      })
+
+      toast.success("Order assigned successfully")
+      setAssignDialogOpen(false)
+      // Refresh pending requests
+      const districtId = localStorage.getItem("districtId")
+      if (districtId) {
+        const updatedRequests = await districtService.getRequestsByStatus(districtId, "PENDING")
+        setPendingRequests(updatedRequests || [])
+      }
+    } catch (err: any) {
+      console.error("Error assigning order:", err)
+      toast.error(err.response?.data || "Failed to assign order")
+    } finally {
+      setAssignLoading(false)
+    }
   }
 
   const getRatingStars = (rating?: number) => {
@@ -428,68 +467,66 @@ export function SupplierManagement() {
             </DialogHeader>
 
             <div className="grid gap-4 py-4">
-              <div>
-                <Label htmlFor="school">School</Label>
-                <Select>
-                  <SelectTrigger id="school">
-                    <SelectValue placeholder="Select school" />
+              <div className="space-y-2">
+                <Label htmlFor="request">Select Pending Request</Label>
+                <Select value={selectedRequest} onValueChange={setSelectedRequest}>
+                  <SelectTrigger id="request" className="w-full">
+                    <SelectValue placeholder="Choose a pending request..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="kigali-primary">Kigali Primary School</SelectItem>
-                    <SelectItem value="nyamirambo-secondary">Nyamirambo Secondary School</SelectItem>
-                    <SelectItem value="remera-high">Remera High School</SelectItem>
-                    <SelectItem value="gasabo-elementary">Gasabo Elementary</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="items">Items</Label>
-                <Select>
-                  <SelectTrigger id="items">
-                    <SelectValue placeholder="Select items" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {selectedSupplier.items && selectedSupplier.items.length > 0 ? (
-                      selectedSupplier.items.map((item) => (
-                        <SelectItem key={item.id} value={item.id}>
-                          {item.name || item.id.substring(0, 8)}
-                        </SelectItem>
-                      ))
-                    ) : selectedSupplier.specialties && selectedSupplier.specialties.length > 0 ? (
-                      selectedSupplier.specialties.map((specialty) => (
-                        <SelectItem key={specialty} value={specialty.toLowerCase()}>
-                          {specialty}
+                    {pendingRequests.length > 0 ? (
+                      pendingRequests.map((req) => (
+                        <SelectItem key={req.id} value={req.id}>
+                          {req.school?.name} - {req.requestItemDetails?.length} items
                         </SelectItem>
                       ))
                     ) : (
-                      <SelectItem value="no-items" disabled>No items available</SelectItem>
+                      <SelectItem value="none" disabled>No pending requests</SelectItem>
                     )}
                   </SelectContent>
                 </Select>
+                <p className="text-[10px] text-muted-foreground">Only PENDING requests from schools are shown here.</p>
               </div>
 
-              <div>
-                <Label htmlFor="quantity">Quantity (kg)</Label>
-                <Input id="quantity" type="number" placeholder="Enter quantity" />
-              </div>
+              {selectedRequest && (
+                <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Request Details</p>
+                      <p className="text-sm font-semibold">{pendingRequests.find(r => r.id === selectedRequest)?.school?.name}</p>
+                    </div>
+                    <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-200">PENDING</Badge>
+                  </div>
 
-              <div>
-                <Label htmlFor="delivery-date">Delivery Date</Label>
-                <Input id="delivery-date" type="date" />
-              </div>
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] font-medium text-muted-foreground uppercase">Items requested:</p>
+                    <div className="space-y-1">
+                      {pendingRequests.find(r => r.id === selectedRequest)?.requestItemDetails?.map((detail: any, idx: number) => (
+                        <div key={idx} className="flex justify-between text-xs border-b border-muted py-1 last:border-0">
+                          <span>{detail.item?.name}</span>
+                          <span className="font-mono">{detail.quantity}{detail.item?.unit}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
 
-              <div>
-                <Label htmlFor="notes">Additional Notes</Label>
-                <Textarea id="notes" placeholder="Any special instructions or requirements" />
-              </div>
+                  <div className="pt-2 border-t border-muted-foreground/10 flex justify-between items-center text-sm font-bold">
+                    <span>Estimated Cost:</span>
+                    <span className="text-primary font-mono">
+                      {pendingRequests.find(r => r.id === selectedRequest)?.requestItemDetails?.reduce((acc: number, d: any) => acc + (d.item?.price * d.quantity), 0).toLocaleString()} RWF
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setAssignDialogOpen(false)}>
+              <Button variant="outline" onClick={() => setAssignDialogOpen(false)} disabled={assignLoading}>
                 Cancel
               </Button>
-              <Button onClick={submitAssignment}>Assign Order</Button>
+              <Button onClick={submitAssignment} disabled={assignLoading || !selectedRequest}>
+                {assignLoading ? "Assigning..." : "Confirm Assignment"}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

@@ -49,35 +49,125 @@ export interface SupplierPaymentReport {
     total: number;
 }
 
+export interface District {
+    id: string;
+    province: string;
+    district: string;
+    active: boolean;
+}
+
+export interface School {
+    id: string;
+    name: string;
+    address: string;
+    phone: string;
+    email: string;
+    student: number;
+    district: District;
+    status: boolean;
+}
+
+export interface Item {
+    id: string;
+    name: string;
+    price: number;
+    unit: string;
+    description: string;
+}
+
+export interface RequestItemDetail {
+    id: string;
+    item: Item;
+    quantity: number;
+}
+
+export interface RequestItem {
+    id: string;
+    school: School;
+    district: District;
+    requestItemDetails: RequestItemDetail[];
+    description: string;
+    requestStatus: string;
+}
+
+export interface User {
+    id: string;
+    names: string;
+    phone: string;
+    email: string;
+    role: string;
+    companyName?: string;
+}
+
+export interface Orders {
+    id: string;
+    requestItem: RequestItem;
+    supplier: User;
+    deliveryDate: string;
+    expectedDate: string;
+    deliveryStatus: string;
+    orderPrice: number;
+    orderPayState: string;
+    rating: number;
+    created: string;
+}
+
 export const districtService = {
     //====================
-    // Dashboard
+    // Dashboard (New Integration)
     //====================
-    getDashboardStats: async (districtId: string) => {
-        const response = await apiClient.get(`/district/dashboard/stats?districtId=${districtId}`)
+    getTotalSchoolDistrict: async (districtId: string) => {
+        const response = await apiClient.get(`/districtDashboard/totalSchool/${districtId}`)
         return response.data
     },
-    getStockLevels: async (districtId: string) => {
-        const response = await apiClient.get(`/district/dashboard/stock-levels?districtId=${districtId}`)
+    getTotalRequestDistrict: async (districtId: string) => {
+        const response = await apiClient.get(`/districtDashboard/totalRequest/${districtId}`)
         return response.data
     },
-    getRecentRequests: async (districtId: string, limit: number = 4) => {
-        const response = await apiClient.get(`/district/dashboard/recent-requests?districtId=${districtId}&limit=${limit}`)
+    getTotalDistrictSupplier: async (districtId: string) => {
+        const response = await apiClient.get(`/districtDashboard/totalSupplier/${districtId}`)
         return response.data
     },
-    getUpcomingDeliveries: async (districtId: string, limit: number = 3) => {
-        const response = await apiClient.get(`/district/dashboard/upcoming-deliveries?districtId=${districtId}&limit=${limit}`)
+    getTotalFoodDistributed: async (districtId: string) => {
+        const response = await apiClient.get(`/districtDashboard/totalFoodDistributed/${districtId}`)
         return response.data
     },
-    getPerformanceMetrics: async (districtId: string) => {
-        const response = await apiClient.get(`/district/dashboard/performance?districtId=${districtId}`)
+    getRecentRequestItemsByDistrict: async (districtId: string) => {
+        const response = await apiClient.get(`/districtDashboard/recentRequestItemsForDistrict/${districtId}`)
         return response.data
     },
-    getMonthlyDistribution: async (districtId: string) => {
-        const response = await apiClient.get(`/district/dashboard/monthly-distribution?districtId=${districtId}`)
+    getRecentDeliveriesByDistrict: async (districtId: string) => {
+        const response = await apiClient.get(`/districtDashboard/recentDeliveriesByDistrict/${districtId}`)
+        return response.data
+    },
+    async getDistrictDeliveries(districtId: string): Promise<Orders[]> {
+        const response = await apiClient.get(`/districtDelivery/deliveriesByDistrict/${districtId}`)
         return response.data
     },
 
+    async payOrder(orderId: string): Promise<any> {
+        const response = await apiClient.put(`/districtDelivery/paymentOrder/${orderId}`)
+        return response.data
+    },
+
+    async cancelOrderPayment(orderId: string): Promise<any> {
+        const response = await apiClient.put(`/districtDelivery/paymentOrderCancel/${orderId}`)
+        return response.data
+    },
+    getDeliveriesNearToDeadlineByDistrict: async (districtId: string) => {
+        const response = await apiClient.get(`/districtDashboard/deliveriesNearToDeadlineByDistrict/${districtId}`)
+        return response.data
+    },
+    getStockPercentageByCategory: async (districtId: string) => {
+        const response = await apiClient.get(`/districtDashboard/stockPercentageByCategory/${districtId}`)
+        return response.data
+    },
+    getMonthlyDistribution: async (districtId: string) => {
+        const response = await apiClient.get(`/districtDashboard/monthlyDistribution/${districtId}`)
+        return response.data
+    },
+
+    
     //====================
     // Analytics
     //====================
@@ -126,8 +216,11 @@ export const districtService = {
         return response.data
     },
     getRequestsByStatus: async (districtId: string, status: string) => {
-        const response = await apiClient.get(`/respondDistrict/districtRequestByRequestStatus?dId=${districtId}&requestStatus=${status}`)
-        return response.data
+        const allRequests = await districtService.getAllRequests(districtId)
+        if (Array.isArray(allRequests)) {
+            return allRequests.filter((req: any) => req.requestStatus === status)
+        }
+        return []
     },
     getAllRequests: async (districtId: string) => {
         const response = await apiClient.get(`/respondDistrict/districtRequest/${districtId}`)

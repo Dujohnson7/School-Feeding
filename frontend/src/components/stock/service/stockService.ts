@@ -73,7 +73,7 @@ export interface StockIn {
 export const stockService = {
 
     // =======================
-    // Dashboard (New)
+    // Dashboard 
     // =======================
 
     getTotalInventory: async (schoolId: string): Promise<number> => {

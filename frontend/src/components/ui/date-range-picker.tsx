@@ -37,15 +37,64 @@ export function DatePickerWithRange({ className, date, setDate }: DatePickerWith
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
-          <Calendar
-            initialFocus
-            mode="range"
-            defaultMonth={date?.from}
-            selected={date}
-            onSelect={setDate}
-            numberOfMonths={2}
-          />
+        <PopoverContent className="w-auto p-4" align="start">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-wrap gap-2 mb-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const today = new Date()
+                  setDate({ from: today, to: today })
+                }}
+              >
+                Today
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const today = new Date()
+                  const last7Days = new Date(today)
+                  last7Days.setDate(today.getDate() - 7)
+                  setDate({ from: last7Days, to: today })
+                }}
+              >
+                Last 7 Days
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const today = new Date()
+                  const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+                  setDate({ from: firstDayOfMonth, to: today })
+                }}
+              >
+                This Month
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const today = new Date()
+                  const firstDayOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+                  const lastDayOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0)
+                  setDate({ from: firstDayOfLastMonth, to: lastDayOfLastMonth })
+                }}
+              >
+                Last Month
+              </Button>
+            </div>
+            <Calendar
+              initialFocus
+              mode="range"
+              defaultMonth={date?.from}
+              selected={date}
+              onSelect={setDate}
+              numberOfMonths={2}
+            />
+          </div>
         </PopoverContent>
       </Popover>
     </div>

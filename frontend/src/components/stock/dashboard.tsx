@@ -134,7 +134,7 @@ export function StockDashboard() {
             type: activity.activityType.toLowerCase().includes("in") ? "in" : "out",
             itemName: activity.itemName,
             quantity: `${activity.quantity}`,
-            source: activity.activityType.toLowerCase().includes("in") ? activity.schoolName : "Direct User", // Source mapping might need adjustment
+            source: activity.activityType.toLowerCase().includes("in") ? activity.schoolName : "Quantity",  
             timestamp: new Date(activity.activityDate).toLocaleDateString()
           })))
         }
@@ -318,7 +318,7 @@ export function StockDashboard() {
                                   {movement.itemName} {movement.type === "in" ? "Received" : "Distributed"}
                                 </p>
                                 <p className="text-sm text-muted-foreground">
-                                  {movement.quantity} {movement.type === "in" ? `from ${movement.source}` : `to ${movement.source}`}
+                                  {movement.quantity} {movement.type === "in" ? `Quantity` : `Quantity`}
                                 </p>
                               </div>
                             </div>

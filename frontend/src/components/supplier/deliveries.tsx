@@ -486,7 +486,7 @@ export function SupplierDeliveries() {
                                         {updatingStatus === delivery.id ? "Processing..." : "Start Processing"}
                                       </Button>
                                     )}
-                                    {delivery.deliveryStatus === "PROCESSING" && (
+                                    {delivery.deliveryStatus === "APPROVED" && (
                                       <Button
                                         size="sm"
                                         onClick={() => handleDeliverOrder(delivery.id)}

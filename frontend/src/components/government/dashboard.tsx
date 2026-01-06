@@ -19,11 +19,10 @@ interface GovStats {
 }
 
 interface DistrictData {
-  name: string
-  schools: number
-  students: number
-  coverage: number
-  budget: number
+  district: string
+  totalSchools: number
+  totalStudents: number
+  performance: number
 }
 
 interface NationalOverview {
@@ -41,33 +40,22 @@ interface KPI {
   value: number
 }
 
-interface Alert {
-  title: string
-  desc: string
-  severity: "High" | "Medium" | "Info"
-}
-
 interface TopDistrict {
   name: string
   meta: string
   status: string
 }
 
-interface Milestone {
-  title: string
-  date: string
-  days: number
-}
-
-interface RecentActivity {
-  id: number
-  action: string
-  timestamp: string
-  type: string
+interface SystemStats {
+  suppliers: number
+  districtCoordinators: number
+  stockkeepers: number
+  schoolCoordinators: number
+  schools: number
+  items: number
 }
 
 export function GovDashboard() {
-  const [selectedPeriod, setSelectedPeriod] = useState("month")
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState<GovStats>({
     totalSchools: "0",
@@ -79,54 +67,118 @@ export function GovDashboard() {
   const [nationalOverview, setNationalOverview] = useState<NationalOverview[]>([])
   const [monthlyFoodDistribution, setMonthlyFoodDistribution] = useState<MonthlyFoodDistribution[]>([])
   const [kpis, setKpis] = useState<KPI[]>([])
-  const [alerts, setAlerts] = useState<Alert[]>([])
   const [topDistricts, setTopDistricts] = useState<TopDistrict[]>([])
-  const [milestones, setMilestones] = useState<Milestone[]>([])
-  const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([])
+  const [systemStats, setSystemStats] = useState<SystemStats>({
+    suppliers: 0,
+    districtCoordinators: 0,
+    stockkeepers: 0,
+    schoolCoordinators: 0,
+    schools: 0,
+    items: 0
+  })
 
   useEffect(() => {
     fetchDashboardData()
-  }, [selectedPeriod])
+  }, [])
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true)
 
-      // Fetch dashboard statistics
-      const statsData = await governmentService.getDashboardStats(selectedPeriod)
-      if (statsData) setStats(statsData)
+      // Fetch basic stats
+      const [totalSchools, totalStudents, totalDistricts, currentBudget] = await Promise.all([
+        governmentService.getTotalSchool(),
+        governmentService.getTotalStudent(),
+        governmentService.getTotalDistricts(),
+        governmentService.getCurrentBudget()
+      ])
 
-      // Fetch district performance
-      const districtsData = await governmentService.getDistrictPerformance(selectedPeriod)
-      if (districtsData) setDistricts(districtsData)
-
-      // Fetch national overview
-      const overviewData = await governmentService.getNationalOverview(selectedPeriod)
-      if (overviewData) setNationalOverview(overviewData)
-
-      // Fetch monthly food distribution
-      const distributionData = await governmentService.getMonthlyDistribution(selectedPeriod)
-      if (distributionData) setMonthlyFoodDistribution(distributionData)
+      setStats({
+        totalSchools: totalSchools?.toString() || "0",
+        studentsFedDaily: totalStudents?.toLocaleString() || "0",
+        districtsCovered: totalDistricts?.toString() || "0",
+        programBudget: currentBudget ? `RWF ${currentBudget.toLocaleString()}` : "RWF 0",
+      })
 
       // Fetch KPIs
-      const kpisData = await governmentService.getKPIs(selectedPeriod)
-      if (kpisData) setKpis(kpisData)
+      const [nutritionRate, onTimeRate, supplierRate, budgetRate] = await Promise.all([
+        governmentService.getNutritionComplianceRate(),
+        governmentService.getOnTimeDeliveryRate(),
+        governmentService.getSupplierPerformanceRate(),
+        governmentService.getBudgetParticipationRate()
+      ])
 
-      // Fetch alerts
-      const alertsData = await governmentService.getAlerts()
-      if (alertsData) setAlerts(alertsData)
+      setKpis([
+        { name: "Nutrition Compliance", value: Number(nutritionRate?.toFixed(2)) || 0 },
+        { name: "On-time Delivery", value: Number(onTimeRate?.toFixed(2)) || 0 },
+        { name: "Supplier Performance", value: Number(supplierRate?.toFixed(2)) || 0 },
+        { name: "Budget Utilization", value: Number(budgetRate?.toFixed(2)) || 0 }
+      ])
 
-      // Fetch top districts
-      const topDistrictsData = await governmentService.getTopDistricts()
-      if (topDistrictsData) setTopDistricts(topDistrictsData)
+      // Fetch Province Performance (National Overview)
+      const provincePerformance = await governmentService.getProvincePerformance()
+      if (provincePerformance && Array.isArray(provincePerformance)) {
+        setNationalOverview(provincePerformance.map((item: any) => ({
+          name: item[0], // Province name
+          value: parseFloat(item[1]) || 0 // Performance value (handle string % if needed)
+        })))
+      }
 
-      // Fetch milestones
-      const milestonesData = await governmentService.getMilestones()
-      if (milestonesData) setMilestones(milestonesData)
+      // Fetch Monthly Distribution
+      const distributionData = await governmentService.getMonthlyFoodDistributionNew()
+      if (distributionData && Array.isArray(distributionData)) {
+        const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        setMonthlyFoodDistribution(distributionData.map((item: any) => ({
+          month: monthNames[parseInt(item[0]) - 1] || item[0], // Convert number to name
+          tons: item[1] || 0
+        })))
+      }
 
-      // Fetch recent activities
-      const activitiesData = await governmentService.getRecentActivities()
-      if (activitiesData) setRecentActivities(activitiesData)
+      // Fetch District Performance
+      const districtsData = await governmentService.getDistrictPerformanceDetails()
+      if (districtsData) setDistricts(districtsData)
+
+      // Fetch Top Performing Districts (from national district budget performance)
+      const topDistData = await governmentService.getNationalDistrictBudgetPerformance()
+      if (topDistData && Array.isArray(topDistData)) {
+        setTopDistricts(topDistData.slice(0, 5).map((item: any) => ({
+          name: item[0],
+          meta: `Budget utilization: ${item[1] || "0%"}`,
+          status: item[2] || "Good"
+        })))
+      }
+
+      // Fetch System Stats (Users and Items)
+      const [allUsers, allItems, allSchools] = await Promise.all([
+        governmentService.getAllUsers(),
+        governmentService.getAllItems(),
+        governmentService.getAllSchools()
+      ])
+
+      if (allUsers && Array.isArray(allUsers)) {
+        setSystemStats(prev => ({
+          ...prev,
+          suppliers: allUsers.filter((u: any) => u.role === "SUPPLIER").length,
+          districtCoordinators: allUsers.filter((u: any) => u.role === "DISTRICT").length,
+          stockkeepers: allUsers.filter((u: any) => u.role === "STOCK_KEEPER").length,
+        }))
+      }
+
+      if (allUsers && Array.isArray(allUsers)) {
+        setSystemStats(prev => ({
+          ...prev,
+          schoolCoordinators: allUsers.filter((u: any) => u.role === "SCHOOL").length,
+          schools: allUsers.filter((u: any) => u.role === "SCHOOL").length,
+        }))
+      }
+
+      if (allSchools && Array.isArray(allSchools)) {
+        setSystemStats(prev => ({ ...prev, schools: allSchools.length }))
+      }
+
+      if (allItems && Array.isArray(allItems)) {
+        setSystemStats(prev => ({ ...prev, items: allItems.length }))
+      }
 
     } catch (error: any) {
       console.error("Error fetching dashboard data:", error)
@@ -225,24 +277,37 @@ export function GovDashboard() {
 
                     {/* Monthly Food Distribution */}
                     <div className="space-y-2">
-                      <p className="text-sm font-medium leading-none">Monthly Food Distribution (Tons)</p>
-                      <div className="mt-2 flex h-40 items-end gap-2">
-                        {loading && monthlyFoodDistribution.length === 0 ? (
-                          <div className="text-sm text-muted-foreground w-full text-center">Loading...</div>
-                        ) : monthlyFoodDistribution.length === 0 ? (
-                          <div className="text-sm text-muted-foreground w-full text-center">No data available</div>
-                        ) : (
-                          monthlyFoodDistribution.map((m) => {
-                            const maxTons = Math.max(...monthlyFoodDistribution.map(d => d.tons), 200)
-                            const h = Math.max(10, Math.min(100, (m.tons / maxTons) * 100))
-                            return (
-                              <div key={m.month} className="flex flex-1 flex-col items-center gap-1">
-                                <div className="w-full rounded-t-sm bg-primary/90" style={{ height: `${h}%` }} />
-                                <span className="text-[10px] text-muted-foreground">{m.month}</span>
-                              </div>
-                            )
-                          })
-                        )}
+                      <p className="text-sm font-medium leading-none">Monthly Food Distribution </p>
+                      <div className="mt-4 h-[120px] w-full bg-muted/50 rounded p-2">
+                        <div className="flex h-full items-end justify-between gap-2"> 
+                          {loading && monthlyFoodDistribution.length === 0 ? (
+                            <div className="text-sm text-muted-foreground w-full text-center self-center">Loading...</div>
+                          ) : monthlyFoodDistribution.length === 0 ? (
+                            <div className="text-sm text-muted-foreground w-full text-center self-center">No data available</div>
+                          ) : (
+                            monthlyFoodDistribution.map((m) => {
+                              const maxTons = Math.max(...monthlyFoodDistribution.map(d => d.tons), 100)
+                              // Ensure at least 5% height if value > 0, otherwise 0
+                              const h = m.tons > 0 ? Math.max(5, (m.tons / maxTons) * 100) : 0
+
+                              return (
+                                <div key={m.month} className="flex flex-1 flex-col items-center gap-1 group relative h-full justify-end">
+                                  <div
+                                    className="w-full rounded-t-sm bg-primary transition-all hover:bg-primary/80 relative"
+                                    style={{ height: `${h}%` }}
+                                  >
+                                    {m.tons > 0 && (
+                                      <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] bg-background border px-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 shadow-sm">
+                                        {m.tons}t
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-[10px] text-muted-foreground truncate w-full text-center" title={m.month}>{m.month}</span>
+                                </div>
+                              )
+                            })
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -277,40 +342,7 @@ export function GovDashboard() {
               </Card>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-3">
-              {/* Recent Alerts */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Alerts</CardTitle>
-                  <CardDescription>System notifications requiring attention</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {loading && alerts.length === 0 ? (
-                      <div className="text-sm text-muted-foreground">Loading...</div>
-                    ) : alerts.length === 0 ? (
-                      <div className="text-sm text-muted-foreground">No alerts</div>
-                    ) : (
-                      alerts.map((a, idx) => (
-                        <div key={idx} className="flex items-start justify-between gap-3 rounded-md border p-3">
-                          <div>
-                            <p className="text-sm font-medium leading-none">{a.title}</p>
-                            <p className="text-xs text-muted-foreground">{a.desc}</p>
-                          </div>
-                          <Badge
-                            variant={
-                              a.severity === "High" ? "destructive" : a.severity === "Medium" ? "secondary" : "outline"
-                            }
-                          >
-                            {a.severity}
-                          </Badge>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
+            <div className="grid gap-6 md:grid-cols-2">
               {/* Top Performing Districts */}
               <Card>
                 <CardHeader>
@@ -338,32 +370,44 @@ export function GovDashboard() {
                 </CardContent>
               </Card>
 
-              {/* Upcoming Milestones */}
+              {/* System Overview (New Card as requested) */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Upcoming Milestones</CardTitle>
-                  <CardDescription>Important dates and deadlines</CardDescription>
+                  <CardTitle>System Overview</CardTitle>
+                  <CardDescription>Key system user and item counts</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    {loading && milestones.length === 0 ? (
-                      <div className="text-sm text-muted-foreground">Loading...</div>
-                    ) : milestones.length === 0 ? (
-                      <div className="text-sm text-muted-foreground">No milestones</div>
-                    ) : (
-                      milestones.map((m) => (
-                        <div key={m.title} className="flex items-center justify-between rounded-md border p-3">
-                          <div>
-                            <p className="text-sm font-medium leading-none">{m.title}</p>
-                            <p className="text-xs text-muted-foreground">{m.date}</p>
-                          </div>
-                          <div className="text-xs text-muted-foreground">{m.days} days</div>
-                        </div>
-                      ))
-                    )}
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="flex flex-col space-y-1 rounded-md border p-3">
+                        <span className="text-xs text-muted-foreground">Suppliers</span>
+                        <span className="text-2xl font-bold">{systemStats.suppliers}</span>
+                      </div>
+                      <div className="flex flex-col space-y-1 rounded-md border p-3">
+                        <span className="text-xs text-muted-foreground">District Coordinators</span>
+                        <span className="text-2xl font-bold">{systemStats.districtCoordinators}</span>
+                      </div>
+                      <div className="flex flex-col space-y-1 rounded-md border p-3">
+                        <span className="text-xs text-muted-foreground">Stockkeepers</span>
+                        <span className="text-2xl font-bold">{systemStats.stockkeepers}</span>
+                      </div>
+                      <div className="flex flex-col space-y-1 rounded-md border p-3">
+                        <span className="text-xs text-muted-foreground">School Coordinators</span>
+                        <span className="text-2xl font-bold">{systemStats.schoolCoordinators}</span>
+                      </div>
+                      <div className="flex flex-col space-y-1 rounded-md border p-3">
+                        <span className="text-xs text-muted-foreground">Schools</span>
+                        <span className="text-2xl font-bold">{systemStats.schools}</span>
+                      </div>
+                      <div className="flex flex-col space-y-1 rounded-md border p-3">
+                        <span className="text-xs text-muted-foreground">Items</span>
+                        <span className="text-2xl font-bold">{systemStats.items}</span>
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
+
             </div>
 
             {/* District Performance & Recent Activities */}
@@ -384,18 +428,18 @@ export function GovDashboard() {
                         <div key={index} className="space-y-2">
                           <div className="flex items-center justify-between">
                             <div className="space-y-1">
-                              <p className="text-sm font-medium leading-none">{district.name}</p>
+                              <p className="text-sm font-medium leading-none">{district.district}</p>
                               <p className="text-xs text-muted-foreground">
-                                {district.schools} schools • {district.students.toLocaleString()} students
+                                {district.totalSchools} schools • {district.totalStudents.toLocaleString()} students
                               </p>
                             </div>
                             <div className="text-right">
-                              <Badge variant={district.coverage >= 95 ? "default" : "secondary"}>
-                                {district.coverage}%
+                              <Badge variant={district.performance >= 95 ? "default" : "secondary"}>
+                                {district.performance.toFixed(2)}%
                               </Badge>
                             </div>
                           </div>
-                          <Progress value={district.coverage} className="h-2" />
+                          <Progress value={district.performance} className="h-2" />
                         </div>
                       ))
                     )}
@@ -403,31 +447,6 @@ export function GovDashboard() {
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Activities</CardTitle>
-                  <CardDescription>Latest system activities and updates</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {loading && recentActivities.length === 0 ? (
-                      <div className="text-sm text-muted-foreground">Loading...</div>
-                    ) : recentActivities.length === 0 ? (
-                      <div className="text-sm text-muted-foreground">No recent activities</div>
-                    ) : (
-                      recentActivities.map((activity) => (
-                        <div key={activity.id} className="flex items-start space-x-4">
-                          <div className="flex h-2 w-2 translate-y-1 rounded-full bg-primary" />
-                          <div className="space-y-1">
-                            <p className="text-sm font-medium leading-none">{activity.action}</p>
-                            <p className="text-xs text-muted-foreground">{activity.timestamp}</p>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
             </div>
           </div>
         </main>

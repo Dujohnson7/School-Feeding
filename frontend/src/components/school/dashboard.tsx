@@ -32,6 +32,7 @@ export function SchoolDashboard() {
     highPriorityRequests: 0,
     normalPriorityRequests: 0,
     nextDeliveryDate: "",
+    nextDeliveryStatus: "",
     nextDeliveryTime: "",
     studentsFedToday: 0,
     totalRegisteredStudents: 0,
@@ -54,23 +55,91 @@ export function SchoolDashboard() {
         return
       }
 
-      // Fetch dashboard statistics
-      const statsData = await schoolService.getDashboardStats(schoolId)
-      if (statsData) {
-        setStats(statsData)
+      // Fetch all dashboard data in parallel for better performance
+      const [
+        stockLevel,
+        totalStudents,
+        pendingRequests,
+        studentsServed,
+        deliveryState,
+        recentDeliveriesData
+      ] = await Promise.allSettled([
+        schoolService.getFoodStockLevel(schoolId),
+        schoolService.getTotalStudent(schoolId),
+        schoolService.getPendingRequestCount(schoolId),
+        schoolService.getStudentServedCount(schoolId),
+        schoolService.getDeliveryState(schoolId),
+        schoolService.getAllRecentDeliveries(schoolId)
+      ])
+
+      const newStats: SchoolStats = { ...stats }
+
+      if (stockLevel.status === "fulfilled") {
+        const roundedLevel = Math.round(stockLevel.value)
+        newStats.foodStockLevel = roundedLevel
+        // Determine status based on rate
+        if (roundedLevel < 20) newStats.stockLevelStatus = "Critical"
+        else if (roundedLevel < 50) newStats.stockLevelStatus = "Low"
+        else newStats.stockLevelStatus = "Good"
       }
 
-      // Fetch recent deliveries
-      const deliveriesData = await schoolService.getRecentDeliveries(schoolId)
-      if (deliveriesData) {
-        setRecentDeliveries(deliveriesData)
+      if (totalStudents.status === "fulfilled") {
+        newStats.totalRegisteredStudents = totalStudents.value
       }
 
-      // Fetch upcoming schedule
-      const scheduleData = await schoolService.getUpcomingSchedule(schoolId)
-      if (scheduleData) {
-        setUpcomingSchedule(scheduleData)
+      if (pendingRequests.status === "fulfilled") {
+        newStats.pendingRequests = pendingRequests.value
       }
+
+      if (studentsServed.status === "fulfilled") {
+        newStats.studentsFedToday = studentsServed.value
+      }
+
+      if (deliveryState.status === "fulfilled" && deliveryState.value) {
+        newStats.nextDeliveryDate = deliveryState.value.deliveryDate || ""
+        newStats.nextDeliveryStatus = deliveryState.value.deliveryStatus || ""
+      }
+
+      setStats(newStats)
+
+      if (recentDeliveriesData.status === "fulfilled" && recentDeliveriesData.value) {
+        // Map Orders to RecentDelivery format
+        const mappedDeliveries: RecentDelivery[] = recentDeliveriesData.value.map((order: any) => {
+          // Extract item names from details and match with supplier items if possible
+          const itemDetails = order.requestItem?.requestItemDetails || []
+          const supplierItems = order.supplier?.items || []
+
+          let itemNames = "Food Delivery"
+          if (itemDetails.length > 0) {
+            itemNames = itemDetails.map((detail: any) => {
+              const matchedItem = supplierItems.find((si: any) => si.id === detail.item?.id)
+              return matchedItem?.name || detail.item?.name || "Item"
+            }).join(", ")
+          }
+
+          return {
+            id: order.id,
+            date: order.deliveryDate || order.orderDate,
+            items: itemNames,
+            supplier: order.supplier?.companyName || order.supplier?.names || "Global Supplier",
+            status: order.deliveryStatus || "Pending"
+          }
+        })
+        setRecentDeliveries(mappedDeliveries)
+      }
+
+      // Also update upcoming schedule based on delivery state
+      if (deliveryState.status === "fulfilled" && deliveryState.value) {
+        const schedule: UpcomingSchedule = {
+          id: deliveryState.value.id || "next",
+          title: `Delivery of Items`,
+          date: deliveryState.value.deliveryDate || "TBA",
+          time: deliveryState.value.deliveryTime || "",
+          status: deliveryState.value.deliveryStatus === "PROCESSING" ? "Upcoming" : "Scheduled"
+        }
+        setUpcomingSchedule([schedule])
+      }
+
     } catch (error: any) {
       console.error("Error fetching dashboard data:", error)
       toast.error("Failed to load dashboard data. Please refresh the page.")
@@ -79,13 +148,21 @@ export function SchoolDashboard() {
     }
   }
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status?: string) => {
+    if (!status) return <Badge variant="outline">Pending</Badge>
+
     switch (status.toLowerCase()) {
       case "delivered":
+      case "complete":
+      case "completed":
         return <Badge className="bg-green-500">Delivered</Badge>
       case "pending":
-        return <Badge variant="outline">Pending</Badge>
+      case "processing":
+      case "waiting":
+        return <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-200">{status}</Badge>
       case "in-transit":
+      case "transit":
+      case "shipping":
         return <Badge className="bg-blue-500">In Transit</Badge>
       default:
         return <Badge variant="outline">{status}</Badge>
@@ -149,13 +226,11 @@ export function SchoolDashboard() {
                     <div className="text-xs text-muted-foreground">Loading...</div>
                   ) : (
                     <>
-                      {stats.highPriorityRequests > 0 && (
-                        <Badge variant="destructive">High Priority: {stats.highPriorityRequests}</Badge>
-                      )}
-                      {stats.normalPriorityRequests > 0 && (
-                        <Badge variant="outline">Normal: {stats.normalPriorityRequests}</Badge>
-                      )}
-                      {stats.pendingRequests === 0 && (
+                      {stats.pendingRequests > 0 ? (
+                        <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-200">
+                          {stats.pendingRequests} Active
+                        </Badge>
+                      ) : (
                         <Badge variant="outline">No pending requests</Badge>
                       )}
                     </>
@@ -165,7 +240,7 @@ export function SchoolDashboard() {
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Next Delivery</CardTitle>
+                <CardTitle className="text-sm font-medium">Delivery</CardTitle>
                 <Calendar className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -173,16 +248,14 @@ export function SchoolDashboard() {
                   {loading
                     ? "..."
                     : stats.nextDeliveryDate
-                      ? stats.nextDeliveryDate === "Tomorrow"
-                        ? "Tomorrow"
-                        : stats.nextDeliveryDate
-                      : "No delivery scheduled"}
+                      ? stats.nextDeliveryDate
+                      : "No delivery"}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {loading
                     ? "Loading..."
-                    : stats.nextDeliveryTime
-                      ? `${stats.nextDeliveryDate} - ${stats.nextDeliveryTime}`
+                    : stats.nextDeliveryStatus
+                      ? stats.nextDeliveryStatus
                       : "No upcoming delivery"}
                 </p>
               </CardContent>
@@ -238,14 +311,14 @@ export function SchoolDashboard() {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button variant="outline" size="sm" className="ml-auto">
-                  View All
+                <Button variant="outline" size="sm" className="ml-auto" navigate="/" >
+                   {/**/}
                 </Button>
               </CardFooter>
             </Card>
             <Card className="lg:col-span-3">
               <CardHeader>
-                <CardTitle>Upcoming Schedule</CardTitle>
+                <CardTitle>Stock Prediction</CardTitle>
                 <CardDescription>Food delivery and serving schedule</CardDescription>
               </CardHeader>
               <CardContent>
