@@ -347,9 +347,7 @@ export function GovBudget() {
 
   return (
     <div className="flex-1">
-      {/* Main Content */}
       <div className="flex flex-1 flex-col">
-        {/* Header */}
         <header className="hidden md:flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
           <Link to="/gov-dashboard" className="lg:hidden">
             <Package className="h-6 w-6" />
@@ -361,7 +359,6 @@ export function GovBudget() {
           <HeaderActions role="government" />
         </header>
 
-        {/* Main Content */}
         <main className="flex-1 overflow-auto p-2 sm:p-4 md:p-6 min-w-0">
           {/* Budget Overview Cards */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
@@ -524,7 +521,6 @@ export function GovBudget() {
             </Dialog>
 
             <TabsContent value="allocations" className="space-y-4">
-              {/* Filters */}
               <div className="flex items-center gap-4">
                 <div className="relative flex-1 max-w-sm">
                   <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -541,7 +537,6 @@ export function GovBudget() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Districts</SelectItem>
-                    {/* Display districts from the state populated by the database */}
                     {districts.map((d) => (
                       <SelectItem key={d.id} value={d.district}>{d.district}</SelectItem>
                     ))}
@@ -553,7 +548,6 @@ export function GovBudget() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Fiscal Years</SelectItem>
-                    {/* Unique fiscal years from budgets list */}
                     {Array.from(new Set(budgets.map(b => b.fiscalYear))).map(year => (
                       <SelectItem key={year} value={year}>{year}</SelectItem>
                     ))}
@@ -561,7 +555,6 @@ export function GovBudget() {
                 </Select>
               </div>
 
-              {/* District Allocations Table */}
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <div>
@@ -847,13 +840,12 @@ export function GovBudget() {
                       </Button>
                     </div>
                   </div>
-
                 </CardContent>
               </Card>
             </TabsContent>
-          </Tabs >
-        </main >
-      </div >
-    </div >
+          </Tabs>
+        </main>
+      </div>
+    </div>
   )
 }
