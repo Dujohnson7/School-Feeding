@@ -273,7 +273,7 @@ export function DistrictDashboard() {
 
         {/* Header */}
         <PageHeader
-          title="District Dashboard"
+          title={`${stats.districtName} District Dashboard`}
           homeTo="/district-dashboard"
           HomeIcon={Package}
           profileTo="/district-profile"

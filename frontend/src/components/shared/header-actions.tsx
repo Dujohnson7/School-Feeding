@@ -51,8 +51,8 @@ export function HeaderActions({ role, className = "" }: HeaderActionsProps) {
 
   const userName = user?.names || user?.name || "User"
   const userEmail = user?.email || ""
-  const userAvatar = user?.profile 
-    ? `http://localhost:8070/uploads/${user.profile}` 
+  const userAvatar = user?.profile
+    ? `http://localhost:8070/uploads/${user.profile}`
     : "/userIcon.png"
   const userInitials = React.useMemo(() => {
     if (userName && userName !== "User") {

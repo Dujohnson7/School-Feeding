@@ -1,8 +1,5 @@
-
-import type React from "react"
-
 import { useState, useEffect } from "react"
-import { Link, useNavigate } from "react-router-dom"
+import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import { Check, Home, Package, Plus, Truck } from "lucide-react"
 import { toast } from "sonner"
 import { districtService } from "./service/districtService"
@@ -23,6 +20,10 @@ interface Item {
 }
 
 export function AddSupplier() {
+  const [searchParams] = useSearchParams()
+  const editId = searchParams.get("edit")
+  const isEditMode = !!editId
+
   const [formData, setFormData] = useState({
     companyName: "",
     contactPerson: "",
@@ -36,6 +37,50 @@ export function AddSupplier() {
     description: "",
     items: [] as string[],
   })
+
+
+
+  useEffect(() => {
+    if (isEditMode) {
+      const fetchSupplier = async () => {
+        try {
+          setLoading(true)
+          const data = await districtService.getSupplier(editId)
+          if (data) {
+            if (data) {
+              // Helper to map backend enum to frontend value
+              const mapBankEnumToValue = (bankEnum: string) => {
+                if (!bankEnum) return ""
+                // Convert BANK_OF_KIGALI to bank-of-kigali
+                return bankEnum.toLowerCase().replace(/_/g, "-")
+              }
+
+              setFormData({
+                companyName: data.companyName || "",
+                contactPerson: data.names || "", // Mapped from Users entity 'names'
+                email: data.email || "",
+                phone: data.phone || "",
+                password: "",
+                address: data.address || "",
+                tinNumber: String(data.tinNumber || ""),
+                bankAccount: data.bankAccount || "",
+                bankName: mapBankEnumToValue(data.bank) || "",
+                description: "",
+                items: data.items?.map((i: any) => i.id) || []
+              })
+            }
+          }
+        } catch (err) {
+          console.error("Error fetching supplier details:", err)
+          toast.error("Failed to load supplier details")
+        } finally {
+          setLoading(false)
+        }
+      }
+      fetchSupplier()
+    }
+  }, [editId, isEditMode])
+
 
   const [items, setItems] = useState<Item[]>([])
   const [loading, setLoading] = useState(false)
@@ -76,9 +121,15 @@ export function AddSupplier() {
     e.preventDefault()
 
     // Validation
-    if (!formData.companyName || !formData.email || !formData.phone || !formData.password ||
+    if (!formData.companyName || !formData.email || !formData.phone ||
       !formData.address || !formData.tinNumber || !formData.bankName || !formData.bankAccount || !formData.contactPerson) {
       toast.error("Please fill in all required fields")
+      return
+    }
+
+    // Password is required only for new suppliers
+    if (!isEditMode && !formData.password) {
+      toast.error("Password is required for new suppliers")
       return
     }
 
@@ -103,7 +154,7 @@ export function AddSupplier() {
         return
       }
 
-      // Map bank name from kebab-case to display format (matching admin pattern)
+      // Map bank name logic...
       const mapBankName = (bankName: string): string => {
         const bankMap: Record<string, string> = {
           "bank-of-kigali": "Bank of Kigali",
@@ -116,12 +167,11 @@ export function AddSupplier() {
         return bankMap[bankName] || bankName
       }
 
-      const supplierPayload = {
+      const supplierPayload: any = {
         // Users fields (inherited from Users entity)
         names: formData.contactPerson,
         email: formData.email,
         phone: formData.phone,
-        password: formData.password,
         role: "SUPPLIER",
         district: { id: districtId },
         userStatus: true,
@@ -134,9 +184,17 @@ export function AddSupplier() {
         items: formData.items.map(itemId => ({ id: itemId }))
       }
 
-      const response = await districtService.registerSupplier(supplierPayload)
+      if (formData.password) {
+        supplierPayload.password = formData.password
+      }
 
-      toast.success("Supplier registered successfully")
+      if (isEditMode && editId) {
+        await districtService.updateSupplier(editId, supplierPayload)
+        toast.success("Supplier updated successfully")
+      } else {
+        await districtService.registerSupplier(supplierPayload)
+        toast.success("Supplier registered successfully")
+      }
 
       // Reset form
       setFormData({
@@ -156,9 +214,9 @@ export function AddSupplier() {
       // Navigate back to supplier management
       navigate("/manage-suppliers")
     } catch (err: any) {
-      console.error("Error registering supplier:", err)
-      const errorMessage = err.response?.data || "Failed to register supplier"
-      toast.error(typeof errorMessage === 'string' ? errorMessage : "Failed to register supplier")
+      console.error("Error saving supplier:", err)
+      const errorMessage = err.response?.data || "Failed to save supplier"
+      toast.error(typeof errorMessage === 'string' ? errorMessage : "Failed to save supplier")
     } finally {
       setLoading(false)
     }
@@ -373,7 +431,7 @@ export function AddSupplier() {
                   {/* Submit Buttons */}
                   <div className="flex gap-4 pt-6">
                     <Button type="submit" className="flex-1" disabled={loading}>
-                      {loading ? "Registering..." : "Register Supplier"}
+                      {loading ? (isEditMode ? "Updating..." : "Registering...") : (isEditMode ? "Update Supplier" : "Register Supplier")}
                     </Button>
                     <Button
                       type="button"

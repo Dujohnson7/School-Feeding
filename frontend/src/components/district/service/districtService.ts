@@ -167,7 +167,7 @@ export const districtService = {
         return response.data
     },
 
-    
+
     //====================
     // Analytics
     //====================
@@ -203,6 +203,26 @@ export const districtService = {
         const response = await apiClient.post(`/supplier/register`, payload)
         return response.data
     },
+    updateSupplier: async (id: string, payload: any) => {
+        const response = await apiClient.put(`/supplier/update/${id}`, payload)
+        return response.data
+    },
+
+    //====================
+    // Budget
+    //====================
+    getBudgetAllocatedToSchool: async (districtId: string) => {
+        const response = await apiClient.get(`/budgetDistrict/budgetAllocateToSchool/${districtId}`)
+        return response.data
+    },
+    getBudgetAllocatedToDistrict: async (districtId: string) => {
+        const response = await apiClient.get(`/budgetDistrict/budgetAllocateToDistrict/${districtId}`)
+        return response.data
+    },
+    getBudgetFiscalYears: async (districtId: string) => {
+        const response = await apiClient.get(`/budgetDistrict/budgetFiscal/${districtId}`)
+        return response.data
+    },
 
     //====================
     // Approvals & Requests
@@ -230,7 +250,7 @@ export const districtService = {
         const response = await apiClient.put(`/respondDistrict/approval/${requestId}`)
         return response.data
     },
-    assignOrder: async (payload: { requestItem: { id: string }; supplier: { id: string }; orderPrice: number }) => {
+    assignOrder: async (payload: { requestItem: { id: string }; supplier: { id: string }; orderPrice: number; expectedDate: string }) => {
         const response = await apiClient.post("/respondDistrict/assignOrder", payload)
         return response.data
     },

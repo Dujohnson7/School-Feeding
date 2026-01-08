@@ -14,6 +14,8 @@ import {
   Search,
   TrendingUp,
   AlertCircle,
+  Edit,
+  Trash2,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -48,6 +50,10 @@ export function GovBudget() {
   const [isAllocateDialogOpen, setIsAllocateDialogOpen] = useState(false)
   const [pageAlloc, setPageAlloc] = useState(1)
   const [pageSizeAlloc, setPageSizeAlloc] = useState(5)
+  const [pageHistory, setPageHistory] = useState(1)
+  const [pageSizeHistory, setPageSizeHistory] = useState(5)
+  const [historySearchTerm, setHistorySearchTerm] = useState("")
+  const [historyStatusFilter, setHistoryStatusFilter] = useState("all")
 
   const [budgets, setBudgets] = useState<BudgetGov[]>([])
   const [districts, setDistricts] = useState<any[]>([])
@@ -59,6 +65,14 @@ export function GovBudget() {
   const [regAmount, setRegAmount] = useState("")
   const [regStatus, setRegStatus] = useState<EFiscalState>(EFiscalState.INACTIVE)
   const [regDescription, setRegDescription] = useState("")
+
+  // Edit State
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+  const [editingBudget, setEditingBudget] = useState<BudgetGov | null>(null)
+  const [editFiscalYear, setEditFiscalYear] = useState("")
+  const [editAmount, setEditAmount] = useState("")
+  const [editStatus, setEditStatus] = useState<EFiscalState>(EFiscalState.INACTIVE)
+  const [editDescription, setEditDescription] = useState("")
 
   useEffect(() => {
     fetchBudgets()
@@ -161,6 +175,123 @@ export function GovBudget() {
     }
   }
 
+  const handleEditClick = (budget: BudgetGov) => {
+    setEditingBudget(budget)
+    setEditFiscalYear(budget.fiscalYear)
+    setEditAmount(budget.budget.toString())
+    setEditStatus(budget.fiscalState)
+    setEditDescription(budget.description)
+    setIsEditDialogOpen(true)
+  }
+
+  const handleUpdateBudget = async () => {
+    if (!editingBudget || !editFiscalYear || !editAmount) return
+
+    try {
+      setIsLoading(true)
+      await budgetService.updateBudgetGov(editingBudget.id, {
+        fiscalYear: editFiscalYear,
+        budget: Number(editAmount),
+        fiscalState: editStatus,
+        description: editDescription
+      })
+      toast.success("Budget Updated Successfully")
+      fetchBudgets()
+      setIsEditDialogOpen(false)
+      setEditingBudget(null)
+    } catch (error) {
+      console.error("Error updating budget:", error)
+      toast.error("Failed to update budget")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleDeleteBudget = async (id: string) => {
+    if (confirm("Are you sure you want to delete this budget? This action cannot be undone.")) {
+      try {
+        setIsLoading(true)
+        await budgetService.deleteBudgetGov(id)
+        toast.success("Budget Deleted Successfully")
+        fetchBudgets()
+      } catch (error) {
+        console.error("Error deleting budget:", error)
+        toast.error("Failed to delete budget")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+  }
+
+  const handleExportHistory = () => {
+    if (budgets.length === 0) {
+      toast.error("No budget history to export")
+      return
+    }
+
+    const header = ["Fiscal Year", "Budget Amount", "Status", "Description"].join(",")
+    const rows = budgets.map(b => [
+      `"${b.fiscalYear}"`,
+      b.budget,
+      b.fiscalState,
+      `"${b.description || ""}"`
+    ].join(","))
+
+    const csvContent = "\uFEFF" + [header, ...rows].join("\n")
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.setAttribute("download", `budget_fiscal_history_${new Date().toISOString().split('T')[0]}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    toast.success("Budget history exported successfully")
+  }
+
+  const handleExportAllocations = () => {
+    if (filteredDistricts.length === 0) {
+      toast.error("No district allocations to export")
+      return
+    }
+
+    const header = [
+      "District",
+      "Province",
+      "Fiscal Year",
+      "Status",
+      "Allocated Budget",
+      "Spent Budget",
+      "Percent Utilized"
+    ].join(",")
+
+    const rows = filteredDistricts.map(d => {
+      const utilization = d.budget > 0 ? ((d.spentBudget / d.budget) * 100).toFixed(1) : "0"
+      return [
+        `"${d.district?.district || ""}"`,
+        `"${d.district?.province || ""}"`,
+        `"${d.budgetGov?.fiscalYear || ""}"`,
+        d.active ? "Active" : "Inactive",
+        d.budget,
+        d.spentBudget,
+        `${utilization}%`
+      ].join(",")
+    })
+
+    const csvContent = "\uFEFF" + [header, ...rows].join("\n")
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.setAttribute("download", `district_allocations_${new Date().toISOString().split('T')[0]}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    toast.success("District allocations exported successfully")
+  }
+
   const filteredDistricts = districtAllocations.filter(
     (d) =>
       d.district?.district?.toLowerCase().includes(searchTerm.toLowerCase()) &&
@@ -190,6 +321,29 @@ export function GovBudget() {
   const totalAllocated = districtAllocations.reduce((acc, curr) => acc + curr.budget, 0)
   const totalSpent = districtAllocations.reduce((acc, curr) => acc + curr.spentBudget, 0)
   const remainingBudget = totalBudgetAmount - totalAllocated
+
+  // History Filtering
+  const filteredHistory = budgets.filter((b) =>
+    (b.fiscalYear.toLowerCase().includes(historySearchTerm.toLowerCase()) ||
+      (b.description && b.description.toLowerCase().includes(historySearchTerm.toLowerCase()))) &&
+    (historyStatusFilter === "all" || b.fiscalState === historyStatusFilter)
+  )
+
+  // History Pagination
+  const totalPagesHistory = Math.max(1, Math.ceil(filteredHistory.length / pageSizeHistory))
+  const startHistory = (pageHistory - 1) * pageSizeHistory
+  const paginatedHistory = filteredHistory.slice(startHistory, startHistory + pageSizeHistory)
+  const canPrevHistory = pageHistory > 1
+  const canNextHistory = pageHistory < totalPagesHistory
+  const getHistoryPageWindow = () => {
+    const maxButtons = 5
+    if (totalPagesHistory <= maxButtons) return Array.from({ length: totalPagesHistory }, (_, i) => i + 1)
+    const half = Math.floor(maxButtons / 2)
+    let start = Math.max(1, pageHistory - half)
+    let end = Math.min(totalPagesHistory, start + maxButtons - 1)
+    if (end - start + 1 < maxButtons) start = Math.max(1, end - maxButtons + 1)
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i)
+  }
 
   return (
     <div className="flex-1">
@@ -278,7 +432,7 @@ export function GovBudget() {
                     <DialogHeader>
                       <DialogTitle>Allocate Budget</DialogTitle>
                       <DialogDescription>
-                        Select an inactive fiscal year to trigger its distribution across districts.
+                        Select a fiscal year to allocate its budget across districts.
                       </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
@@ -288,7 +442,7 @@ export function GovBudget() {
                         </Label>
                         <Select value={selectedAllocationBudgetId} onValueChange={setSelectedAllocationBudgetId}>
                           <SelectTrigger className="col-span-3">
-                            <SelectValue placeholder="Select inactive budget" />
+                            <SelectValue placeholder="Select Budget" />
                           </SelectTrigger>
                           <SelectContent>
                             {budgets
@@ -311,6 +465,63 @@ export function GovBudget() {
                 </Dialog>
               </div>
             </div>
+
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Edit Budget</DialogTitle>
+                  <DialogDescription>
+                    Update fiscal year budget details.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-fiscal-year">Fiscal Year</Label>
+                    <Input
+                      id="edit-fiscal-year"
+                      value={editFiscalYear}
+                      onChange={(e) => setEditFiscalYear(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-budget-amount">Budget Amount</Label>
+                    <Input
+                      type="number"
+                      id="edit-budget-amount"
+                      value={editAmount}
+                      onChange={(e) => setEditAmount(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-budget-status">Status</Label>
+                    <Select value={editStatus} onValueChange={(v) => setEditStatus(v as EFiscalState)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select Status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={EFiscalState.ACTIVE}>Active</SelectItem>
+                        <SelectItem value={EFiscalState.INACTIVE}>Inactive</SelectItem>
+                        <SelectItem value={EFiscalState.COMPLETED}>Completed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-description">Description</Label>
+                    <Textarea
+                      id="edit-description"
+                      value={editDescription}
+                      onChange={(e) => setEditDescription(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
+                  <Button onClick={handleUpdateBudget} disabled={isLoading}>
+                    {isLoading ? "Updating..." : "Update Budget"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
             <TabsContent value="allocations" className="space-y-4">
               {/* Filters */}
@@ -352,9 +563,15 @@ export function GovBudget() {
 
               {/* District Allocations Table */}
               <Card>
-                <CardHeader>
-                  <CardTitle>District Budget Allocations</CardTitle>
-                  <CardDescription>Budget allocation and spending by districts</CardDescription>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle>District Budget Allocations</CardTitle>
+                    <CardDescription>Budget allocation and spending by districts</CardDescription>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={handleExportAllocations}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Export
+                  </Button>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
@@ -443,14 +660,44 @@ export function GovBudget() {
 
             <TabsContent value="history" className="space-y-4">
               <Card>
-                <CardHeader>
-                  <CardTitle>Budget Fiscal Year</CardTitle>
-                  <CardDescription>Budget allocations distributed to districts</CardDescription>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle>Budget Fiscal Year</CardTitle>
+                    <CardDescription>Budget allocations distributed to districts</CardDescription>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={handleExportHistory}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Export
+                  </Button>
                 </CardHeader>
                 <CardContent>
+                  {/* History Filters */}
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="relative flex-1 max-w-sm">
+                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search fiscal year..."
+                        value={historySearchTerm}
+                        onChange={(e) => setHistorySearchTerm(e.target.value)}
+                        className="pl-8"
+                      />
+                    </div>
+                    <Select value={historyStatusFilter} onValueChange={setHistoryStatusFilter}>
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="All Status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Status</SelectItem>
+                        <SelectItem value={EFiscalState.ACTIVE}>Active</SelectItem>
+                        <SelectItem value={EFiscalState.INACTIVE}>Inactive</SelectItem>
+                        <SelectItem value={EFiscalState.COMPLETED}>Completed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                   <div className="space-y-4">
-                    {budgets.length > 0 ? budgets.map((budget) => (
-                      <div key={budget.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    {paginatedHistory.length > 0 ? paginatedHistory.map((budget) => (
+                      <div key={budget.id} className="flex items-center p-4 border rounded-lg">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
                             <h3 className="font-medium">FY {budget.fiscalYear}</h3>
@@ -462,9 +709,19 @@ export function GovBudget() {
                             {budget.description}
                           </p>
                         </div>
-                        <div className="text-right">
-                          <div className="font-medium">{formatCurrency(budget.budget)}</div>
-                          <div className="text-sm text-muted-foreground">Total Budget</div>
+                        <div className="ml-auto flex items-center gap-6">
+                          <div className="text-right">
+                            <div className="font-medium">{formatCurrency(budget.budget)}</div>
+                            <div className="text-sm text-muted-foreground">Total Budget</div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditClick(budget)}>
+                              <Edit className="h-4 w-4 text-blue-500" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteBudget(budget.id)}>
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     )) : (
@@ -475,6 +732,56 @@ export function GovBudget() {
                   </div>
                 </CardContent>
               </Card>
+              <div className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span className="text-sm">
+                    Showing {paginatedHistory.length === 0 ? 0 : startHistory + 1}–
+                    {Math.min(startHistory + pageSizeHistory, filteredHistory.length)} of {filteredHistory.length}
+                  </span>
+                  <Select value={String(pageSizeHistory)} onValueChange={(v) => { setPageSizeHistory(Number(v)); setPageHistory(1) }}>
+                    <SelectTrigger className="w-[110px]">
+                      <SelectValue placeholder="Rows" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="3">3</SelectItem>
+                      <SelectItem value="5">5</SelectItem>
+                      <SelectItem value="10">10</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        onClick={(e) => { e.preventDefault(); if (canPrevHistory) setPageHistory((p) => p - 1) }}
+                        className={!canPrevHistory ? "pointer-events-none opacity-50" : ""}
+                        href="#"
+                      />
+                    </PaginationItem>
+
+                    {getHistoryPageWindow().map((p) => (
+                      <PaginationItem key={p}>
+                        <PaginationLink
+                          href="#"
+                          isActive={p === pageHistory}
+                          onClick={(e) => { e.preventDefault(); setPageHistory(p) }}
+                        >
+                          {p}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ))}
+
+                    <PaginationItem>
+                      <PaginationNext
+                        onClick={(e) => { e.preventDefault(); if (canNextHistory) setPageHistory((p) => p + 1) }}
+                        className={!canNextHistory ? "pointer-events-none opacity-50" : ""}
+                        href="#"
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
             </TabsContent>
 
             <TabsContent value="import" className="space-y-4">
@@ -544,9 +851,9 @@ export function GovBudget() {
                 </CardContent>
               </Card>
             </TabsContent>
-          </Tabs>
-        </main>
-      </div>
+          </Tabs >
+        </main >
+      </div >
     </div >
   )
 }

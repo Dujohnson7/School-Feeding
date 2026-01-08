@@ -22,7 +22,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 import { toast } from "sonner"
- 
+
 interface ApiRequestItem {
   id: string
   requestStatus: string
@@ -86,6 +86,7 @@ export function DistrictApprovals() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>("")
   const [orderPrice, setOrderPrice] = useState<string>("")
+  const [expectedDate, setExpectedDate] = useState<string>("")
   const [assignLoading, setAssignLoading] = useState(false)
 
   // Fetch items to map IDs to names
@@ -104,8 +105,11 @@ export function DistrictApprovals() {
   // Fetch suppliers
   useEffect(() => {
     const fetchSuppliers = async () => {
+      const districtId = localStorage.getItem("districtId")
+      if (!districtId) return
+
       try {
-        const data = await districtService.getAllSuppliers()
+        const data = await districtService.getSuppliersByDistrict(districtId)
         setSuppliers(data)
       } catch (err) {
         console.error("Error fetching suppliers:", err)
@@ -200,8 +204,8 @@ export function DistrictApprovals() {
   }
 
   const handleAssignOrder = async () => {
-    if (!pendingApprovalRequest || !selectedSupplierId || !orderPrice) {
-      toast.error("Please select a supplier and enter an order price.")
+    if (!pendingApprovalRequest || !selectedSupplierId || !orderPrice || !expectedDate) {
+      toast.error("Please fill in all required fields (Supplier, Price, Expected Date).")
       return
     }
 
@@ -216,6 +220,7 @@ export function DistrictApprovals() {
         requestItem: { id: pendingApprovalRequest.id },
         supplier: { id: selectedSupplierId },
         orderPrice: parseFloat(orderPrice),
+        expectedDate: expectedDate
       })
 
       toast.success("Request approved and order assigned to supplier successfully.")
@@ -224,6 +229,7 @@ export function DistrictApprovals() {
       setPendingApprovalRequest(null)
       setSelectedSupplierId("")
       setOrderPrice("")
+      setExpectedDate("")
       await refreshRequests()
     } catch (err: any) {
       console.error("Error assigning order:", err)
@@ -615,7 +621,7 @@ export function DistrictApprovals() {
             <DialogHeader>
               <DialogTitle>Assign Order to Supplier</DialogTitle>
               <DialogDescription>
-                Assign the approved request to a supplier. The request will be approved and the order will be created.
+                Assign the approved request to a supplier.
               </DialogDescription>
             </DialogHeader>
 
@@ -655,6 +661,17 @@ export function DistrictApprovals() {
                 />
               </div>
 
+              <div>
+                <Label htmlFor="expectedDate">Expected Delivery Date *</Label>
+                <Input
+                  id="expectedDate"
+                  type="date"
+                  value={expectedDate}
+                  onChange={(e) => setExpectedDate(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                />
+              </div>
+
               <div className="rounded-md bg-muted p-3">
                 <p className="text-sm font-medium mb-2">Request Information</p>
                 <div className="space-y-1 text-sm text-muted-foreground">
@@ -674,6 +691,7 @@ export function DistrictApprovals() {
                   setPendingApprovalRequest(null)
                   setSelectedSupplierId("")
                   setOrderPrice("")
+                  setExpectedDate("")
                 }}
                 disabled={assignLoading}
               >
@@ -681,7 +699,7 @@ export function DistrictApprovals() {
               </Button>
               <Button
                 onClick={handleAssignOrder}
-                disabled={assignLoading || !selectedSupplierId || !orderPrice}
+                disabled={assignLoading || !selectedSupplierId || !orderPrice || !expectedDate}
               >
                 {assignLoading ? (
                   <>
@@ -691,7 +709,7 @@ export function DistrictApprovals() {
                 ) : (
                   <>
                     <Check className="mr-2 h-4 w-4" />
-                    Approve & Assign Order
+                    Assign Order
                   </>
                 )}
               </Button>

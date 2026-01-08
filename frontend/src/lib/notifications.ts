@@ -212,56 +212,56 @@ export const notificationService = {
 
     try {
       // Fetch budget status notifications
-      try {
-        const budgetResponse = await apiClient.get(
-          `/budget/all`
-        )
-        const budgets = Array.isArray(budgetResponse.data) ? budgetResponse.data : []
+      // try {
+      //   const budgetResponse = await apiClient.get(
+      //     `/budget/all`
+      //   )
+      //   const budgets = Array.isArray(budgetResponse.data) ? budgetResponse.data : []
 
-        budgets.forEach((budget: any) => {
-          if (budget.status && budget.status !== "APPROVED") {
-            const districtName = budget.district?.district || "A district"
-            notifications.push({
-              id: budget.id,
-              message: `Budget status update for ${districtName}: ${budget.status}`,
-              type: "budget_status",
-              timestamp: budget.updated,
-              link: `/gov-budget`,
-            })
-          }
-        })
-      } catch (err: any) {
-        // Silently handle 403/400 errors as these might be permission issues
-        if (err.response?.status !== 403 && err.response?.status !== 400) {
-          console.error("Error fetching budget status:", err)
-        }
-      }
+      //   budgets.forEach((budget: any) => {
+      //     if (budget.status && budget.status !== "APPROVED") {
+      //       const districtName = budget.district?.district || "A district"
+      //       notifications.push({
+      //         id: budget.id,
+      //         message: `Budget status update for ${districtName}: ${budget.status}`,
+      //         type: "budget_status",
+      //         timestamp: budget.updated,
+      //         link: `/gov-budget`,
+      //       })
+      //     }
+      //   })
+      // } catch (err: any) {
+      //   // Silently handle 403/400 errors as these might be permission issues
+      //   if (err.response?.status !== 403 && err.response?.status !== 400) {
+      //     console.error("Error fetching budget status:", err)
+      //   }
+      // }
 
       // Fetch completed deliveries
-      try {
-        const deliveriesResponse = await apiClient.get(
-          `/supplierDelivery/all`
-        )
-        const deliveries = Array.isArray(deliveriesResponse.data) ? deliveriesResponse.data : []
+      // try {
+      //   const deliveriesResponse = await apiClient.get(
+      //     `/supplierDelivery/all`
+      //   )
+      //   const deliveries = Array.isArray(deliveriesResponse.data) ? deliveriesResponse.data : []
 
-        deliveries.forEach((delivery: any) => {
-          if (delivery.deliveryStatus === "DELIVERED") {
-            const districtName = delivery.requestItem?.district?.district || "A district"
-            notifications.push({
-              id: delivery.id,
-              message: `Delivery completed for ${districtName}`,
-              type: "delivery_complete",
-              timestamp: delivery.updated,
-              link: `/gov-dashboard`,
-            })
-          }
-        })
-      } catch (err: any) {
-        // Silently handle 403/400 errors
-        if (err.response?.status !== 400 && err.response?.status !== 403) {
-          console.error("Error fetching completed deliveries:", err)
-        }
-      }
+      //   deliveries.forEach((delivery: any) => {
+      //     if (delivery.deliveryStatus === "DELIVERED") {
+      //       const districtName = delivery.requestItem?.district?.district || "A district"
+      //       notifications.push({
+      //         id: delivery.id,
+      //         message: `Delivery completed for ${districtName}`,
+      //         type: "delivery_complete",
+      //         timestamp: delivery.updated,
+      //         link: `/gov-dashboard`,
+      //       })
+      //     }
+      //   })
+      // } catch (err: any) {
+      //   // Silently handle 403/400 errors
+      //   if (err.response?.status !== 400 && err.response?.status !== 403) {
+      //     console.error("Error fetching completed deliveries:", err)
+      //   }
+      // }
     } catch (err) {
       console.error("Error fetching government notifications:", err)
     }

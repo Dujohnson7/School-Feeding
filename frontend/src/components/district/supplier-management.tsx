@@ -55,9 +55,12 @@ export function SupplierManagement() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [pendingRequests, setPendingRequests] = useState<any[]>([])
   const [selectedRequest, setSelectedRequest] = useState<string>("")
+  const [expectedDate, setExpectedDate] = useState<string>("")
+  const [orderPrice, setOrderPrice] = useState<string>("")
   const [loading, setLoading] = useState(true)
   const [assignLoading, setAssignLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [items, setItems] = useState<any[]>([])
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -71,13 +74,15 @@ export function SupplierManagement() {
           return
         }
 
-        const [suppliersData, requestsData] = await Promise.all([
+        const [suppliersData, requestsData, itemsData] = await Promise.all([
           districtService.getSuppliersByDistrict(districtId),
-          districtService.getRequestsByStatus(districtId, "PENDING")
+          districtService.getRequestsByStatus(districtId, "PENDING"),
+          districtService.getAllItems()
         ])
 
         setSuppliers(suppliersData || [])
         setPendingRequests(requestsData || [])
+        setItems(itemsData || [])
       } catch (err: any) {
         if (err.response?.status === 404) {
           setSuppliers([])
@@ -149,8 +154,8 @@ export function SupplierManagement() {
   }
 
   const submitAssignment = async () => {
-    if (!selectedRequest || !selectedSupplier) {
-      toast.error("Please select a request item")
+    if (!selectedRequest || !selectedSupplier || !expectedDate || !orderPrice) {
+      toast.error("Please fill in all required fields (Request, Price, Date)")
       return
     }
 
@@ -159,19 +164,21 @@ export function SupplierManagement() {
       const request = pendingRequests.find(r => r.id === selectedRequest)
       if (!request) return
 
-      // Calculate total price based on request item details
-      const totalPrice = request.requestItemDetails?.reduce((acc: number, detail: any) => {
-        return acc + (detail.item?.price * detail.quantity)
-      }, 0) || 0
+      // First approve the request
+      await districtService.approveRequest(request.id)
 
+      // Then assign order to supplier
       await districtService.assignOrder({
         requestItem: { id: selectedRequest },
         supplier: { id: selectedSupplier.id },
-        orderPrice: totalPrice
+        orderPrice: parseFloat(orderPrice),
+        expectedDate: expectedDate
       })
 
       toast.success("Order assigned successfully")
       setAssignDialogOpen(false)
+      setExpectedDate("")
+      setOrderPrice("")
       // Refresh pending requests
       const districtId = localStorage.getItem("districtId")
       if (districtId) {
@@ -468,10 +475,10 @@ export function SupplierManagement() {
 
             <div className="grid gap-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="request">Select Pending Request</Label>
+                <Label htmlFor="request">Select Request</Label>
                 <Select value={selectedRequest} onValueChange={setSelectedRequest}>
                   <SelectTrigger id="request" className="w-full">
-                    <SelectValue placeholder="Choose a pending request..." />
+                    <SelectValue placeholder="Choose a request..." />
                   </SelectTrigger>
                   <SelectContent>
                     {pendingRequests.length > 0 ? (
@@ -481,11 +488,10 @@ export function SupplierManagement() {
                         </SelectItem>
                       ))
                     ) : (
-                      <SelectItem value="none" disabled>No pending requests</SelectItem>
+                      <SelectItem value="none" disabled>No requests</SelectItem>
                     )}
                   </SelectContent>
                 </Select>
-                <p className="text-[10px] text-muted-foreground">Only PENDING requests from schools are shown here.</p>
               </div>
 
               {selectedRequest && (
@@ -501,30 +507,51 @@ export function SupplierManagement() {
                   <div className="space-y-1.5">
                     <p className="text-[11px] font-medium text-muted-foreground uppercase">Items requested:</p>
                     <div className="space-y-1">
-                      {pendingRequests.find(r => r.id === selectedRequest)?.requestItemDetails?.map((detail: any, idx: number) => (
-                        <div key={idx} className="flex justify-between text-xs border-b border-muted py-1 last:border-0">
-                          <span>{detail.item?.name}</span>
-                          <span className="font-mono">{detail.quantity}{detail.item?.unit}</span>
-                        </div>
-                      ))}
+                      {pendingRequests.find(r => r.id === selectedRequest)?.requestItemDetails?.map((detail: any, idx: number) => {
+                        const item = items.find(i => i.id === detail.item?.id)
+                        const itemName = item?.name || detail.item?.name || "Item"
+                        const itemUnit = item?.unit || detail.item?.unit || "units"
+                        return (
+                          <div key={idx} className="flex justify-between text-xs border-b border-muted py-1 last:border-0">
+                            <span>{itemName}</span>
+                            <span className="font-mono">{detail.quantity} {itemUnit}</span>
+                          </div>
+                        )
+                      })}
                     </div>
-                  </div>
-
-                  <div className="pt-2 border-t border-muted-foreground/10 flex justify-between items-center text-sm font-bold">
-                    <span>Estimated Cost:</span>
-                    <span className="text-primary font-mono">
-                      {pendingRequests.find(r => r.id === selectedRequest)?.requestItemDetails?.reduce((acc: number, d: any) => acc + (d.item?.price * d.quantity), 0).toLocaleString()} RWF
-                    </span>
                   </div>
                 </div>
               )}
+
+              <div className="space-y-2">
+                <Label htmlFor="orderPrice">Order Price (RWF) *</Label>
+                <Input
+                  id="orderPrice"
+                  type="number"
+                  placeholder="Enter agreed price"
+                  value={orderPrice}
+                  onChange={(e) => setOrderPrice(e.target.value)}
+                  min="0"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="expectedDate">Expected Delivery Date *</Label>
+                <Input
+                  id="expectedDate"
+                  type="date"
+                  value={expectedDate}
+                  onChange={(e) => setExpectedDate(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                />
+              </div>
             </div>
 
             <DialogFooter>
               <Button variant="outline" onClick={() => setAssignDialogOpen(false)} disabled={assignLoading}>
                 Cancel
               </Button>
-              <Button onClick={submitAssignment} disabled={assignLoading || !selectedRequest}>
+              <Button onClick={submitAssignment} disabled={assignLoading || !selectedRequest || !expectedDate || !orderPrice}>
                 {assignLoading ? "Assigning..." : "Confirm Assignment"}
               </Button>
             </DialogFooter>

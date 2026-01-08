@@ -22,11 +22,11 @@ import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
 import { toast } from "sonner"
-import { budgetService, BudgetDistrict, BudgetSchool } from "../government/service/budgetService"
+import { districtService } from "./service/districtService"
 
 export function DistrictBudget() {
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedYear, setSelectedYear] = useState("2025")
+  const [selectedFiscalYear, setSelectedFiscalYear] = useState("all")
   const [selectedSchool, setSelectedSchool] = useState("all")
   const [pageSchools, setPageSchools] = useState(1)
   const [pageSizeSchools, setPageSizeSchools] = useState(5)
@@ -42,8 +42,9 @@ export function DistrictBudget() {
     }).format(amount)
   }
 
-  const [districtBudgetData, setDistrictBudgetData] = useState<BudgetDistrict[]>([])
-  const [budgetSchools, setBudgetSchools] = useState<BudgetSchool[]>([])
+  const [districtBudgetData, setDistrictBudgetData] = useState<any[]>([])
+  const [budgetSchools, setBudgetSchools] = useState<any[]>([])
+  const [budgetFiscals, setBudgetFiscals] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -59,15 +60,16 @@ export function DistrictBudget() {
 
     try {
       setLoading(true)
-      const budgetGovData = await budgetService.getAllBudgetGovDistrict()
-      // Note: We might want to store different things in different states
-      // but let's see how they were used before.
+      const [schoolAllocations, districtAllocations, fiscalYears] = await Promise.all([
+        districtService.getBudgetAllocatedToSchool(districtId),
+        districtService.getBudgetAllocatedToDistrict(districtId),
+        districtService.getBudgetFiscalYears(districtId)
+      ])
 
-      const budgetData = await budgetService.getBudgetDistrictsByDistrictId(districtId)
-      setDistrictBudgetData(budgetData)
+      setBudgetSchools(Array.isArray(schoolAllocations) ? schoolAllocations : [])
+      setDistrictBudgetData(Array.isArray(districtAllocations) ? districtAllocations : [])
+      setBudgetFiscals(Array.isArray(fiscalYears) ? fiscalYears : [])
 
-      const schoolsData = await budgetService.getBudgetSchoolsByDistrictId(districtId)
-      setBudgetSchools(schoolsData)
     } catch (error) {
       console.error("Error fetching district budget data:", error)
       toast.error("Failed to load budget data")
@@ -77,7 +79,8 @@ export function DistrictBudget() {
   }
 
   // Calculate overview totals based on fetched data
-  const currentBudget = districtBudgetData[0] || null
+  // Assuming districtBudgetData contains allocations TO the district FROM gov
+  const currentBudget = districtBudgetData.find((d: any) => d.budgetGov?.fiscalState === "ACTIVE") || districtBudgetData[0]
   const activeFiscalYear = currentBudget?.budgetGov?.fiscalYear || "N/A"
 
   const overview = {
@@ -85,18 +88,25 @@ export function DistrictBudget() {
     spent: districtBudgetData.reduce((acc, curr) => acc + curr.spentBudget, 0),
     remaining: districtBudgetData.reduce((acc, curr) => acc + (curr.budget - curr.spentBudget), 0),
     schools: budgetSchools.length,
-    studentsServed: budgetSchools.reduce((acc, curr) => acc + (curr.school?.totalStudents || 0), 0),
+    studentsServed: budgetSchools.reduce((acc, curr) => acc + (curr.school?.student || 0), 0),
   }
 
+  // Deduce unique lists for filters
+  const uniqueSchools = Array.from(new Set(budgetSchools.map(bs => bs.school?.name || bs.school?.schoolName).filter(Boolean)))
+  const uniqueFiscalYears = Array.from(new Set(budgetSchools.map(bs => bs.budgetDistrict?.budgetGov?.fiscalYear).filter(Boolean)))
+
   const filteredSchools = budgetSchools.filter(
-    (bs) =>
-      bs.school?.schoolName?.toLowerCase().includes(searchTerm.toLowerCase()) &&
-      (selectedSchool === "all" || bs.school?.schoolName === selectedSchool),
+    (bs) => {
+      const matchesSearch = (bs.school?.name?.toLowerCase().includes(searchTerm.toLowerCase()) || bs.school?.school?.toLowerCase().includes(searchTerm.toLowerCase()))
+      const matchesSchool = selectedSchool === "all" || bs.school?.name === selectedSchool || bs.school?.schoolName === selectedSchool
+      const matchesYear = selectedFiscalYear === "all" || bs.budgetDistrict?.budgetGov?.fiscalYear === selectedFiscalYear
+      return matchesSearch && matchesSchool && matchesYear
+    }
   )
 
   useEffect(() => {
     setPageSchools(1)
-  }, [searchTerm, selectedSchool])
+  }, [searchTerm, selectedSchool, selectedFiscalYear])
 
   const totalPagesSchools = Math.max(1, Math.ceil(filteredSchools.length / pageSizeSchools))
   const startSchools = (pageSchools - 1) * pageSizeSchools
@@ -113,9 +123,9 @@ export function DistrictBudget() {
     return Array.from({ length: end - start + 1 }, (_, i) => start + i)
   }
 
-  const totalPagesHist = Math.max(1, Math.ceil(districtBudgetData.length / pageSizeHist))
+  const totalPagesHist = Math.max(1, Math.ceil(budgetFiscals.length / pageSizeHist))
   const startHist = (pageHist - 1) * pageSizeHist
-  // const paginatedHistory = districtBudgetData.slice(startHist, startHist + pageSizeHist) // If needed later
+  // const paginatedHistory = budgetFiscals.slice(startHist, startHist + pageSizeHist) 
   const canPrevHist = pageHist > 1
   const canNextHist = pageHist < totalPagesHist
   const getHistPageWindow = () => {
@@ -128,8 +138,52 @@ export function DistrictBudget() {
     return Array.from({ length: end - start + 1 }, (_, i) => start + i)
   }
 
-  // Placeholder for monthly spending since we don't have it in the API yet
-  const monthlySpending: any[] = []
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case "ON_TRACK": return "default" // or success if available
+      case "AT_RISK": return "warning"
+      case "OFF_TRACK": return "destructive"
+      default: return "secondary"
+    }
+  }
+
+  const handleExport = () => {
+    if (filteredSchools.length === 0) {
+      toast.error("No data to export")
+      return
+    }
+
+    // CSV Header with BOM for Excel compatibility
+    const header = [
+      "School Name", "Fiscal Year", "Student Count", "Allocated Budget", "Spent Budget", "Budget Status", "Percent Utilized"
+    ].join(",")
+
+    const rows = filteredSchools.map(bs => {
+      const utilization = bs.budget > 0 ? ((bs.spentBudget / bs.budget) * 100).toFixed(1) : "0"
+      return [
+        `"${bs.school?.name || bs.school?.schoolName || "Unknown"}"`,
+        `"${bs.budgetDistrict?.budgetGov?.fiscalYear || "N/A"}"`,
+        bs.school?.student || 0,
+        bs.budget,
+        bs.spentBudget,
+        bs.budgetStatus,
+        `${utilization}%`
+      ].join(",")
+    })
+
+    const csvContent = "\uFEFF" + [header, ...rows].join("\n")
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.setAttribute("download", `school_budget_allocations_${new Date().toISOString().split('T')[0]}.csv`) // dynamic filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+
+    toast.success("Export downloaded successfully")
+  }
 
   return (
     <div className="flex-1">
@@ -158,12 +212,12 @@ export function DistrictBudget() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{formatCurrency(overview.totalAllocated)}</div>
-                <p className="text-xs text-muted-foreground">FY {activeFiscalYear}</p>
+                <p className="text-xs text-muted-foreground">Across all fiscal years</p>
               </CardContent>
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Spent</CardTitle>
+                <CardTitle className="text-sm font-medium">Total Spent</CardTitle>
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -187,12 +241,12 @@ export function DistrictBudget() {
             </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Schools</CardTitle>
+                <CardTitle className="text-sm font-medium">Schools Allocated</CardTitle>
                 <School className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{overview.schools}</div>
-                <p className="text-xs text-muted-foreground">With budget</p>
+                <p className="text-xs text-muted-foreground">Schools funded</p>
               </CardContent>
             </Card>
             <Card>
@@ -211,10 +265,10 @@ export function DistrictBudget() {
             <div className="flex items-center justify-between">
               <TabsList>
                 <TabsTrigger value="schools">School Allocations</TabsTrigger>
-                <TabsTrigger value="spending">Monthly Spending</TabsTrigger>
+                <TabsTrigger value="spending">District Budget</TabsTrigger>
                 <TabsTrigger value="history">Budget Fiscal Year</TabsTrigger>
               </TabsList>
-              <Button variant="outline">
+              <Button variant="outline" onClick={handleExport}>
                 <Download className="mr-2 h-4 w-4" />
                 Export Report
               </Button>
@@ -222,8 +276,8 @@ export function DistrictBudget() {
 
             <TabsContent value="schools" className="space-y-4">
               {/* Filters */}
-              <div className="flex items-center gap-4">
-                <div className="relative flex-1 max-w-sm">
+              <div className="flex flex-col sm:flex-row items-center gap-4">
+                <div className="relative flex-1 w-full sm:max-w-sm">
                   <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder="Search schools..."
@@ -232,21 +286,37 @@ export function DistrictBudget() {
                     className="pl-8"
                   />
                 </div>
-                <Select value={selectedSchool} onValueChange={setSelectedSchool}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="All Schools" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Schools</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <Select value={selectedSchool} onValueChange={setSelectedSchool}>
+                    <SelectTrigger className="w-full sm:w-[180px]">
+                      <SelectValue placeholder="All Schools" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Schools</SelectItem>
+                      {uniqueSchools.map((school: any) => (
+                        <SelectItem key={school} value={school}>{school}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select value={selectedFiscalYear} onValueChange={setSelectedFiscalYear}>
+                    <SelectTrigger className="w-full sm:w-[150px]">
+                      <SelectValue placeholder="Fiscal Year" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Fiscal Years</SelectItem>
+                      {uniqueFiscalYears.map((year: any) => (
+                        <SelectItem key={year} value={year}>{year}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               {/* School Allocations */}
               <Card>
                 <CardHeader>
                   <CardTitle>School Budget Allocations</CardTitle>
-                  <CardDescription>Budget allocation and spending by school in Nyarugenge District</CardDescription>
+                  <CardDescription>Budget allocation and spending by school</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
@@ -254,12 +324,14 @@ export function DistrictBudget() {
                       <div key={bs.id} className="flex items-center justify-between p-4 border rounded-lg">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
-                            <h3 className="font-medium">{bs.school?.schoolName || "Unknown School"}</h3>
-                            <Badge variant={bs.budgetStatus === "ON_TRACK" ? "default" : "destructive"}>
-                              {bs.budgetStatus}
+                            <h3 className="font-medium">{bs.school?.name || "Unknown School"}</h3>
+                            <Badge variant={getStatusBadgeVariant(bs.budgetStatus) as any}>
+                              {bs.budgetStatus?.replace(/_/g, " ")}
                             </Badge>
                           </div>
-                          <p className="text-sm text-muted-foreground">{bs.school?.totalStudents || 0} students</p>
+                          <p className="text-sm text-muted-foreground">
+                            {bs.school?.student || 0} students • FY {bs.budgetDistrict?.budgetGov?.fiscalYear || "N/A"}
+                          </p>
                           <div className="flex items-center gap-4 text-sm">
                             <span>Allocated: {formatCurrency(bs.budget)}</span>
                             <span>Spent: {formatCurrency(bs.spentBudget)}</span>
@@ -274,7 +346,7 @@ export function DistrictBudget() {
                       </div>
                     )) : (
                       <div className="text-center text-sm text-muted-foreground">
-                        {loading ? "Loading school allocations..." : "No schools found."}
+                        {loading ? "Loading school allocations..." : "No schools found matching filters."}
                       </div>
                     )}
                   </div>
@@ -335,28 +407,37 @@ export function DistrictBudget() {
             <TabsContent value="spending" className="space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle>Monthly Spending Analysis</CardTitle>
-                  <CardDescription>Comparison of budgeted vs actual spending by month</CardDescription>
+                  <CardTitle>District Budget</CardTitle>
+                  <CardDescription> District budget allocations received from central government</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {monthlySpending.map((month) => (
-                      <div key={month.month} className="flex items-center justify-between p-4 border rounded-lg">
+                    {districtBudgetData.length > 0 ? districtBudgetData.map((bd) => (
+                      <div key={bd.id} className="flex items-center justify-between p-4 border rounded-lg">
                         <div className="space-y-1">
-                          <h3 className="font-medium">{month.month} 2025</h3>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-medium">FY {bd.budgetGov?.fiscalYear} - {bd.district?.district || "District"}</h3>
+                            <Badge variant={getStatusBadgeVariant(bd.budgetStatus) as any}>
+                              {bd.budgetStatus?.replace(/_/g, " ")}
+                            </Badge>
+                          </div>
                           <div className="flex items-center gap-4 text-sm">
-                            <span>Budgeted: {formatCurrency(month.budgeted)}</span>
-                            <span>Actual: {formatCurrency(month.actual)}</span>
+                            <span>Allocated: {formatCurrency(bd.budget)}</span>
+                            <span>Spent: {formatCurrency(bd.spentBudget)}</span>
                           </div>
                         </div>
                         <div className="text-right space-y-2">
                           <div className="text-sm font-medium">
-                            {((month.actual / month.budgeted) * 100).toFixed(1)}% of budget
+                            {bd.budget > 0 ? ((bd.spentBudget / bd.budget) * 100).toFixed(1) : 0}% utilized
                           </div>
-                          <Progress value={(month.actual / month.budgeted) * 100} className="w-[100px]" />
+                          <Progress value={bd.budget > 0 ? (bd.spentBudget / bd.budget) * 100 : 0} className="w-[100px]" />
                         </div>
                       </div>
-                    ))}
+                    )) : (
+                      <div className="text-center text-sm text-muted-foreground">
+                        {loading ? "Loading district budget..." : "No district allocations found."}
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -370,25 +451,25 @@ export function DistrictBudget() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {districtBudgetData.length > 0 ? districtBudgetData.map((bd) => (
-                      <div key={bd.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    {budgetFiscals.length > 0 ? budgetFiscals.map((bf) => (
+                      <div key={bf.id} className="flex items-center justify-between p-4 border rounded-lg">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
-                            <h3 className="font-medium">FY {bd.budgetGov?.fiscalYear || "N/A"}</h3>
-                            <Badge variant={bd.budgetGov?.eFiscalState === "ACTIVE" ? "default" : "secondary"}>
-                              {bd.budgetGov?.eFiscalState || "N/A"}
+                            <h3 className="font-medium">FY {bf.fiscalYear}</h3>
+                            <Badge variant={bf.fiscalState === "ACTIVE" ? "default" : "secondary"}>
+                              {bf.fiscalState}
                             </Badge>
                           </div>
-                          <p className="text-sm text-muted-foreground">Received allocation from central government</p>
+                          <p className="text-sm text-muted-foreground">{bf.description}</p>
                         </div>
                         <div className="text-right">
-                          <div className="font-medium">{formatCurrency(bd.budget)}</div>
-                          <div className="text-sm text-muted-foreground">Total Allocated</div>
+                          <div className="font-medium">{formatCurrency(bf.budget)}</div>
+                          <div className="text-sm text-muted-foreground">Total Budget</div>
                         </div>
                       </div>
                     )) : (
                       <div className="text-center text-sm text-muted-foreground">
-                        {loading ? "Loading history..." : "No history found."}
+                        {loading ? "Loading fiscal years..." : "No fiscal years found."}
                       </div>
                     )}
                   </div>
@@ -397,8 +478,8 @@ export function DistrictBudget() {
               <div className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <span className="text-sm">
-                    Showing {districtBudgetData.length === 0 ? 0 : startHist + 1}–
-                    {Math.min(startHist + pageSizeHist, districtBudgetData.length)} of {districtBudgetData.length}
+                    Showing {budgetFiscals.length === 0 ? 0 : startHist + 1}–
+                    {Math.min(startHist + pageSizeHist, budgetFiscals.length)} of {budgetFiscals.length}
                   </span>
                   <Select value={String(pageSizeHist)} onValueChange={(v) => { setPageSizeHist(Number(v)); setPageHist(1) }}>
                     <SelectTrigger className="w-[110px]">
