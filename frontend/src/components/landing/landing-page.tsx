@@ -1,13 +1,11 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, type CarouselApi } from "@/components/ui/carousel"
-import { School, Users, Truck, MapPin, TrendingUp, Shield, Clock, CheckCircle, ArrowRight, Phone, Mail, Globe, Menu, X, Brain, BookOpen, Activity, Home, Utensils, GraduationCap, ChevronRight, BarChart3, Target, Zap } from "lucide-react"
+import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from "@/components/ui/carousel"
+import { School, Users, Truck, MapPin, ArrowRight, Globe, Menu, X, Brain, BookOpen, Activity, Home, BarChart3, Target, Zap } from "lucide-react"
 import { Link } from "react-router-dom"
 import { cn } from "@/lib/utils"
+import { landingService, LandingStats } from "./service/landingService"
 
 function useIntersectionObserver(options = {}) {
   const [element, setElement] = useState<HTMLElement | null>(null);
@@ -19,7 +17,7 @@ function useIntersectionObserver(options = {}) {
     const observer = new IntersectionObserver(([entry]) => {
       if (entry.isIntersecting) {
         setIsVisible(true);
-        observer.disconnect(); 
+        observer.disconnect();
       }
     }, { threshold: 0.1, ...options });
 
@@ -44,7 +42,7 @@ const Counter = ({ end, duration = 2000, suffix = "" }: { end: number, duration?
     const animate = (currentTime: number) => {
       if (!startTime) startTime = currentTime;
       const progress = Math.min((currentTime - startTime) / duration, 1);
- 
+
       const easeOutQuart = (x: number) => 1 - Math.pow(1 - x, 4);
 
       setCount(Math.floor(easeOutQuart(progress) * end));
@@ -68,6 +66,26 @@ export function LandingPage() {
   const [current, setCurrent] = useState(0)
   const [count, setCount] = useState(0)
   const [scrolled, setScrolled] = useState(false)
+  const [liveStats, setLiveStats] = useState<LandingStats>({
+    totalDistrict: 30,
+    totalStudent: 1200000,
+    totalSupplier: 156,
+    totalSchool: 2847
+  })
+
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    message: ""
+  })
+
+  useEffect(() => {
+    const fetchLiveStats = async () => {
+      const data = await landingService.getStats()
+      setLiveStats(data)
+    }
+    fetchLiveStats()
+  }, [])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -97,18 +115,49 @@ export function LandingPage() {
       if (api.canScrollNext()) {
         api.scrollNext()
       } else {
-        api.scrollTo(0) 
+        api.scrollTo(0)
       }
     }, 6000)
 
     return () => clearInterval(interval)
   }, [api])
 
+  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, targetId: string) => {
+    e.preventDefault();
+    const element = document.getElementById(targetId.replace('#', ''));
+    if (element) {
+      const offset = 80;
+      const bodyRect = document.body.getBoundingClientRect().top;
+      const elementRect = element.getBoundingClientRect().top;
+      const elementPosition = elementRect - bodyRect;
+      const offsetPosition = elementPosition - offset;
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: "smooth"
+      });
+    }
+    setMobileMenuOpen(false);
+  };
+
+  const handleContactSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const subject = `Inquiry from ${formData.name}`;
+    const body = `Name: ${formData.name}\nEmail: ${formData.email}\n\nMessage:\n${formData.message}`;
+    window.location.href = `mailto:schoolfeeding.info@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+
+  const formatDisplay = (val: number) => {
+    if (val >= 1000000) return `${(val / 1000000).toFixed(1)}M`
+    if (val >= 1000) return `${(val / 1000).toFixed(1)}K`
+    return val.toString()
+  }
+
   const stats = [
-    { label: "Schools Supported", value: 2847, description: "Partner institutions", icon: School, color: "text-blue-600", bg: "bg-blue-50" },
-    { label: "Students Fed Daily", value: 1200000, isFloat: true, display: "1.2M", description: "Beneficiaries", icon: Users, color: "text-indigo-600", bg: "bg-indigo-50" },
-    { label: "Active Suppliers", value: 156, description: "Local partners", icon: Truck, color: "text-sky-600", bg: "bg-sky-50" },
-    { label: "Districts Covered", value: 30, description: "Nationwide reach", icon: MapPin, color: "text-purple-600", bg: "bg-purple-50" },
+    { label: "Schools Supported", value: liveStats.totalSchool, description: "Partner institutions", icon: School, color: "text-blue-600", bg: "bg-blue-50" },
+    { label: "Students Fed Daily", value: liveStats.totalStudent, isFloat: true, display: formatDisplay(liveStats.totalStudent), description: "Beneficiaries", icon: Users, color: "text-indigo-600", bg: "bg-indigo-50" },
+    { label: "Active Suppliers", value: liveStats.totalSupplier, description: "Local partners", icon: Truck, color: "text-sky-600", bg: "bg-sky-50" },
+    { label: "Districts Covered", value: liveStats.totalDistrict, description: "Nationwide reach", icon: MapPin, color: "text-purple-600", bg: "bg-purple-50" },
   ]
 
   const importanceItems = [
@@ -143,55 +192,58 @@ export function LandingPage() {
       {/* Navigation */}
       <nav
         className={cn(
-          "fixed w-full z-50 transition-all duration-300 border-b border-transparent",
-          scrolled ? "bg-white/95 backdrop-blur-md shadow-sm border-gray-100 py-2" : "bg-transparent py-4 text-white"
+          "fixed w-full z-50 transition-all duration-300 border-b",
+          scrolled ? "bg-white/95 backdrop-blur-md shadow-sm border-gray-100 py-2" : "bg-white py-4 shadow-sm border-gray-100"
         )}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-3 group cursor-pointer">
-              <div className="relative overflow-hidden rounded-full transition-transform duration-300 group-hover:scale-110">
+              <div className="relative overflow-hidden transition-transform duration-300 group-hover:scale-110">
                 <img
                   src="/logo.svg"
                   alt="School Feeding Logo"
-                  width={40}
-                  height={40}
-                  className="h-10 w-10 object-cover"
+                  width={32}
+                  height={32}
+                  className="h-8 w-8 object-contain"
                 />
               </div>
-              <span className={cn("text-xl font-bold transition-colors", scrolled ? "text-slate-900" : "text-white drop-shadow-md")}>
+              <span className="text-xl font-bold text-blue-900">
                 School Feeding
               </span>
             </div>
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-8">
-              {['About', 'Services', 'Contact'].map((item) => (
+              {['Home', 'About', 'Importance', 'Impact'].map((item) => (
                 <a
                   key={item}
                   href={`#${item.toLowerCase()}`}
+                  onClick={(e) => handleNavClick(e, item.toLowerCase())}
                   className={cn(
-                    "text-sm font-medium transition-all hover:-translate-y-0.5",
-                    scrolled
-                      ? "text-slate-600 hover:text-blue-600"
-                      : "text-white/90 hover:text-white drop-shadow-sm"
+                    "text-sm font-medium transition-all hover:text-blue-600",
+                    scrolled ? "text-slate-600" : "text-slate-600"
                   )}
                 >
                   {item}
                 </a>
               ))}
-              <Link to="/login">
+              <a
+                href="#contact"
+                onClick={(e) => handleNavClick(e, 'contact')}
+              >
                 <Button
                   className={cn(
-                    "transition-all duration-300 px-6 rounded-full",
+                    "transition-all duration-300 px-6 rounded-md flex items-center gap-2",
                     scrolled
-                      ? "bg-blue-900 hover:bg-blue-800 text-white shadow-md"
-                      : "bg-white text-blue-900 hover:bg-gray-100 shadow-lg"
+                      ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md"
+                      : "bg-blue-600 text-white hover:bg-blue-700 shadow-lg"
                   )}
                 >
-                  Login
+                  Contact
+                  <ArrowRight className="w-4 h-4" />
                 </Button>
-              </Link>
+              </a>
             </div>
 
             {/* Mobile menu button */}
@@ -200,7 +252,7 @@ export function LandingPage() {
                 variant="ghost"
                 size="icon"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className={cn(scrolled ? "text-slate-900" : "text-white")}
+                className="text-slate-900"
               >
                 {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
               </Button>
@@ -211,22 +263,25 @@ export function LandingPage() {
           {mobileMenuOpen && (
             <div className="md:hidden absolute top-full left-0 w-full bg-white/95 backdrop-blur-xl border-t border-gray-100 shadow-xl animate-in slide-in-from-top-5">
               <div className="flex flex-col p-4 space-y-4">
-                {['About', 'Services', 'Team', 'Contact'].map((item) => (
+                {['Home', 'About', 'Importance', 'Impact'].map((item) => (
                   <a
                     key={item}
                     href={`#${item.toLowerCase()}`}
+                    onClick={(e) => handleNavClick(e, item.toLowerCase())}
                     className="text-slate-600 font-medium hover:text-blue-600 hover:bg-blue-50 px-4 py-3 rounded-lg transition-colors"
-                    onClick={() => setMobileMenuOpen(false)}
                   >
                     {item}
                   </a>
                 ))}
                 <div className="px-4 pt-2">
-                  <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
+                  <a
+                    href="#contact"
+                    onClick={(e) => handleNavClick(e, 'contact')}
+                  >
                     <Button className="w-full bg-blue-900 hover:bg-blue-800 text-white shadow-lg rounded-full">
-                      Login
+                      Contact
                     </Button>
-                  </Link>
+                  </a>
                 </div>
               </div>
             </div>
@@ -234,11 +289,11 @@ export function LandingPage() {
         </div>
       </nav>
 
-      {/* Hero Section with Slideshow */}
-      <section className="relative w-full overflow-hidden h-[780px]">
+      {/* Hero Section with Slideshow - Tall height for impact */}
+      <section id="home" className="relative w-full overflow-hidden h-[650px] md:h-[880px]">
         <Carousel setApi={setApi} className="w-full h-full" opts={{ loop: true, align: "start" }}>
           <CarouselContent className="-ml-0 w-full h-full">
-            {/* Slide 1 */}
+            {/* Slide 1 - Brighter Future */}
             <CarouselItem className="pl-0 basis-full h-full">
               <div className="relative w-full h-full">
                 <div className="absolute inset-0 bg-blue-900/10 z-10"></div>
@@ -254,7 +309,7 @@ export function LandingPage() {
                       <h4 className="text-yellow-400 font-semibold tracking-wide uppercase text-sm">
                         Building a brighter future
                       </h4>
-                      <h1 className="text-5xl md:text-7xl font-bold text-white leading-tight">
+                      <h1 className="text-6xl md:text-7xl font-bold text-white leading-[0.95]">
                         WE IMPROVE YOUR <br />
                         <span className="text-blue-400">SCHOOL FEEDING</span>
                       </h1>
@@ -274,11 +329,11 @@ export function LandingPage() {
               </div>
             </CarouselItem>
 
-            {/* Slide 2 */}
+            {/* Slide 2 - Quality Nutrition */}
             <CarouselItem className="pl-0 basis-full h-full">
               <div className="relative w-full h-full">
                 <img
-                  src="/images/image02.jpg"
+                  src="/images/image07.jpg"
                   alt="Students learning"
                   className="w-full h-full object-cover"
                 />
@@ -289,7 +344,7 @@ export function LandingPage() {
                       <h4 className="text-yellow-400 font-semibold tracking-wide uppercase text-sm">
                         Quality Nutrition
                       </h4>
-                      <h1 className="text-5xl md:text-7xl font-bold text-white leading-tight">
+                      <h1 className="text-6xl md:text-7xl font-bold text-white leading-[0.95]">
                         HEALTHY MEALS FOR <br />
                         <span className="text-emerald-400">EVERY CHILD</span>
                       </h1>
@@ -297,6 +352,43 @@ export function LandingPage() {
                         <Link to="/login">
                           <Button className="bg-emerald-500 text-white hover:bg-emerald-600 rounded-full px-8 py-6 text-lg font-semibold shadow-xl transition-transform hover:-translate-y-1">
                             Join Us
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CarouselItem>
+
+            {/* Slide 3 - Measurable Success Stories (Primary Impact) */}
+            <CarouselItem className="pl-0 basis-full h-full">
+              <div className="relative w-full h-full">
+                <img
+                  src="/images/image06.jpg"
+                  alt="Measurable Success Stories"
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-slate-900/40 z-10"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-slate-900/90 via-slate-900/40 to-transparent z-20"></div>
+                <div className="absolute inset-0 flex items-center z-30">
+                  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full animate-in fade-in slide-in-from-bottom-10 duration-1000">
+                    <div className="max-w-3xl space-y-6">
+                      <div className="inline-flex items-center px-4 py-1.5 rounded-sm bg-cyan-500 text-white font-bold text-xs uppercase tracking-wider backdrop-blur-md">
+                        Impact & Results
+                      </div>
+                      <h1 className="text-6xl md:text-8xl font-black text-white leading-tight tracking-tight">
+                        Measurable <br />
+                        <span className="text-cyan-400">Success Stories</span>
+                      </h1>
+                      <p className="text-xl md:text-2xl text-slate-100 max-w-2xl leading-relaxed font-light">
+                        With over <span className="font-bold text-white"> {formatDisplay(liveStats.totalStudent)}</span> students fed daily and <span className="font-bold text-white">{formatDisplay(liveStats.totalSchool)}</span> schools supported, our program has shown significant improvements in attendance, academic performance, and overall student well-being.
+                      </p>
+                      <div className="flex flex-wrap gap-4 pt-4">
+                        <Link to="/login">
+                          <Button className="bg-cyan-500 hover:bg-cyan-400 text-white rounded-sm px-10 py-7 text-lg font-bold shadow-2xl transition-all group">
+                            View Impact
+                            <ArrowRight className="ml-2 w-5 h-5 transition-transform group-hover:translate-x-1" />
                           </Button>
                         </Link>
                       </div>
@@ -409,7 +501,7 @@ export function LandingPage() {
       </section>
 
       {/* Services / Importance Section */}
-      <section id="services" className="py-24 bg-slate-50">
+      <section id="importance" className="py-24 bg-slate-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h4 className="text-blue-600 font-bold uppercase tracking-wider text-sm mb-2">Our Impact</h4>
           <h2 className="text-4xl font-bold text-slate-900 mb-16">Why It Matters</h2>
@@ -434,7 +526,7 @@ export function LandingPage() {
       </section>
 
       {/* Fun Facts / Impact Section - Centered */}
-      <section className="py-24 bg-white relative">
+      <section id="impact" className="py-24 bg-white relative">
         {/* Background Map Graphic Placeholder */}
         <div className="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none">
           <Globe className="w-[600px] h-[600px] text-slate-300" />
@@ -447,31 +539,31 @@ export function LandingPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-12">
             <div className="space-y-2">
               <div className="text-5xl font-bold text-slate-300">
-                <Counter end={2847} suffix="+" />
+                <Counter end={liveStats.totalSchool} suffix="+" />
               </div>
               <p className="font-bold text-slate-900">Schools</p>
               <p className="text-xs text-slate-500 uppercase tracking-widest">Supported</p>
             </div>
             <div className="space-y-2">
               <div className="text-5xl font-bold text-slate-300">
-                <Counter end={100} suffix="%" />
+                <Counter end={liveStats.totalStudent} suffix="+" />
               </div>
-              <p className="font-bold text-slate-900">Growth</p>
-              <p className="text-xs text-slate-500 uppercase tracking-widest">Year over Year</p>
+              <p className="font-bold text-slate-900">Student</p>
+              <p className="text-xs text-slate-500 uppercase tracking-widest">Student fed daily</p>
             </div>
             <div className="space-y-2">
               <div className="text-5xl font-bold text-slate-300">
-                <Counter end={30} suffix="+" />
+                <Counter end={liveStats.totalDistrict} suffix="+" />
               </div>
               <p className="font-bold text-slate-900">Districts</p>
               <p className="text-xs text-slate-500 uppercase tracking-widest">Covered</p>
             </div>
             <div className="space-y-2">
               <div className="text-5xl font-bold text-slate-300">
-                <Counter end={24} suffix="/7" />
+                <Counter end={liveStats.totalSupplier} suffix="+" />
               </div>
-              <p className="font-bold text-slate-900">Support</p>
-              <p className="text-xs text-slate-500 uppercase tracking-widest">Monitoring</p>
+              <p className="font-bold text-slate-900">Suppliers</p>
+              <p className="text-xs text-slate-500 uppercase tracking-widest">Active Partners</p>
             </div>
           </div>
 
@@ -500,23 +592,46 @@ export function LandingPage() {
               <div className="absolute inset-0 bg-blue-900/20"></div>
             </div>
             <div className="md:w-1/2 p-12">
-              <div className="grid grid-cols-2 gap-6 mb-6">
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-400 uppercase">Name</label>
-                  <input type="text" className="w-full border-b border-gray-200 py-2 focus:outline-none focus:border-blue-600 transition-colors" placeholder="Your name" />
+              <form onSubmit={handleContactSubmit}>
+                <div className="grid grid-cols-2 gap-6 mb-6">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase">Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full border-b border-gray-200 py-2 focus:outline-none focus:border-blue-600 transition-colors"
+                      placeholder="Your name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase">Email</label>
+                    <input
+                      type="email"
+                      required
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className="w-full border-b border-gray-200 py-2 focus:outline-none focus:border-blue-600 transition-colors"
+                      placeholder="Your email"
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-400 uppercase">Email</label>
-                  <input type="email" className="w-full border-b border-gray-200 py-2 focus:outline-none focus:border-blue-600 transition-colors" placeholder="Your email" />
+                <div className="space-y-2 mb-8">
+                  <label className="text-xs font-bold text-slate-400 uppercase">Message</label>
+                  <textarea
+                    required
+                    value={formData.message}
+                    onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                    className="w-full border-b border-gray-200 py-2 focus:outline-none focus:border-blue-600 transition-colors resize-none"
+                    rows={3}
+                    placeholder="How can we help?"
+                  ></textarea>
                 </div>
-              </div>
-              <div className="space-y-2 mb-8">
-                <label className="text-xs font-bold text-slate-400 uppercase">Message</label>
-                <textarea className="w-full border-b border-gray-200 py-2 focus:outline-none focus:border-blue-600 transition-colors resize-none" rows={3} placeholder="How can we help?"></textarea>
-              </div>
-              <Button className="bg-blue-900 hover:bg-blue-800 text-white px-8 rounded-sm">
-                SEND MESSAGE
-              </Button>
+                <Button type="submit" className="bg-blue-900 hover:bg-blue-800 text-white px-8 rounded-sm">
+                  SEND MESSAGE
+                </Button>
+              </form>
             </div>
           </div>
         </div>

@@ -59,7 +59,7 @@ import SupplierReports from '@/pages/supplier-reports/page'
 
 function App() {
   return (
-    <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
+    <ThemeProvider storageKey="school-feeding-theme" defaultTheme="system">
       <Toaster position="top-right" richColors />
       <Router>
         <Routes>

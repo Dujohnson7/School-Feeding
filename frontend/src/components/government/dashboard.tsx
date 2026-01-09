@@ -120,7 +120,7 @@ export function GovDashboard() {
       if (provincePerformance && Array.isArray(provincePerformance)) {
         setNationalOverview(provincePerformance.map((item: any) => ({
           name: item[0], // Province name
-          value: parseFloat(item[1]) || 0 // Performance value (handle string % if needed)
+          value: Number(parseFloat(item[1]).toFixed(2)) || 0 // Performance value with 2 decimals
         })))
       }
 
@@ -217,7 +217,7 @@ export function GovDashboard() {
       <div className="flex flex-1 flex-col">
         {/* Header */}
         <PageHeader
-          title="Government Dashboard"
+          title="MINEDUC Dashboard"
           homeTo="/gov-dashboard"
           HomeIcon={Home}
           profileTo="/gov-profile"
@@ -241,7 +241,7 @@ export function GovDashboard() {
                   <CardContent>
                     <div className="text-2xl font-bold">{loading ? "..." : stats[stat.key]}</div>
                     <p className="text-xs text-muted-foreground">
-                      {loading ? "Loading..." : "Current period"}
+                      {loading ? "Loading..." : ""}
                     </p>
                   </CardContent>
                 </Card>
@@ -279,7 +279,7 @@ export function GovDashboard() {
                     <div className="space-y-2">
                       <p className="text-sm font-medium leading-none">Monthly Food Distribution </p>
                       <div className="mt-4 h-[120px] w-full bg-muted/50 rounded p-2">
-                        <div className="flex h-full items-end justify-between gap-2"> 
+                        <div className="flex h-full items-end justify-between gap-2">
                           {loading && monthlyFoodDistribution.length === 0 ? (
                             <div className="text-sm text-muted-foreground w-full text-center self-center">Loading...</div>
                           ) : monthlyFoodDistribution.length === 0 ? (

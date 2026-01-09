@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react"
-import { Package, Search, Truck, CheckCircle2, Clock, Star, Filter, XCircle } from "lucide-react"
+import { Package, Search, Truck, CheckCircle2, Clock, Star, Filter, XCircle, FileText } from "lucide-react"
 import { toast } from "sonner"
 import { districtService, Orders } from "./service/districtService"
 import PageHeader from "@/components/shared/page-header"
-import { generateDistrictReport } from "@/utils/export-utils"
+import { generateDistrictReport, generateInvoice, getCurrentUserInfo } from "@/utils/export-utils"
 import { Eye, Download, CreditCard, XCircle as CancelIcon } from "lucide-react"
 import {
     Dialog,
@@ -180,11 +180,35 @@ export function DistrictDeliveries() {
         }
     }
 
-    const handlePayment = async (orderId: string) => {
+    const handlePayment = async (delivery: Orders) => {
         try {
             setActionLoading(true)
-            await districtService.payOrder(orderId)
+            await districtService.payOrder(delivery.id)
             toast.success("Order payment processed successfully")
+
+            // Auto-generate Invoice
+            const userInfo = getCurrentUserInfo()
+            if (userInfo) {
+                try {
+                    const mappedDelivery = {
+                        id: delivery.id,
+                        school: delivery.requestItem?.school?.name || "N/A",
+                        items: delivery.requestItem?.requestItemDetails?.map(d => getItemName(d)) || [],
+                        quantities: delivery.requestItem?.requestItemDetails?.map(d => d.quantity) || [],
+                        orderPrice: delivery.orderPrice
+                    }
+
+                    await generateInvoice(mappedDelivery, {
+                        supplierName: delivery.supplier?.names || "Supplier",
+                        province: userInfo.province,
+                        district: userInfo.districtName
+                    })
+                    toast.success("Invoice generated successfully")
+                } catch (invErr) {
+                    console.error("Invoice generation error:", invErr)
+                }
+            }
+
             fetchDeliveries()
             setDetailsOpen(false)
         } catch (error: any) {
@@ -326,11 +350,11 @@ export function DistrictDeliveries() {
                             <Button
                                 variant="outline"
                                 size="sm"
-                                className="gap-2 w-full md:w-auto font-medium"
+                                className="bg-blue-600 text-white hover:bg-blue-700 hover:text-white border-blue-600 gap-2 w-full md:w-auto font-medium"
                                 onClick={handleExport}
                             >
-                                <Download className="h-4 w-4" />
-                                Export Reports
+                                <FileText className="h-4 w-4" />
+                                Export PDF
                             </Button>
                         </div>
 
@@ -436,7 +460,7 @@ export function DistrictDeliveries() {
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>School</TableHead>
-                                        <TableHead>Supplier</TableHead> 
+                                        <TableHead>Supplier</TableHead>
                                         <TableHead className="text-right">Price</TableHead>
                                         <TableHead>Status</TableHead>
                                         <TableHead>Payment</TableHead>
@@ -449,7 +473,7 @@ export function DistrictDeliveries() {
                                         Array.from({ length: 5 }).map((_, i) => (
                                             <TableRow key={i}>
                                                 <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                                                <TableCell><Skeleton className="h-4 w-32" /></TableCell> 
+                                                <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                                                 <TableCell><Skeleton className="h-4 w-20 ml-auto" /></TableCell>
                                                 <TableCell><Skeleton className="h-6 w-24" /></TableCell>
                                                 <TableCell><Skeleton className="h-6 w-20" /></TableCell>
@@ -476,7 +500,7 @@ export function DistrictDeliveries() {
                                                         <span className="text-sm">{delivery.supplier?.names}</span>
                                                         <span className="text-xs text-muted-foreground">{delivery.supplier?.companyName}</span>
                                                     </div>
-                                                </TableCell> 
+                                                </TableCell>
                                                 <TableCell className="text-right font-mono">
                                                     {delivery.orderPrice?.toLocaleString()} RWF
                                                 </TableCell>
@@ -506,11 +530,38 @@ export function DistrictDeliveries() {
                                                                 variant="outline"
                                                                 size="sm"
                                                                 className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                                                                onClick={() => handlePayment(delivery.id)}
+                                                                onClick={() => handlePayment(delivery)}
                                                                 disabled={actionLoading}
                                                                 title="Mark as Paid"
                                                             >
                                                                 <CreditCard className="h-4 w-4" />
+                                                            </Button>
+                                                        )}
+                                                        {delivery.orderPayState === "PAID" && (
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                                                onClick={async () => {
+                                                                    const userInfo = getCurrentUserInfo()
+                                                                    if (userInfo) {
+                                                                        const mappedDelivery = {
+                                                                            id: delivery.id,
+                                                                            school: delivery.requestItem?.school?.name || "N/A",
+                                                                            items: delivery.requestItem?.requestItemDetails?.map(d => getItemName(d)) || [],
+                                                                            quantities: delivery.requestItem?.requestItemDetails?.map(d => d.quantity) || [],
+                                                                            orderPrice: delivery.orderPrice
+                                                                        }
+                                                                        await generateInvoice(mappedDelivery, {
+                                                                            supplierName: delivery.supplier?.names || "Supplier",
+                                                                            province: userInfo.province,
+                                                                            district: userInfo.districtName
+                                                                        })
+                                                                    }
+                                                                }}
+                                                                title="Download Invoice"
+                                                            >
+                                                                <FileText className="h-4 w-4" />
                                                             </Button>
                                                         )}
                                                     </div>
@@ -604,11 +655,37 @@ export function DistrictDeliveries() {
                                                     <Button
                                                         variant="default"
                                                         className="bg-green-600 hover:bg-green-700 text-white gap-2"
-                                                        onClick={() => handlePayment(selectedDelivery.id)}
+                                                        onClick={() => handlePayment(selectedDelivery)}
                                                         disabled={actionLoading}
                                                     >
                                                         <CreditCard className="h-4 w-4" />
                                                         Mark as Paid
+                                                    </Button>
+                                                )}
+                                                {selectedDelivery.orderPayState === "PAID" && (
+                                                    <Button
+                                                        variant="outline"
+                                                        className="text-blue-600 border-blue-200 hover:bg-blue-50 gap-2"
+                                                        onClick={async () => {
+                                                            const userInfo = getCurrentUserInfo()
+                                                            if (userInfo) {
+                                                                const mappedDelivery = {
+                                                                    id: selectedDelivery.id,
+                                                                    school: selectedDelivery.requestItem?.school?.name || "N/A",
+                                                                    items: selectedDelivery.requestItem?.requestItemDetails?.map(d => getItemName(d)) || [],
+                                                                    quantities: selectedDelivery.requestItem?.requestItemDetails?.map(d => d.quantity) || [],
+                                                                    orderPrice: selectedDelivery.orderPrice
+                                                                }
+                                                                await generateInvoice(mappedDelivery, {
+                                                                    supplierName: selectedDelivery.supplier?.names || "Supplier",
+                                                                    province: userInfo.province,
+                                                                    district: userInfo.districtName
+                                                                })
+                                                            }
+                                                        }}
+                                                    >
+                                                        <FileText className="h-4 w-4" />
+                                                        Download Invoice
                                                     </Button>
                                                 )}
                                             </div>

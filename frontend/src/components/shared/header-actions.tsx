@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge"
 import { logout } from "@/lib/auth"
 import { RoleKey, roleMenus } from "@/components/shared/role-menus"
 import { useNotifications } from "@/hooks/use-notifications"
+import { ModeToggle } from "@/components/mode-toggle"
 
 interface HeaderActionsProps {
   role?: RoleKey | null
@@ -84,6 +85,9 @@ export function HeaderActions({ role, className = "" }: HeaderActionsProps) {
 
   return (
     <div className={`flex items-center gap-4 ${className}`}>
+      {/* Mode Toggle */}
+      <ModeToggle />
+
       {/* Notifications dropdown */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

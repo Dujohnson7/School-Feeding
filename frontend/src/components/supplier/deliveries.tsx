@@ -3,7 +3,10 @@ import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Calendar, CheckCircle, Clock, Filter, MapPin, Search, Truck, XCircle } from "lucide-react"
 import { supplierService } from "./service/supplierService"
+import apiClient from "@/lib/axios"
 import { toast } from "sonner"
+import { generateSupplierReport, generateInvoice, getCurrentUserInfo } from "@/utils/export-utils"
+import { FileText, Download } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -28,9 +31,10 @@ interface Delivery {
   orderPrice: number
   district: string
   contact: string
+  expectedDate: string
 }
 
-// Backend Order entity interface (same as orders.tsx)
+
 interface BackendOrder {
   id?: string
   created?: string
@@ -66,6 +70,7 @@ interface BackendOrder {
       item?: {
         id?: string
         name?: string
+        unit?: string
         perStudent?: number
         description?: string
       }
@@ -80,6 +85,7 @@ interface BackendOrder {
     items?: Array<{
       id?: string
       name?: string
+      unit?: string
       perStudent?: number
       description?: string
     }>
@@ -87,15 +93,12 @@ interface BackendOrder {
   deliveryDate?: string | null
   deliveryStatus?: "APPROVED" | "SCHEDULED" | "PROCESSING" | "DELIVERED" | "CANCELLED"
   orderPrice?: number
-  orderPayState?: "PENDING" | "PAYED" | "CANCELLED"
+  orderPayState?: "PENDING" | "PAID" | "CANCELLED"
   rating?: number
   [key: string]: any
 }
 
-// Local service definition removed
-
-// Helper function to map backend order to frontend delivery
-const mapBackendOrderToDelivery = (backendOrder: BackendOrder): Delivery => {
+const mapBackendOrderToDelivery = (backendOrder: BackendOrder, allItems: any[] = []): Delivery => {
   const formatDate = (dateString?: string | null) => {
     if (!dateString) return "N/A"
     try {
@@ -121,18 +124,37 @@ const mapBackendOrderToDelivery = (backendOrder: BackendOrder): Delivery => {
   const requestItemDetails = backendOrder.requestItem?.requestItemDetails || []
   const items: string[] = []
   const quantities: string[] = []
-
-  // Get item names from supplier's items array by matching IDs
   const supplierItems = backendOrder.supplier?.items || []
-  const itemMap = new Map(supplierItems.map(item => [item.id, item.name]))
 
   requestItemDetails.forEach((detail) => {
     const itemId = detail.item?.id
-    const itemName = itemId ? (itemMap.get(itemId) || `Item ${itemId}`) : "Unknown Item"
+    let itemName = detail.item?.name
+    let unit = detail.item?.unit
+
+    // 1. Fallback to supplier items
+    if (!itemName && itemId && supplierItems.length > 0) {
+      const sItem = supplierItems.find(i => i.id === itemId)
+      if (sItem) {
+        itemName = sItem.name
+        unit = sItem.unit
+      }
+    }
+
+    // 2. Fallback to global items
+    if (!itemName && itemId && allItems.length > 0) {
+      const gItem = allItems.find(i => i.id === itemId)
+      if (gItem) {
+        itemName = gItem.name
+        unit = gItem.unit
+      }
+    }
+
+    itemName = itemName || (itemId ? `Item ${itemId.substring(0, 8)}` : "Unknown Item")
     const quantity = detail.quantity || 0
+    unit = unit || "kg"
 
     items.push(itemName)
-    quantities.push(`${quantity} kg`)
+    quantities.push(`${quantity} ${unit}`)
   })
 
   const school = backendOrder.requestItem?.school
@@ -150,6 +172,7 @@ const mapBackendOrderToDelivery = (backendOrder: BackendOrder): Delivery => {
     orderPrice: backendOrder.orderPrice || 0,
     district: district?.district || "Unknown",
     contact: school?.phone || school?.email || "+250 XXX XXX XXX",
+    expectedDate: formatDate(backendOrder.expectedDate),
   }
 }
 
@@ -165,15 +188,14 @@ export function SupplierDeliveries() {
   const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
+  const [allItems, setAllItems] = useState<any[]>([])
 
-  // Fetch deliveries from API
   useEffect(() => {
     const fetchDeliveries = async () => {
       try {
         setLoading(true)
         setError(null)
 
-        // Get supplier ID from localStorage (userId from login)
         const supplierId = localStorage.getItem("userId")
 
         if (!supplierId) {
@@ -182,14 +204,23 @@ export function SupplierDeliveries() {
 
         const backendOrders: BackendOrder[] = await supplierService.getAllDeliveries(supplierId)
 
+        // Fetch all items for mapping fallback
+        let itemsList: any[] = []
+        try {
+          const itemsResponse = await apiClient.get("/item/all")
+          itemsList = itemsResponse.data || []
+          setAllItems(itemsList)
+        } catch (itemErr) {
+          console.error("Error fetching items for mapping:", itemErr)
+        }
+
         if (backendOrders && Array.isArray(backendOrders)) {
-          const mappedDeliveries = backendOrders.map(mapBackendOrderToDelivery)
+          const mappedDeliveries = backendOrders.map(order => mapBackendOrderToDelivery(order, itemsList))
           setDeliveries(mappedDeliveries)
         } else {
           setDeliveries([])
         }
       } catch (err: any) {
-        // Handle 404 as empty result (no deliveries found)
         if (err.response?.status === 404) {
           setDeliveries([])
           setError(null)
@@ -208,7 +239,7 @@ export function SupplierDeliveries() {
     fetchDeliveries()
   }, [])
 
-  // Filter deliveries based on search term, status filter, and active tab
+
   const filteredDeliveries = deliveries.filter((delivery) => {
     const matchesSearch =
       delivery.school.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -325,12 +356,28 @@ export function SupplierDeliveries() {
       setUpdatingStatus(deliveryId)
       await supplierService.deliverOrder(deliveryId)
       toast.success("Delivery marked as Delivered")
-      // Refresh deliveries
+
+      // Auto-generate Invoice
+      const delivery = deliveries.find((d) => d.id === deliveryId)
+      const userInfo = getCurrentUserInfo()
+      if (delivery && userInfo) {
+        try {
+          await generateInvoice(delivery, {
+            supplierName: userInfo.supplierName || userInfo.names || "Supplier",
+            province: userInfo.province,
+            district: userInfo.districtName,
+          })
+          toast.success("Invoice generated successfully")
+        } catch (invErr) {
+          console.error("Invoice generation error:", invErr)
+        }
+      }
+
       const supplierId = localStorage.getItem("userId")
       if (supplierId) {
         const backendOrders: BackendOrder[] = await supplierService.getAllDeliveries(supplierId)
         if (backendOrders && Array.isArray(backendOrders)) {
-          const mappedDeliveries = backendOrders.map(mapBackendOrderToDelivery)
+          const mappedDeliveries = backendOrders.map((order) => mapBackendOrderToDelivery(order, allItems))
           setDeliveries(mappedDeliveries)
         }
       }
@@ -339,6 +386,30 @@ export function SupplierDeliveries() {
       toast.error(err.response?.data?.message || err.message || "Failed to update delivery status")
     } finally {
       setUpdatingStatus(null)
+    }
+  }
+
+  const handleExportPDF = async () => {
+    try {
+      if (deliveries.length === 0) {
+        toast.error("No data to export")
+        return
+      }
+
+      const reportData = filteredDeliveries.map((d) => ({
+        ID: d.id.substring(0, 8),
+        School: d.school,
+        Items: d.items.join(", "),
+        "Order Date": d.orderDate,
+        "Expected Date": d.expectedDate,
+        Status: d.deliveryStatus,
+      }))
+
+      await generateSupplierReport("Delivery Management", {}, "pdf", reportData)
+      toast.success("Report exported successfully")
+    } catch (err) {
+      console.error("Export error:", err)
+      toast.error("Failed to export report")
     }
   }
 
@@ -407,6 +478,10 @@ export function SupplierDeliveries() {
                           <SelectItem value="cancelled">Cancelled</SelectItem>
                         </SelectContent>
                       </Select>
+                      <Button variant="outline" onClick={handleExportPDF} className="bg-blue-600 text-white hover:bg-blue-700 hover:text-white border-blue-600">
+                        <FileText className="mr-2 h-4 w-4" />
+                        Export PDF
+                      </Button>
                     </div>
                   </div>
 
@@ -427,7 +502,7 @@ export function SupplierDeliveries() {
                             <TableHead>School</TableHead>
                             <TableHead>Items</TableHead>
                             <TableHead>Order Date</TableHead>
-                            <TableHead>Delivery Date</TableHead>
+                            <TableHead>Expected Date</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                           </TableRow>
@@ -436,7 +511,7 @@ export function SupplierDeliveries() {
                           {filteredDeliveries.length > 0 ? (
                             paginatedDeliveries.map((delivery) => (
                               <TableRow key={delivery.id}>
-                                <TableCell className="font-medium">{delivery.id}</TableCell>
+                                <TableCell className="font-medium">{delivery.id.substring(0, 8)}</TableCell>
                                 <TableCell>
                                   <div className="space-y-1">
                                     <p className="font-medium">{delivery.school}</p>
@@ -460,14 +535,10 @@ export function SupplierDeliveries() {
                                   </div>
                                 </TableCell>
                                 <TableCell>
-                                  {delivery.deliveryDate ? (
-                                    <div className="flex items-center">
-                                      <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
-                                      <p className="text-sm">{new Date(delivery.deliveryDate).toLocaleDateString()}</p>
-                                    </div>
-                                  ) : (
-                                    <p className="text-sm text-muted-foreground">Not delivered</p>
-                                  )}
+                                  <div className="flex items-center">
+                                    <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
+                                    <p className="text-sm">{delivery.expectedDate}</p>
+                                  </div>
                                 </TableCell>
                                 <TableCell>
                                   <div className="flex items-center gap-2">
@@ -493,6 +564,26 @@ export function SupplierDeliveries() {
                                         disabled={updatingStatus === delivery.id}
                                       >
                                         {updatingStatus === delivery.id ? "Updating..." : "Mark Delivered"}
+                                      </Button>
+                                    )}
+                                    {delivery.deliveryStatus === "DELIVERED" && (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                        onClick={async () => {
+                                          const userInfo = getCurrentUserInfo()
+                                          if (userInfo) {
+                                            await generateInvoice(delivery, {
+                                              supplierName: userInfo.supplierName || userInfo.names || "Supplier",
+                                              province: userInfo.province,
+                                              district: userInfo.districtName,
+                                            })
+                                          }
+                                        }}
+                                        title="Download Invoice"
+                                      >
+                                        <FileText className="h-4 w-4" />
                                       </Button>
                                     )}
                                     <Button
@@ -590,7 +681,7 @@ export function SupplierDeliveries() {
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Delivery ID</p>
-                  <p className="font-medium">{selectedDelivery.id}</p>
+                  <p className="font-medium">{selectedDelivery.id.substring(0, 8)}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Order Date</p>
@@ -598,9 +689,15 @@ export function SupplierDeliveries() {
                 </div>
               </div>
 
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">School</p>
-                <p>{selectedDelivery.school}</p>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Expected Date</p>
+                  <p className="font-medium text-amber-600">{selectedDelivery.expectedDate}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">School</p>
+                  <p>{selectedDelivery.school}</p>
+                </div>
               </div>
 
               <div>
@@ -656,8 +753,27 @@ export function SupplierDeliveries() {
               </div>
             </div>
 
-            <DialogFooter>
-              <Button onClick={() => setDetailsOpen(false)} className="w-full">
+            <DialogFooter className="flex-col sm:flex-row gap-2">
+              {selectedDelivery.deliveryStatus === "DELIVERED" && (
+                <Button
+                  variant="outline"
+                  className="flex-1 text-blue-600 border-blue-200 hover:bg-blue-50 gap-2"
+                  onClick={async () => {
+                    const userInfo = getCurrentUserInfo()
+                    if (userInfo) {
+                      await generateInvoice(selectedDelivery, {
+                        supplierName: userInfo.supplierName || userInfo.names || "Supplier",
+                        province: userInfo.province,
+                        district: userInfo.districtName,
+                      })
+                    }
+                  }}
+                >
+                  <Download className="h-4 w-4" />
+                  Download Invoice
+                </Button>
+              )}
+              <Button onClick={() => setDetailsOpen(false)} variant="outline" className={selectedDelivery.deliveryStatus === "DELIVERED" ? "flex-1" : "w-full"}>
                 Close
               </Button>
             </DialogFooter>

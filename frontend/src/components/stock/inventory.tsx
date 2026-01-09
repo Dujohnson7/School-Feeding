@@ -40,8 +40,7 @@ interface Stock {
     name?: string
   }
 }
-
-// Local service definition removed
+ 
 
 export function StockInventory() {
   const [searchTerm, setSearchTerm] = useState("")
@@ -54,8 +53,7 @@ export function StockInventory() {
   const [pageSize, setPageSize] = useState(5)
   const [isExporting, setIsExporting] = useState(false)
 
-
-  // Fetch inventory on component mount
+ 
   useEffect(() => {
     const fetchInventory = async () => {
       try {
@@ -90,8 +88,7 @@ export function StockInventory() {
   useEffect(() => {
     setPage(1)
   }, [searchTerm, categoryFilter, statusFilter])
-
-  // Helper function to format food category for display
+ 
   const formatCategory = (category?: string) => {
     if (!category) return "N/A"
     return category
@@ -99,8 +96,7 @@ export function StockInventory() {
       .map(word => word.charAt(0) + word.slice(1).toLowerCase())
       .join(" ")
   }
-
-  // Filter inventory items based on search term and filters
+ 
   const filteredItems = (Array.isArray(inventoryItems) ? inventoryItems : []).filter((item) => {
     const itemName = item.item?.name || ""
     const itemId = item.id || ""
@@ -192,8 +188,7 @@ export function StockInventory() {
         district: districtName,
       }
 
-
-      // Prepare data with only requested fields
+ 
       const exportData = filteredItems.map(item => ({
         "Item Name": item.item?.name || "N/A",
         "Quantity": `${item.quantity || 0} ${item.item?.unit || "kg"}`,
@@ -219,9 +214,7 @@ export function StockInventory() {
 
   return (
     <div className="flex-1">
-      {/* Main Content */}
       <div className="flex flex-1 flex-col">
-        {/* Header */}
         <header className="hidden md:flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
           <Link to="/stock-dashboard" className="lg:hidden">
             <Package className="h-6 w-6" />
@@ -233,7 +226,6 @@ export function StockInventory() {
           <HeaderActions role="stock" />
         </header>
 
-        {/* Main Content */}
         <main className="flex-1 overflow-auto p-2 sm:p-4 md:p-6 min-w-0">
           <Card>
             <CardHeader>
@@ -251,7 +243,7 @@ export function StockInventory() {
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                       type="search"
-                      placeholder="Search by name, ID, or batch number..."
+                      placeholder="Search by name, ID ..."
                       className="w-full pl-8"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
@@ -288,9 +280,9 @@ export function StockInventory() {
                       <SelectItem value="CRITICAL">Critical</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Button variant="outline" onClick={handleExportPDF} disabled={isExporting}>
-                    <Download className="mr-2 h-4 w-4" />
-                    {isExporting ? "Exporting..." : "Export PDF"}
+                  <Button variant="outline" className="bg-blue-600 hover:bg-blue-700 text-white" onClick={handleExportPDF} disabled={isExporting}>
+                    <Download className="mr-2 h-4 w-4 " />
+                    {isExporting ? "Exporting..." : "Export"}
                   </Button>
                 </div>
               </div>
@@ -316,7 +308,7 @@ export function StockInventory() {
                       paginatedItems.map((item) => {
                         return (
                           <TableRow key={item.id}>
-                            <TableCell className="font-medium">{item.id?.substring(0, 8)}...</TableCell>
+                            <TableCell className="font-medium">{item.id?.substring(0, 8)}</TableCell>
                             <TableCell>{item.item?.name || "N/A"}</TableCell>
                             <TableCell>{formatCategory(item.item?.foodCategory)}</TableCell>
                             <TableCell className="text-right">

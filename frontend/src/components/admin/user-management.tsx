@@ -854,43 +854,43 @@ export function AdminUserManagement() {
             </div>
 
 
-            {(newUser.role === "DISTRICT" || newUser.role === "SCHOOL") && (
-              <div className="grid gap-2">
-                <Label htmlFor="province">Province</Label>
-                <Select value={newUser.province} onValueChange={(value) => setNewUser({ ...newUser, province: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Province" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {provinces.map((province) => (
-                      <SelectItem key={province} value={province}>
-                        {province}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
             {(newUser.role === "DISTRICT" || newUser.role === "SCHOOL" || newUser.role === "SUPPLIER") && (
-              <div className="grid gap-2">
-                <Label htmlFor="district">District</Label>
-                <Select
-                  value={newUser.district}
-                  onValueChange={(value) => setNewUser({ ...newUser, district: value })}
-                  disabled={!newUser.province}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={newUser.province ? "Select District" : "Select Province first"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {districts.map((district) => (
-                      <SelectItem key={district.id} value={district.id}>
-                        {district.district}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="province">Province</Label>
+                  <Select value={newUser.province} onValueChange={(value) => setNewUser({ ...newUser, province: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Province" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {provinces.map((province) => (
+                        <SelectItem key={province} value={province}>
+                          {province}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="district">District</Label>
+                  <Select
+                    value={newUser.district}
+                    onValueChange={(value) => setNewUser({ ...newUser, district: value })}
+                    disabled={!newUser.province}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={newUser.province ? "Select District" : "Select Province first"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {districts.map((district) => (
+                        <SelectItem key={district.id} value={district.id}>
+                          {district.district}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             )}
 
@@ -919,73 +919,66 @@ export function AdminUserManagement() {
 
 
             {newUser.role === "SUPPLIER" && (
-              <div className="grid gap-2">
-                <Label htmlFor="tinNumber">TIN Number</Label>
-                <Input
-                  id="tinNumber"
-                  value={newUser.tinNumber}
-                  onChange={(e) => setNewUser({ ...newUser, tinNumber: e.target.value })}
-                  placeholder="Enter TIN Number"
-                  required
-                />
-              </div>
-            )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="tinNumber">TIN Number</Label>
+                  <Input
+                    id="tinNumber"
+                    value={newUser.tinNumber}
+                    onChange={(e) => setNewUser({ ...newUser, tinNumber: e.target.value })}
+                    placeholder="Enter TIN Number"
+                    required
+                  />
+                </div>
 
+                <div className="grid gap-2">
+                  <Label htmlFor="companyName">Company Name</Label>
+                  <Input
+                    id="companyName"
+                    value={newUser.companyName}
+                    onChange={(e) => setNewUser({ ...newUser, companyName: e.target.value })}
+                    placeholder="Enter Company Name"
+                    required
+                  />
+                </div>
 
-            {newUser.role === "SUPPLIER" && (
-              <div className="grid gap-2">
-                <Label htmlFor="companyName">Company Name</Label>
-                <Input
-                  id="companyName"
-                  value={newUser.companyName}
-                  onChange={(e) => setNewUser({ ...newUser, companyName: e.target.value })}
-                  placeholder="Enter Company Name"
-                  required
-                />
-              </div>
-            )}
+                <div className="grid gap-2">
+                  <Label htmlFor="address">Address</Label>
+                  <Input
+                    id="address"
+                    value={newUser.address}
+                    onChange={(e) => setNewUser({ ...newUser, address: e.target.value })}
+                    placeholder="Enter Address"
+                    required
+                  />
+                </div>
 
-            {newUser.role === "SUPPLIER" && (
-              <div className="grid gap-2">
-                <Label htmlFor="address">Address</Label>
-                <Input
-                  id="address"
-                  value={newUser.address}
-                  onChange={(e) => setNewUser({ ...newUser, address: e.target.value })}
-                  placeholder="Enter Address"
-                  required
-                />
-              </div>
-            )}
+                <div className="grid gap-2">
+                  <Label htmlFor="bankName">Bank Name</Label>
+                  <Select value={newUser.bankName} onValueChange={(value) => setNewUser({ ...newUser, bankName: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Bank Name" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {banks.map((bank) => (
+                        <SelectItem key={bank} value={bank}>
+                          {bank}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            {newUser.role === "SUPPLIER" && (
-              <div className="grid gap-2">
-                <Label htmlFor="bankName">Bank Name</Label>
-                <Select value={newUser.bankName} onValueChange={(value) => setNewUser({ ...newUser, bankName: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Bank Name" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {banks.map((bank) => (
-                      <SelectItem key={bank} value={bank}>
-                        {bank}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {newUser.role === "SUPPLIER" && (
-              <div className="grid gap-2">
-                <Label htmlFor="bankAccount">Bank Account Number</Label>
-                <Input
-                  id="bankAccount"
-                  value={newUser.bankAccount}
-                  onChange={(e) => setNewUser({ ...newUser, bankAccount: e.target.value })}
-                  placeholder="Enter Bank Account Number"
-                  required
-                />
+                <div className="grid gap-2">
+                  <Label htmlFor="bankAccount">Bank Account Number</Label>
+                  <Input
+                    id="bankAccount"
+                    value={newUser.bankAccount}
+                    onChange={(e) => setNewUser({ ...newUser, bankAccount: e.target.value })}
+                    placeholder="Enter Bank Account Number"
+                    required
+                  />
+                </div>
               </div>
             )}
 
@@ -994,9 +987,9 @@ export function AdminUserManagement() {
                 <Label>Items *</Label>
                 <div className="border rounded-md p-4 max-h-60 overflow-y-auto">
                   {items.length > 0 ? (
-                    <div className="space-y-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                       {items.map((item) => (
-                        <div key={item.id} className="flex items-center space-x-2">
+                        <div key={item.id} className="flex items-center space-x-2 bg-muted/30 p-2 rounded-sm hover:bg-muted/50 transition-colors">
                           <Checkbox
                             id={`item-${item.id}`}
                             checked={newUser.items?.includes(item.id) || false}
@@ -1011,9 +1004,9 @@ export function AdminUserManagement() {
                           />
                           <label
                             htmlFor={`item-${item.id}`}
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                            className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
                           >
-                            {item.name} {item.category && `(${item.category})`}
+                            {item.name} {item.category && <span className="text-[10px] text-muted-foreground block italic">({item.category})</span>}
                           </label>
                         </div>
                       ))}
@@ -1106,43 +1099,43 @@ export function AdminUserManagement() {
               </Select>
             </div>
 
-            {(newUser.role === "DISTRICT" || newUser.role === "SCHOOL") && (
-              <div className="grid gap-2">
-                <Label htmlFor="edit-province">Province</Label>
-                <Select value={newUser.province} onValueChange={(value) => setNewUser({ ...newUser, province: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Province" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {provinces.map((province) => (
-                      <SelectItem key={province} value={province}>
-                        {province}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
             {(newUser.role === "DISTRICT" || newUser.role === "SCHOOL" || newUser.role === "SUPPLIER") && (
-              <div className="grid gap-2">
-                <Label htmlFor="edit-district">District</Label>
-                <Select
-                  value={newUser.district}
-                  onValueChange={(value) => setNewUser({ ...newUser, district: value })}
-                  disabled={!newUser.province}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={newUser.province ? "Select District" : "Select Province first"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {districts.map((district) => (
-                      <SelectItem key={district.id} value={district.id}>
-                        {district.district}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-province">Province</Label>
+                  <Select value={newUser.province} onValueChange={(value) => setNewUser({ ...newUser, province: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Province" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {provinces.map((province) => (
+                        <SelectItem key={province} value={province}>
+                          {province}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-district">District</Label>
+                  <Select
+                    value={newUser.district}
+                    onValueChange={(value) => setNewUser({ ...newUser, district: value })}
+                    disabled={!newUser.province}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={newUser.province ? "Select District" : "Select Province first"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {districts.map((district) => (
+                        <SelectItem key={district.id} value={district.id}>
+                          {district.district}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             )}
 
@@ -1169,68 +1162,62 @@ export function AdminUserManagement() {
             )}
 
             {newUser.role === "SUPPLIER" && (
-              <div className="grid gap-2">
-                <Label htmlFor="edit-tinNumber">TIN Number</Label>
-                <Input
-                  id="edit-tinNumber"
-                  value={newUser.tinNumber}
-                  onChange={(e) => setNewUser({ ...newUser, tinNumber: e.target.value })}
-                  placeholder="Enter TIN Number"
-                />
-              </div>
-            )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-tinNumber">TIN Number</Label>
+                  <Input
+                    id="edit-tinNumber"
+                    value={newUser.tinNumber}
+                    onChange={(e) => setNewUser({ ...newUser, tinNumber: e.target.value })}
+                    placeholder="Enter TIN Number"
+                  />
+                </div>
 
-            {newUser.role === "SUPPLIER" && (
-              <div className="grid gap-2">
-                <Label htmlFor="edit-companyName">Company Name</Label>
-                <Input
-                  id="edit-companyName"
-                  value={newUser.companyName}
-                  onChange={(e) => setNewUser({ ...newUser, companyName: e.target.value })}
-                  placeholder="Enter Company Name"
-                />
-              </div>
-            )}
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-companyName">Company Name</Label>
+                  <Input
+                    id="edit-companyName"
+                    value={newUser.companyName}
+                    onChange={(e) => setNewUser({ ...newUser, companyName: e.target.value })}
+                    placeholder="Enter Company Name"
+                  />
+                </div>
 
-            {newUser.role === "SUPPLIER" && (
-              <div className="grid gap-2">
-                <Label htmlFor="edit-address">Address</Label>
-                <Input
-                  id="edit-address"
-                  value={newUser.address}
-                  onChange={(e) => setNewUser({ ...newUser, address: e.target.value })}
-                  placeholder="Enter Address"
-                />
-              </div>
-            )}
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-address">Address</Label>
+                  <Input
+                    id="edit-address"
+                    value={newUser.address}
+                    onChange={(e) => setNewUser({ ...newUser, address: e.target.value })}
+                    placeholder="Enter Address"
+                  />
+                </div>
 
-            {newUser.role === "SUPPLIER" && (
-              <div className="grid gap-2">
-                <Label htmlFor="edit-bankName">Bank Name</Label>
-                <Select value={newUser.bankName} onValueChange={(value) => setNewUser({ ...newUser, bankName: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Bank Name" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {banks.map((bank) => (
-                      <SelectItem key={bank} value={bank}>
-                        {bank}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-bankName">Bank Name</Label>
+                  <Select value={newUser.bankName} onValueChange={(value) => setNewUser({ ...newUser, bankName: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Bank Name" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {banks.map((bank) => (
+                        <SelectItem key={bank} value={bank}>
+                          {bank}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            {newUser.role === "SUPPLIER" && (
-              <div className="grid gap-2">
-                <Label htmlFor="edit-bankAccount">Bank Account Number</Label>
-                <Input
-                  id="edit-bankAccount"
-                  value={newUser.bankAccount}
-                  onChange={(e) => setNewUser({ ...newUser, bankAccount: e.target.value })}
-                  placeholder="Enter Bank Account Number"
-                />
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-bankAccount">Bank Account Number</Label>
+                  <Input
+                    id="edit-bankAccount"
+                    value={newUser.bankAccount}
+                    onChange={(e) => setNewUser({ ...newUser, bankAccount: e.target.value })}
+                    placeholder="Enter Bank Account Number"
+                  />
+                </div>
               </div>
             )}
 
@@ -1239,9 +1226,9 @@ export function AdminUserManagement() {
                 <Label>Items *</Label>
                 <div className="border rounded-md p-4 max-h-60 overflow-y-auto">
                   {items.length > 0 ? (
-                    <div className="space-y-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                       {items.map((item) => (
-                        <div key={item.id} className="flex items-center space-x-2">
+                        <div key={item.id} className="flex items-center space-x-2 bg-muted/30 p-2 rounded-sm hover:bg-muted/50 transition-colors">
                           <Checkbox
                             id={`edit-item-${item.id}`}
                             checked={newUser.items?.includes(item.id) || false}
@@ -1256,9 +1243,9 @@ export function AdminUserManagement() {
                           />
                           <label
                             htmlFor={`edit-item-${item.id}`}
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                            className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
                           >
-                            {item.name} {item.category && `(${item.category})`}
+                            {item.name} {item.category && <span className="text-[10px] text-muted-foreground block italic">({item.category})</span>}
                           </label>
                         </div>
                       ))}

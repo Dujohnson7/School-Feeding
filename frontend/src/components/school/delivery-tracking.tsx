@@ -9,14 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -27,7 +20,6 @@ interface Item {
   unit?: string
 }
 
-// Backend Order entity interface (same as orders.tsx)
 interface BackendOrder {
   id?: string
   created?: string
@@ -102,7 +94,7 @@ interface Delivery {
     time: string
     completed: boolean
   }>
-  originalOrder?: BackendOrder // Store original order data for dialog
+  originalOrder?: BackendOrder
 }
 
 const receivingService = {
@@ -262,27 +254,27 @@ export function DeliveryTracking() {
     // Format dates
     const orderedDate = order.requestItem?.created || order.created
       ? new Date(order.requestItem?.created || order.created || "").toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        })
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
       : "Unknown date"
 
-    const estimatedDelivery = order.requestItem?.updated
-      ? new Date(order.requestItem.updated).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        })
+    const estimatedDelivery = order.expectedDate
+      ? new Date(order.expectedDate).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
       : undefined
 
     const deliveredDate =
-      frontendStatus === "delivered" && order.deliveryDate
+      (frontendStatus === "delivered" || deliveryStatus === "DELIVERED") && order.deliveryDate
         ? new Date(order.deliveryDate).toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          })
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })
         : undefined
 
     // Build timeline based on status
@@ -309,70 +301,49 @@ export function DeliveryTracking() {
   ): Array<{ status: string; time: string; completed: boolean }> => {
     const timeline: Array<{ status: string; time: string; completed: boolean }> = []
 
-    // Ordered
-    const orderedTime = order.requestItem?.created
+    // 1. Request
+    const requestTime = order.requestItem?.created
       ? new Date(order.requestItem.created).toLocaleString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-          hour: "numeric",
-          minute: "2-digit",
-        })
-      : `${orderedDate} - Unknown time`
-    timeline.push({ status: "ordered", time: orderedTime, completed: true })
+        month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit",
+      })
+      : `${orderedDate}`
+    timeline.push({ status: "request", time: requestTime, completed: true })
 
-    // Approved (assume it's approved if there's an order)
-    const approvedTime = order.requestItem?.updated
+    // 2. Approve (District)
+    const districtApproved = order.requestItem?.requestStatus === "APPROVE"
+    const approveTime = districtApproved && order.requestItem?.updated
       ? new Date(order.requestItem.updated).toLocaleString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-          hour: "numeric",
-          minute: "2-digit",
-        })
-      : `${orderedDate} - Unknown time`
-    timeline.push({ status: "approved", time: approvedTime, completed: true })
+        month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit",
+      })
+      : "Pending"
+    timeline.push({ status: "approve", time: approveTime, completed: districtApproved })
 
-    // Processing
-    const processingCompleted = ["processing", "delivered"].includes(status)
-    const processingTime = order.deliveryStatus === "PROCESSING" && order.updated
+    // 3. Processing
+    const processingCompleted = ["processing", "approved", "delivered"].includes(status) || order.deliveryStatus === "PROCESSING"
+    const processingTime = (order.deliveryStatus === "PROCESSING" || processingCompleted) && order.updated
       ? new Date(order.updated).toLocaleString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-          hour: "numeric",
-          minute: "2-digit",
-        })
-      : processingCompleted ? approvedTime : "Pending"
-    timeline.push({
-      status: "processing",
-      time: processingCompleted ? processingTime : "Pending",
-      completed: processingCompleted,
-    })
+        month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit",
+      })
+      : "Pending"
+    timeline.push({ status: "processing", time: processingCompleted ? processingTime : "Pending", completed: processingCompleted })
 
-    // Delivered
-    const deliveredCompleted = status === "delivered"
-    const deliveredTime = deliveredCompleted && deliveredDate
-      ? `${deliveredDate} - ${order.deliveryDate ? new Date(order.deliveryDate).toLocaleTimeString("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-        }) : ""}`
-      : deliveredCompleted && order.updated
+    // 4. Receive (School/Supplier Delivery Status Approved)
+    const schoolApproveCompleted = ["approved", "delivered"].includes(status) || order.deliveryStatus === "APPROVED" || order.deliveryStatus === "DELIVERED"
+    const schoolApproveTime = schoolApproveCompleted && order.updated
       ? new Date(order.updated).toLocaleString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-          hour: "numeric",
-          minute: "2-digit",
-        })
-      : deliveredCompleted
-      ? "Delivered"
-      : `Expected ${estimatedDelivery || "soon"}`
-    timeline.push({
-      status: "delivered",
-      time: deliveredTime,
-      completed: deliveredCompleted,
-    })
+        month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit",
+      })
+      : "Pending"
+    timeline.push({ status: "receive", time: schoolApproveTime, completed: schoolApproveCompleted })
+
+    // 5. Delivered
+    const deliveredCompleted = status === "delivered" || order.deliveryStatus === "DELIVERED"
+    const deliveredTime = deliveredCompleted && order.deliveryDate
+      ? new Date(order.deliveryDate).toLocaleString("en-US", {
+        month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit",
+      })
+      : "Pending"
+    timeline.push({ status: "delivered", time: deliveredCompleted ? deliveredTime : "Pending", completed: deliveredCompleted })
 
     return timeline
   }
@@ -383,7 +354,7 @@ export function DeliveryTracking() {
         return <Badge variant="outline">Ordered</Badge>
       case "approved":
         return (
-          <Badge variant="outline" className="bg-green-100 text-green-800 hover:bg-green-100">
+          <Badge variant="outline" className="bg-green-600 text-white border-green-700">
             Approved
           </Badge>
         )
@@ -443,7 +414,7 @@ export function DeliveryTracking() {
     try {
       setIsProcessing(true)
       await receivingService.receiveOrder(selectedOrder.id, rating)
-      
+
       // Refresh the current deliveries list
       const schoolId = localStorage.getItem("schoolId")
 
@@ -466,7 +437,7 @@ export function DeliveryTracking() {
           console.error("Error refreshing deliveries:", err)
         }
       }
-      
+
       toast.success("Order received successfully")
       setReceiveDialogOpen(false)
       setSelectedOrder(null)
@@ -552,11 +523,10 @@ export function DeliveryTracking() {
                               {delivery.timeline.map((event, index) => (
                                 <div key={index} className="relative flex gap-4">
                                   <div
-                                    className={`relative z-10 flex h-5 w-5 items-center justify-center rounded-full ${
-                                      event.completed
-                                        ? "bg-primary text-primary-foreground"
-                                        : "border border-muted bg-background"
-                                    }`}
+                                    className={`relative z-10 flex h-5 w-5 items-center justify-center rounded-full ${event.completed
+                                      ? "bg-primary text-primary-foreground"
+                                      : "border border-muted bg-background"
+                                      }`}
                                   >
                                     {event.completed && <Check className="h-3 w-3" />}
                                   </div>
@@ -580,8 +550,8 @@ export function DeliveryTracking() {
                                 <h3 className="text-sm font-medium">Approve Receiving</h3>
                                 <p className="text-xs text-muted-foreground">Approve the receiving of the delivery</p>
                               </div>
-                              <Button 
-                                className="ml-auto" 
+                              <Button
+                                className="ml-auto"
                                 size="sm"
                                 onClick={() => {
                                   if (delivery.originalOrder) {
@@ -628,59 +598,59 @@ export function DeliveryTracking() {
                   </Card>
                 ) : pastDeliveries.length > 0 ? (
                   pastDeliveries.map((delivery) => (
-                  <Card key={delivery.id}>
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <CardTitle>Delivery #{delivery.id}</CardTitle>
-                          <CardDescription>
-                            Ordered on {delivery.orderedDate} • Delivered on {delivery.deliveredDate}
-                          </CardDescription>
+                    <Card key={delivery.id}>
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <CardTitle>Delivery #{delivery.id}</CardTitle>
+                            <CardDescription>
+                              Ordered on {delivery.orderedDate} • Delivered on {delivery.deliveredDate}
+                            </CardDescription>
+                          </div>
+                          {getStatusBadge(delivery.status)}
                         </div>
-                        {getStatusBadge(delivery.status)}
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                      <div className="grid gap-4 md:grid-cols-3">
-                        <div>
-                          <h3 className="text-sm font-medium text-muted-foreground">Items</h3>
-                          <p>{delivery.items}</p>
-                        </div>
-                        <div>
-                          <h3 className="text-sm font-medium text-muted-foreground">Supplier</h3>
-                          <p>{delivery.supplier}</p>
-                        </div>
-                        <div>
-                          <h3 className="text-sm font-medium text-muted-foreground">Status</h3>
-                          <p className="capitalize">{delivery.status}</p>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <h3 className="text-sm font-medium">Delivery Timeline</h3>
-                        <div className="relative">
-                          {/* Timeline line */}
-                          <div className="absolute left-2.5 top-0 h-full w-0.5 bg-muted"></div>
-
-                          {/* Timeline events */}
-                          <div className="space-y-6">
-                            {delivery.timeline.map((event, index) => (
-                              <div key={index} className="relative flex gap-4">
-                                <div className="relative z-10 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                                  <Check className="h-3 w-3" />
-                                </div>
-                                <div className="flex-1 pt-0.5">
-                                  <h4 className="text-sm font-medium capitalize">{event.status}</h4>
-                                  <p className="text-xs text-muted-foreground">{event.time}</p>
-                                </div>
-                              </div>
-                            ))}
+                      </CardHeader>
+                      <CardContent className="space-y-6">
+                        <div className="grid gap-4 md:grid-cols-3">
+                          <div>
+                            <h3 className="text-sm font-medium text-muted-foreground">Items</h3>
+                            <p>{delivery.items}</p>
+                          </div>
+                          <div>
+                            <h3 className="text-sm font-medium text-muted-foreground">Supplier</h3>
+                            <p>{delivery.supplier}</p>
+                          </div>
+                          <div>
+                            <h3 className="text-sm font-medium text-muted-foreground">Status</h3>
+                            <p className="capitalize">{delivery.status}</p>
                           </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
+
+                        <div className="space-y-2">
+                          <h3 className="text-sm font-medium">Delivery Timeline</h3>
+                          <div className="relative">
+                            {/* Timeline line */}
+                            <div className="absolute left-2.5 top-0 h-full w-0.5 bg-muted"></div>
+
+                            {/* Timeline events */}
+                            <div className="space-y-6">
+                              {delivery.timeline.map((event, index) => (
+                                <div key={index} className="relative flex gap-4">
+                                  <div className="relative z-10 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                                    <Check className="h-3 w-3" />
+                                  </div>
+                                  <div className="flex-1 pt-0.5">
+                                    <h4 className="text-sm font-medium capitalize">{event.status}</h4>
+                                    <p className="text-xs text-muted-foreground">{event.time}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
                 ) : (
                   <Card>
                     <CardContent className="flex flex-col items-center justify-center py-10">
@@ -775,11 +745,10 @@ export function DeliveryTracking() {
                       className="focus:outline-none"
                     >
                       <Star
-                        className={`h-8 w-8 transition-colors ${
-                          star <= rating
-                            ? "fill-amber-400 text-amber-400"
-                            : "fill-gray-300 text-gray-300 hover:fill-amber-200 hover:text-amber-200"
-                        }`}
+                        className={`h-8 w-8 transition-colors ${star <= rating
+                          ? "fill-amber-400 text-amber-400"
+                          : "fill-gray-300 text-gray-300 hover:fill-amber-200 hover:text-amber-200"
+                          }`}
                       />
                     </button>
                   ))}

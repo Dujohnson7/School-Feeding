@@ -988,3 +988,86 @@ export const generateSchoolReport = async (
     throw error
   }
 }
+// Generate Invoice PDF
+export const generateInvoice = async (
+  delivery: any,
+  options: {
+    supplierName: string
+    province?: string
+    district?: string
+  }
+) => {
+  try {
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    })
+
+    const reportTitle = 'DELIVERY INVOICE'
+
+    // Add header
+    let yPos = await addReportHeader(doc, reportTitle, {
+      type: 'supplier',
+      entityInfo: {
+        supplierName: options.supplierName,
+        province: options.province,
+        district: options.district,
+      }
+    })
+
+    // Invoice Info Section
+    doc.setFontSize(10)
+    doc.setFont('times', 'bold')
+    doc.text(`Invoice ID: INV-${delivery.id?.substring(0, 8).toUpperCase()}`, 20, yPos)
+    yPos += 7
+    doc.text(`Delivery ID: ${delivery.id?.substring(0, 8)}`, 20, yPos)
+    yPos += 7
+    doc.text(`School: ${delivery.school}`, 20, yPos)
+    yPos += 7
+    doc.text(`Date: ${formatDate(new Date(), 'dd MMMM yyyy')}`, 20, yPos)
+    yPos += 12
+
+    // Prepare table data
+    const headers = [['Item Name', 'Quantity']]
+
+    // In a real app, unit price might come from the item object. 
+    // Here we'll estimated if orderPrice exists, or just show the total.
+    const tableData = delivery.items.map((item: string, index: number) => {
+      const qty = delivery.quantities[index]
+      return [item, qty]
+    })
+
+    // Add total row
+    tableData.push([{ content: 'Total Order Price:', styles: { halign: 'right', fontStyle: 'bold' } },
+    { content: new Intl.NumberFormat('en-RW', { style: 'currency', currency: 'RWF', minimumFractionDigits: 0 }).format(delivery.orderPrice), styles: { fontStyle: 'bold' } }])
+
+    autoTable(doc, {
+      head: headers,
+      body: tableData,
+      startY: yPos,
+      styles: {
+        fontSize: 9,
+        cellPadding: 4,
+        lineColor: [0, 0, 0],
+        lineWidth: 0.1,
+      },
+      headStyles: {
+        fillColor: [240, 240, 240],
+        textColor: [0, 0, 0],
+        fontStyle: 'bold',
+      },
+      margin: { left: 20, right: 20 }
+    })
+
+    // Add Footer
+    addReportFooter(doc)
+
+    // Save
+    doc.save(`Invoice_${delivery.school.replace(/\s+/g, '_')}_${delivery.id.substring(0, 8)}.pdf`)
+    return true
+  } catch (error) {
+    console.error('Error generating invoice:', error)
+    throw error
+  }
+}

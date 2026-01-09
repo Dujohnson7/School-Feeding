@@ -2,11 +2,8 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import {
-  Home,
   Package,
-  FileText,
   BarChart3,
-  Users,
   DollarSign,
   Upload,
   Download,
@@ -39,7 +36,7 @@ import {
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
-import { budgetService, BudgetGov, EFiscalState, BudgetDistrict } from "./service/budgetService"
+import { budgetService, BudgetGov, EFiscalState, BudgetDistrict, EBudget } from "./service/budgetService"
 import { governmentService } from "./service/governmentService"
 
 export function GovBudget() {
@@ -58,6 +55,8 @@ export function GovBudget() {
   const [budgets, setBudgets] = useState<BudgetGov[]>([])
   const [districts, setDistricts] = useState<any[]>([])
   const [districtAllocations, setDistrictAllocations] = useState<BudgetDistrict[]>([])
+  const [currentBudgetStat, setCurrentBudgetStat] = useState<BudgetGov | null>(null)
+  const [allocatedDistrictCount, setAllocatedDistrictCount] = useState<number>(0)
   const [isLoading, setIsLoading] = useState(false)
 
   // Registration State
@@ -78,7 +77,21 @@ export function GovBudget() {
     fetchBudgets()
     fetchDistricts()
     fetchDistrictAllocations()
+    fetchDashboardStats()
   }, [])
+
+  const fetchDashboardStats = async () => {
+    try {
+      const [stat, count] = await Promise.all([
+        budgetService.getCurrentBudgetStat(),
+        budgetService.getAllocatedDistrictCount()
+      ])
+      setCurrentBudgetStat(stat)
+      setAllocatedDistrictCount(count)
+    } catch (error) {
+      console.error("Error fetching dashboard stats:", error)
+    }
+  }
 
   const fetchDistrictAllocations = async () => {
     try {
@@ -121,9 +134,10 @@ export function GovBudget() {
   }
 
   // Calculate overview totals based on active budget
-  const activeBudget = budgets.find(b => b.fiscalState === EFiscalState.ACTIVE)
-  const totalBudgetAmount = activeBudget?.budget || 0
-  const activeYear = activeBudget?.fiscalYear || "N/A"
+  const effectiveCurrentBudget = currentBudgetStat?.budget || 0
+  const effectiveSpentBudget = currentBudgetStat?.spentBudget || 0
+  const effectiveRemainingBudget = effectiveCurrentBudget - effectiveSpentBudget
+  const activeYear = currentBudgetStat?.fiscalYear || budgets.find(b => b.fiscalState === EFiscalState.ACTIVE)?.fiscalYear || "N/A"
 
   const handleImportBudget = async () => {
     if (!regFiscalYear || !regAmount) {
@@ -141,6 +155,7 @@ export function GovBudget() {
       })
       toast.success("Budget Registered Successfully")
       fetchBudgets()
+      fetchDashboardStats()
       // Reset form
       setRegFiscalYear("")
       setRegAmount("")
@@ -165,6 +180,7 @@ export function GovBudget() {
       toast.success("Budget Allocated Successfully")
       fetchBudgets() // Refresh to see updated states
       fetchDistrictAllocations()
+      fetchDashboardStats()
       setIsAllocateDialogOpen(false)
       setSelectedAllocationBudgetId("")
     } catch (error) {
@@ -197,6 +213,7 @@ export function GovBudget() {
       })
       toast.success("Budget Updated Successfully")
       fetchBudgets()
+      fetchDashboardStats()
       setIsEditDialogOpen(false)
       setEditingBudget(null)
     } catch (error) {
@@ -214,6 +231,7 @@ export function GovBudget() {
         await budgetService.deleteBudgetGov(id)
         toast.success("Budget Deleted Successfully")
         fetchBudgets()
+        fetchDashboardStats()
       } catch (error) {
         console.error("Error deleting budget:", error)
         toast.error("Failed to delete budget")
@@ -318,10 +336,6 @@ export function GovBudget() {
     return Array.from({ length: end - start + 1 }, (_, i) => start + i)
   }
 
-  const totalAllocated = districtAllocations.reduce((acc, curr) => acc + curr.budget, 0)
-  const totalSpent = districtAllocations.reduce((acc, curr) => acc + curr.spentBudget, 0)
-  const remainingBudget = totalBudgetAmount - totalAllocated
-
   // History Filtering
   const filteredHistory = budgets.filter((b) =>
     (b.fiscalYear.toLowerCase().includes(historySearchTerm.toLowerCase()) ||
@@ -364,24 +378,12 @@ export function GovBudget() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Budget</CardTitle>
+                <CardTitle className="text-sm font-medium">Current Budget</CardTitle>
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(totalBudgetAmount)}</div>
+                <div className="text-2xl font-bold">{formatCurrency(effectiveCurrentBudget)}</div>
                 <p className="text-xs text-muted-foreground">FY {activeYear}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Allocated</CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(totalAllocated)}</div>
-                <p className="text-xs text-muted-foreground">
-                  {totalBudgetAmount > 0 ? ((totalAllocated / totalBudgetAmount) * 100).toFixed(1) : 0}% of total budget
-                </p>
               </CardContent>
             </Card>
             <Card>
@@ -390,9 +392,9 @@ export function GovBudget() {
                 <BarChart3 className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(totalSpent)}</div>
+                <div className="text-2xl font-bold">{formatCurrency(effectiveSpentBudget)}</div>
                 <p className="text-xs text-muted-foreground">
-                  {totalBudgetAmount > 0 ? ((totalSpent / totalBudgetAmount) * 100).toFixed(1) : 0}% of total budget
+                  {effectiveCurrentBudget > 0 ? ((effectiveSpentBudget / effectiveCurrentBudget) * 100).toFixed(1) : 0}% of total budget
                 </p>
               </CardContent>
             </Card>
@@ -402,10 +404,20 @@ export function GovBudget() {
                 <AlertCircle className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(remainingBudget)}</div>
+                <div className="text-2xl font-bold">{formatCurrency(effectiveRemainingBudget)}</div>
                 <p className="text-xs text-muted-foreground">
-                  {totalBudgetAmount > 0 ? ((remainingBudget / totalBudgetAmount) * 100).toFixed(1) : 0}% remaining
+                  {effectiveCurrentBudget > 0 ? ((effectiveRemainingBudget / effectiveCurrentBudget) * 100).toFixed(1) : 0}% remaining
                 </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Districts Allocated</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{allocatedDistrictCount}</div>
+                <p className="text-xs text-muted-foreground">Total districts with budget</p>
               </CardContent>
             </Card>
           </div>
@@ -491,14 +503,13 @@ export function GovBudget() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="edit-budget-status">Status</Label>
-                    <Select value={editStatus} onValueChange={(v) => setEditStatus(v as EFiscalState)}>
+                    <Select value={editStatus} onValueChange={(v) => setEditStatus(v as EFiscalState)} disabled>
                       <SelectTrigger>
                         <SelectValue placeholder="Select Status" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value={EFiscalState.ACTIVE}>Active</SelectItem>
                         <SelectItem value={EFiscalState.INACTIVE}>Inactive</SelectItem>
-                        <SelectItem value={EFiscalState.COMPLETED}>Completed</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -577,7 +588,9 @@ export function GovBudget() {
                               FY {d.budgetGov?.fiscalYear}
                             </Badge>
                             <Badge variant="outline">
-                              {d.active ? "Active" : "Inactive"}
+                              {d.budgetStatus === EBudget.ON_TRACK ? "On Track" :
+                                d.budgetStatus === EBudget.AT_RISK ? "At Risk" :
+                                  d.budgetStatus === EBudget.OFF_TRACK ? "Off Track" : "N/A"}
                             </Badge>
                           </div>
                           <p className="text-sm text-muted-foreground">Province: {d.district?.province}</p>
@@ -707,6 +720,12 @@ export function GovBudget() {
                             <div className="font-medium">{formatCurrency(budget.budget)}</div>
                             <div className="text-sm text-muted-foreground">Total Budget</div>
                           </div>
+                          <div className="text-right w-24">
+                            <div className="font-medium">
+                              {budget.budget > 0 ? ((budget.spentBudget / budget.budget) * 100).toFixed(1) : 0}%
+                            </div>
+                            <div className="text-sm text-muted-foreground">Utilization</div>
+                          </div>
                           <div className="flex items-center gap-1">
                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditClick(budget)}>
                               <Edit className="h-4 w-4 text-blue-500" />
@@ -781,7 +800,7 @@ export function GovBudget() {
               <Card>
                 <CardHeader>
                   <CardTitle>Import Budget</CardTitle>
-                  <CardDescription>Import budget data from Excel or CSV files</CardDescription>
+                  <CardDescription>Record budget allocations for districts</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid gap-4">
@@ -815,9 +834,7 @@ export function GovBudget() {
                           <SelectValue placeholder="Select Status" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value={EFiscalState.ACTIVE}>Active</SelectItem>
                           <SelectItem value={EFiscalState.INACTIVE}>Inactive</SelectItem>
-                          <SelectItem value={EFiscalState.COMPLETED}>Completed</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

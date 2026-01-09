@@ -1,26 +1,26 @@
 
 import { useState, useEffect } from "react"
-import { Link } from "react-router-dom"
-import { BarChart3, Calendar, Clock, Package, ShoppingCart, User } from "lucide-react"
+import { Calendar, Package, ShoppingCart, User, AlertTriangle } from "lucide-react"
 import PageHeader from "@/components/shared/page-header"
-import { schoolService, SchoolStats, RecentDelivery, UpcomingSchedule } from "./service/schoolService"
+import { schoolService, SchoolStats, RecentDelivery } from "./service/schoolService"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+  Badge
+} from "@/components/ui/badge"
 import { RequestFoodDialog } from "@/components/school/request-food-dialog"
 import { FoodStockGauge } from "@/components/school/food-stock-gauge"
+
+interface StockPrediction {
+  item: string
+  daysRemaining: number
+  dailyUsage: number
+  remaining: number
+  status: "Critical" | "Low" | "Good"
+}
 
 export function SchoolDashboard() {
   const [open, setOpen] = useState(false)
@@ -38,7 +38,7 @@ export function SchoolDashboard() {
     totalRegisteredStudents: 0,
   })
   const [recentDeliveries, setRecentDeliveries] = useState<RecentDelivery[]>([])
-  const [upcomingSchedule, setUpcomingSchedule] = useState<UpcomingSchedule[]>([])
+  const [predictions, setPredictions] = useState<StockPrediction[]>([])
 
   useEffect(() => {
     fetchDashboardData()
@@ -56,21 +56,31 @@ export function SchoolDashboard() {
       }
 
       // Fetch all dashboard data in parallel for better performance
+      const results = await Promise.allSettled([
+        schoolService.getFoodStockLevel(schoolId),
+        schoolService.getTotalStudent(schoolId),
+        schoolService.getPendingRequestCount(schoolId),
+        schoolService.getStudentServedCount(schoolId),
+        schoolService.getDeliveryState(schoolId),
+        schoolService.getAllRecentDeliveries(schoolId),
+        schoolService.getSchoolStockManagementReport(
+          schoolId,
+          new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Last 30 days
+          new Date().toISOString().split('T')[0]
+        ),
+        schoolService.getAllItems()
+      ])
+
       const [
         stockLevel,
         totalStudents,
         pendingRequests,
         studentsServed,
         deliveryState,
-        recentDeliveriesData
-      ] = await Promise.allSettled([
-        schoolService.getFoodStockLevel(schoolId),
-        schoolService.getTotalStudent(schoolId),
-        schoolService.getPendingRequestCount(schoolId),
-        schoolService.getStudentServedCount(schoolId),
-        schoolService.getDeliveryState(schoolId),
-        schoolService.getAllRecentDeliveries(schoolId)
-      ])
+        recentDeliveriesData,
+        stockReport,
+        globalItems
+      ] = results
 
       const newStats: SchoolStats = { ...stats }
 
@@ -103,6 +113,8 @@ export function SchoolDashboard() {
       setStats(newStats)
 
       if (recentDeliveriesData.status === "fulfilled" && recentDeliveriesData.value) {
+        const itemsList = globalItems.status === "fulfilled" ? globalItems.value : []
+
         // Map Orders to RecentDelivery format
         const mappedDeliveries: RecentDelivery[] = recentDeliveriesData.value.map((order: any) => {
           // Extract item names from details and match with supplier items if possible
@@ -112,7 +124,10 @@ export function SchoolDashboard() {
           let itemNames = "Food Delivery"
           if (itemDetails.length > 0) {
             itemNames = itemDetails.map((detail: any) => {
-              const matchedItem = supplierItems.find((si: any) => si.id === detail.item?.id)
+              // Try to find name in global items first, then supplier items, then the detail itself
+              const itemInGlobal = itemsList.find((i: any) => i.id === detail.item?.id)
+              const matchedItem = itemInGlobal || supplierItems.find((si: any) => si.id === detail.item?.id)
+
               return matchedItem?.name || detail.item?.name || "Item"
             }).join(", ")
           }
@@ -128,16 +143,27 @@ export function SchoolDashboard() {
         setRecentDeliveries(mappedDeliveries)
       }
 
-      // Also update upcoming schedule based on delivery state
-      if (deliveryState.status === "fulfilled" && deliveryState.value) {
-        const schedule: UpcomingSchedule = {
-          id: deliveryState.value.id || "next",
-          title: `Delivery of Items`,
-          date: deliveryState.value.deliveryDate || "TBA",
-          time: deliveryState.value.deliveryTime || "",
-          status: deliveryState.value.deliveryStatus === "PROCESSING" ? "Upcoming" : "Scheduled"
-        }
-        setUpcomingSchedule([schedule])
+      // Calculate stock predictions
+      if (stockReport.status === "fulfilled" && stockReport.value) {
+        const reportData = stockReport.value
+        const calculatedPredictions: StockPrediction[] = reportData.map((item: any) => {
+          const dailyUsage = item.used / 30 // Average over 30 days
+          const daysRemaining = dailyUsage > 0 ? Math.floor(item.remaining / dailyUsage) : 99 // Cap at 99 if no usage
+
+          let status: "Critical" | "Low" | "Good" = "Good"
+          if (daysRemaining < 3) status = "Critical"
+          else if (daysRemaining < 7) status = "Low"
+
+          return {
+            item: item.item,
+            daysRemaining,
+            dailyUsage,
+            remaining: item.remaining,
+            status
+          }
+        }).sort((a: any, b: any) => a.daysRemaining - b.daysRemaining) // Show most urgent first
+
+        setPredictions(calculatedPredictions)
       }
 
     } catch (error: any) {
@@ -169,11 +195,15 @@ export function SchoolDashboard() {
     }
   }
 
-  const getScheduleBadge = (status: string) => {
-    if (status === "Scheduled") {
-      return <Badge className="ml-auto">Scheduled</Badge>
+  const getPredictionBadge = (status: string) => {
+    switch (status) {
+      case "Critical":
+        return <Badge className="ml-auto bg-red-500">Critical</Badge>
+      case "Low":
+        return <Badge className="ml-auto bg-amber-500">Low</Badge>
+      default:
+        return <Badge className="ml-auto bg-green-500">Good</Badge>
     }
-    return <Badge variant="outline" className="ml-auto">Upcoming</Badge>
   }
 
   const studentsFedPercentage = stats.totalRegisteredStudents > 0
@@ -310,36 +340,49 @@ export function SchoolDashboard() {
                   )}
                 </div>
               </CardContent>
-              <CardFooter>
-                <Button variant="outline" size="sm" className="ml-auto" navigate="/" >
-                   {/**/}
-                </Button>
-              </CardFooter>
             </Card>
             <Card className="lg:col-span-3">
               <CardHeader>
                 <CardTitle>Stock Prediction</CardTitle>
-                <CardDescription>Food delivery and serving schedule</CardDescription>
+                <CardDescription>Estimated days of stock remaining based on usage</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {loading && upcomingSchedule.length === 0 ? (
-                    <div className="text-sm text-muted-foreground">Loading schedule...</div>
-                  ) : upcomingSchedule.length === 0 ? (
-                    <div className="text-sm text-muted-foreground">No upcoming schedule</div>
+                  {loading && predictions.length === 0 ? (
+                    <div className="text-sm text-muted-foreground">Loading predictions...</div>
+                  ) : predictions.length === 0 ? (
+                    <div className="text-sm text-muted-foreground">No stock data available for prediction</div>
                   ) : (
-                    upcomingSchedule.map((schedule) => (
-                      <div key={schedule.id} className="flex items-center gap-4">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                          <Clock className="h-5 w-5 text-primary" />
+                    predictions.map((p, index) => (
+                      <div key={index} className="flex items-center gap-4">
+                        <div className={`flex h-10 w-10 items-center justify-center rounded-full ${p.status === 'Critical' ? 'bg-red-100' : p.status === 'Low' ? 'bg-amber-100' : 'bg-green-100'
+                          }`}>
+                          {p.status === 'Good' ? (
+                            <Package className={`h-5 w-5 ${p.status === 'Good' ? 'text-green-600' : ''}`} />
+                          ) : (
+                            <AlertTriangle className={`h-5 w-5 ${p.status === 'Critical' ? 'text-red-600' : 'text-amber-600'
+                              }`} />
+                          )}
                         </div>
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium leading-none">{schedule.title}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {schedule.date} {schedule.time ? `, ${schedule.time}` : ""}
-                          </p>
+                        <div className="flex-1 space-y-1">
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-medium leading-none">{p.item}</p>
+                            {getPredictionBadge(p.status)}
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs text-muted-foreground">
+                              {p.daysRemaining} days left · {p.remaining.toFixed(1)}kg in stock
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {p.dailyUsage.toFixed(1)}kg / day
+                            </p>
+                          </div>
+                          <Progress
+                            value={Math.min(100, (p.daysRemaining / 30) * 100)}
+                            className={`h-1 ${p.status === 'Critical' ? 'bg-red-100' : p.status === 'Low' ? 'bg-amber-100' : 'bg-green-100'
+                              }`}
+                          />
                         </div>
-                        {getScheduleBadge(schedule.status)}
                       </div>
                     ))
                   )}
@@ -353,10 +396,10 @@ export function SchoolDashboard() {
             </Card>
           </div>
         </main>
-      </div>
+      </div >
 
       <RequestFoodDialog open={open} onOpenChange={setOpen} />
-    </div>
+    </div >
   )
 }
 

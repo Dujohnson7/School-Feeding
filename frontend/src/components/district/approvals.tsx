@@ -1,8 +1,9 @@
 
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import { Check, Filter, Package, Search, X, Loader2 } from "lucide-react"
+import { Check, Filter, Package, Search, X, Loader2, FileText } from "lucide-react"
 import { districtService } from "./service/districtService"
+import { generateDistrictReport } from "@/utils/export-utils"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -71,7 +72,6 @@ interface Request {
 
 export function DistrictApprovals() {
   const [searchTerm, setSearchTerm] = useState("")
-  const [urgencyFilter, setUrgencyFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null)
   const [detailsOpen, setDetailsOpen] = useState(false)
@@ -177,7 +177,7 @@ export function DistrictApprovals() {
 
   useEffect(() => {
     setPage(1)
-  }, [searchTerm, urgencyFilter, statusFilter])
+  }, [searchTerm, statusFilter])
 
   const totalPages = Math.max(1, Math.ceil(filteredRequests.length / pageSize))
   const startIndex = (page - 1) * pageSize
@@ -253,6 +253,30 @@ export function DistrictApprovals() {
       toast.error(err?.message || "Failed to reject request. Please try again.")
     } finally {
       setActionLoading(false)
+    }
+  }
+
+  const handleExportPDF = async () => {
+    try {
+      const dataForReport = filteredRequests.map((req) => ({
+        "Request ID": req.id,
+        "School Name": req.school,
+        "Requested Items": req.items,
+        "Quantity": req.quantity,
+        "Date": req.requestDate,
+        "Status": req.status.charAt(0).toUpperCase() + req.status.slice(1),
+      }))
+
+      await generateDistrictReport(
+        "Food Request Approvals",
+        { from: undefined, to: undefined },
+        "pdf",
+        dataForReport
+      )
+      toast.success("PDF report generated successfully.")
+    } catch (err) {
+      console.error("Error generating PDF:", err)
+      toast.error("Failed to generate PDF report.")
     }
   }
 
@@ -382,17 +406,6 @@ export function DistrictApprovals() {
                     <Filter className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm">Filter:</span>
                   </div>
-                  <Select value={urgencyFilter} onValueChange={setUrgencyFilter}>
-                    <SelectTrigger className="w-[130px]">
-                      <SelectValue placeholder="Urgency" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Urgency</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="low">Low</SelectItem>
-                    </SelectContent>
-                  </Select>
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
                     <SelectTrigger className="w-[130px]">
                       <SelectValue placeholder="Status" />
@@ -404,6 +417,14 @@ export function DistrictApprovals() {
                       <SelectItem value="rejected">Rejected</SelectItem>
                     </SelectContent>
                   </Select>
+                  <Button
+                    variant="outline"
+                    onClick={handleExportPDF}
+                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    <FileText className="h-4 w-4" />
+                    Export
+                  </Button>
                 </div>
               </div>
 
@@ -432,7 +453,7 @@ export function DistrictApprovals() {
                     ) : filteredRequests.length > 0 ? (
                       paginatedRequests.map((request) => (
                         <TableRow key={request.id}>
-                          <TableCell className="font-medium">{request.id}</TableCell>
+                          <TableCell className="font-medium">{request.id.substring(0, 8)}</TableCell>
                           <TableCell>{request.school}</TableCell>
                           <TableCell>{request.items}</TableCell>
                           <TableCell>{request.requestDate}</TableCell>
@@ -530,7 +551,7 @@ export function DistrictApprovals() {
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Request ID</p>
-                  <p className="font-medium">{selectedRequest.id}</p>
+                  <p className="font-medium">{selectedRequest.id.substring(0, 8)}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Date</p>

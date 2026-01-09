@@ -3,6 +3,7 @@ import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Calendar, Check, Filter, Package, Plus, Search, X, Eye, Star } from "lucide-react"
 import { stockService } from "./service/stockService"
+import apiClient from "@/lib/axios"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -12,17 +13,16 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination"
+
+interface Item {
+  id: string
+  name: string
+  unit?: string
+}
 
 interface Order {
   id?: string
@@ -60,7 +60,6 @@ interface Order {
   }
 }
 
-// Local service definition removed
 
 export function StockReceiving() {
   const [searchTerm, setSearchTerm] = useState("")
@@ -76,8 +75,8 @@ export function StockReceiving() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(5)
   const [rating, setRating] = useState(0)
+  const [allItems, setAllItems] = useState<Item[]>([])
 
-  // Fetch deliveries on component mount
   useEffect(() => {
     const fetchDeliveries = async () => {
       try {
@@ -105,6 +104,16 @@ export function StockReceiving() {
     }
 
     fetchDeliveries()
+
+    const fetchAllItems = async () => {
+      try {
+        const response = await apiClient.get("/item/all")
+        setAllItems(response.data || [])
+      } catch (err) {
+        console.error("Error fetching all items:", err)
+      }
+    }
+    fetchAllItems()
   }, [])
 
   const formatDate = (dateString?: string) => {
@@ -117,25 +126,50 @@ export function StockReceiving() {
     }
   }
 
-  // Helper function to get item name from supplier items array
-  const getItemName = (order: Order, itemId?: string) => {
-    if (!itemId || !order.supplier?.items) return "N/A"
-    const item = order.supplier.items.find(i => i.id === itemId)
-    return item?.name || "N/A"
+  const getItemName = (order: Order, detail?: any) => {
+    const itemId = detail?.item?.id
+    if (!itemId) return "N/A"
+
+    // 1. Check if name is already in the detail object
+    if (detail.item?.name) return detail.item.name
+
+    // 2. Check supplier items
+    if (order.supplier?.items) {
+      const item = order.supplier.items.find(i => i.id === itemId)
+      if (item?.name) return item.name
+    }
+
+    // 3. Check global items list
+    const globalItem = allItems.find(i => i.id === itemId)
+    if (globalItem?.name) return globalItem.name
+
+    return `Item ${itemId.substring(0, 8)}`
   }
 
-  // Helper function to get item unit from supplier items array
-  const getItemUnit = (order: Order, itemId?: string) => {
-    if (!itemId || !order.supplier?.items) return "kg"
-    const item = order.supplier.items.find(i => i.id === itemId)
-    return item?.unit || "kg"
+  const getItemUnit = (order: Order, detail?: any) => {
+    const itemId = detail?.item?.id
+    if (!itemId) return "kg"
+
+    // 1. Check detail object
+    if (detail.item?.unit) return detail.item.unit
+
+    // 2. Check supplier items
+    if (order.supplier?.items) {
+      const item = order.supplier.items.find(i => i.id === itemId)
+      if (item?.unit) return item.unit
+    }
+
+    // 3. Check global items list
+    const globalItem = allItems.find(i => i.id === itemId)
+    if (globalItem?.unit) return globalItem.unit
+
+    return "kg"
   }
 
-  // Filter deliveries based on search term and status filter
   const filteredDeliveries = (Array.isArray(deliveries) ? deliveries : []).filter((delivery) => {
     const supplierName = delivery.supplier?.companyName || delivery.supplier?.names || ""
     const deliveryId = delivery.id || ""
-    const items = delivery.requestItem?.requestItemDetails?.map(d => getItemName(delivery, d.item?.id)).join(" ") || ""
+    const items = delivery.requestItem?.requestItemDetails?.map(d => getItemName(delivery, d)).join(" ") || ""
 
     const matchesSearch =
       supplierName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -180,7 +214,6 @@ export function StockReceiving() {
       setIsProcessing(true)
       await stockService.receiveOrder(selectedDelivery.id, rating)
 
-      // Refresh the list
       const schoolId = localStorage.getItem("schoolId")
       if (schoolId) {
         const data = await stockService.getAllReceiving(schoolId)
@@ -222,7 +255,6 @@ export function StockReceiving() {
   }
 
   const handleCreateDelivery = () => {
-    // In a real app, this would create a new delivery record
     console.log("Creating new delivery")
     setNewDeliveryOpen(false)
   }
@@ -323,7 +355,7 @@ export function StockReceiving() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[100px]">ID</TableHead>
+                      <TableHead className="w-[60px]">#</TableHead>
                       <TableHead>Order #</TableHead>
                       <TableHead>Supplier</TableHead>
                       <TableHead>Items</TableHead>
@@ -334,21 +366,20 @@ export function StockReceiving() {
                   </TableHeader>
                   <TableBody>
                     {filteredDeliveries.length > 0 ? (
-                      paginatedDeliveries.map((delivery) => {
+                      paginatedDeliveries.map((delivery, index) => {
                         const deliveryStatus = delivery.deliveryStatus?.toUpperCase() || ""
-                        // Show Receive button for SCHEDULED and PROCESSING (not APPROVED or DELIVERED)
-                        const canReceive = deliveryStatus === "SCHEDULED" || deliveryStatus === "PROCESSING"
+                        const canReceive = deliveryStatus === "PROCESSING"
 
                         return (
                           <TableRow key={delivery.id}>
-                            <TableCell className="font-medium">{delivery.id?.substring(0, 8)}...</TableCell>
-                            <TableCell>{delivery.id?.substring(0, 8)}...</TableCell>
+                            <TableCell className="font-medium">{startIndex + index + 1}</TableCell>
+                            <TableCell>{delivery.id?.substring(0, 8)}</TableCell>
                             <TableCell>{delivery.supplier?.companyName || delivery.supplier?.names || "N/A"}</TableCell>
                             <TableCell>
                               {delivery.requestItem?.requestItemDetails && delivery.requestItem.requestItemDetails.length > 0 ? (
                                 delivery.requestItem.requestItemDetails.map((detail, index) => (
                                   <div key={index} className="text-sm">
-                                    {getItemName(delivery, detail.item?.id)} ({detail.quantity || 0} {getItemUnit(delivery, detail.item?.id)})
+                                    {getItemName(delivery, detail)} ({detail.quantity || 0} {getItemUnit(delivery, detail)})
                                   </div>
                                 ))
                               ) : (
@@ -474,7 +505,7 @@ export function StockReceiving() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Order ID</p>
-                  <p className="font-medium">{selectedDelivery.id}</p>
+                  <p className="font-medium">#{selectedDelivery.id.substring(0, 8)}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Delivery Status</p>

@@ -134,7 +134,7 @@ export function StockDashboard() {
             type: activity.activityType.toLowerCase().includes("in") ? "in" : "out",
             itemName: activity.itemName,
             quantity: `${activity.quantity}`,
-            source: activity.activityType.toLowerCase().includes("in") ? activity.schoolName : "Quantity",  
+            source: activity.activityType.toLowerCase().includes("in") ? activity.schoolName : "Quantity",
             timestamp: new Date(activity.activityDate).toLocaleDateString()
           })))
         }

@@ -80,7 +80,7 @@ export function DistrictReports() {
   const fetchHistoryReport = async () => {
     try {
       if (reportType === "all") {
-        toast.error("Please select a specific category to view report data")
+        toast.error("Please select a specific category to view report")
         return
       }
 
@@ -214,7 +214,7 @@ export function DistrictReports() {
           <Tabs defaultValue="generate" className="w-full">
             <TabsList className="mb-6">
               <TabsTrigger value="generate">Generate Reports</TabsTrigger>
-              <TabsTrigger value="history">Report Data View</TabsTrigger>
+              <TabsTrigger value="history">Report Data </TabsTrigger>
             </TabsList>
 
             <TabsContent value="generate" className="space-y-6">
@@ -265,13 +265,13 @@ export function DistrictReports() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-7">
                   <div>
-                    <CardTitle>Report Data View</CardTitle>
+                    <CardTitle>Report Data</CardTitle>
                     <CardDescription>View live district report data</CardDescription>
                   </div>
                   {historyData.length > 0 && (
                     <Button variant="outline" size="sm" onClick={handleDownloadFromTable}>
                       <Download className="mr-2 h-4 w-4" />
-                      Download view
+                      Download
                     </Button>
                   )}
                 </CardHeader>
@@ -303,7 +303,7 @@ export function DistrictReports() {
                         disabled={isFetchingHistory}
                         className="bg-primary hover:bg-primary/90"
                       >
-                        {isFetchingHistory ? "Fetching..." : "View Report Data"}
+                        {isFetchingHistory ? "Fetching..." : "View Report"}
                       </Button>
                     </div>
                   </div>
@@ -319,7 +319,7 @@ export function DistrictReports() {
                               </TableHead>
                             ))
                           ) : (
-                            <TableHead>No data available. Select filters and click "View Report Data".</TableHead>
+                            <TableHead>No data available. Select filters and click "View Report".</TableHead>
                           )}
                         </TableRow>
                       </TableHeader>

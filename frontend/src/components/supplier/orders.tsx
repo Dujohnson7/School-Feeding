@@ -3,6 +3,7 @@ import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Package, Search } from "lucide-react"
 import { supplierService } from "./service/supplierService"
+import apiClient from "@/lib/axios"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -23,13 +24,12 @@ interface Order {
   quantities: string[]
   orderDate: string
   orderPrice: number
-  orderPayState: "PENDING" | "PAYED" | "CANCELLED"
+  orderPayState: "PENDING" | "PAID" | "CANCELLED"
   deliveryStatus: "APPROVED" | "SCHEDULED" | "PROCESSING" | "DELIVERED" | "CANCELLED"
   district: string
   contact: string
 }
 
-// Backend Order entity interface (based on Spring Boot entity)
 interface BackendOrder {
   id?: string
   created?: string
@@ -65,6 +65,7 @@ interface BackendOrder {
       item?: {
         id?: string
         name?: string
+        unit?: string
         perStudent?: number
         description?: string
       }
@@ -79,6 +80,7 @@ interface BackendOrder {
     items?: Array<{
       id?: string
       name?: string
+      unit?: string
       perStudent?: number
       description?: string
     }>
@@ -86,15 +88,12 @@ interface BackendOrder {
   deliveryDate?: string | null
   deliveryStatus?: "APPROVED" | "SCHEDULED" | "PROCESSING" | "DELIVERED" | "CANCELLED"
   orderPrice?: number
-  orderPayState?: "PENDING" | "PAYED" | "CANCELLED"
+  orderPayState?: "PENDING" | "PAID" | "CANCELLED"
   rating?: number
-  [key: string]: any // Allow for additional fields from backend
+  [key: string]: any
 }
 
-// Local service definition removed
-
-// Helper function to map backend order to frontend order
-const mapBackendOrderToFrontend = (backendOrder: BackendOrder): Order => {
+const mapBackendOrderToFrontend = (backendOrder: BackendOrder, allItems: any[] = []): Order => {
   const formatDate = (dateString?: string | null) => {
     if (!dateString) return "N/A"
     try {
@@ -108,7 +107,7 @@ const mapBackendOrderToFrontend = (backendOrder: BackendOrder): Order => {
   const mapPayState = (orderPayState?: string): Order["orderPayState"] => {
     if (!orderPayState) return "PENDING"
     const stateUpper = orderPayState.toUpperCase()
-    if (stateUpper === "PAYED" || stateUpper === "PAID") return "PAYED"
+    if (stateUpper === "PAID" || stateUpper === "PAID") return "PAID"
     if (stateUpper === "CANCELLED" || stateUpper === "CANCELED") return "CANCELLED"
     return "PENDING"
   }
@@ -131,15 +130,36 @@ const mapBackendOrderToFrontend = (backendOrder: BackendOrder): Order => {
 
   // Get item names from supplier's items array by matching IDs
   const supplierItems = backendOrder.supplier?.items || []
-  const itemMap = new Map(supplierItems.map(item => [item.id, item.name]))
 
   requestItemDetails.forEach((detail) => {
     const itemId = detail.item?.id
-    const itemName = itemId ? (itemMap.get(itemId) || `Item ${itemId}`) : "Unknown Item"
+    let itemName = detail.item?.name
+    let unit = detail.item?.unit
+
+    // 1. Fallback to supplier items if name is missing
+    if (!itemName && itemId && supplierItems.length > 0) {
+      const sItem = supplierItems.find(i => i.id === itemId)
+      if (sItem) {
+        itemName = sItem.name
+        unit = sItem.unit
+      }
+    }
+
+    // 2. Fallback to global items
+    if (!itemName && itemId && allItems.length > 0) {
+      const gItem = allItems.find(i => i.id === itemId)
+      if (gItem) {
+        itemName = gItem.name
+        unit = gItem.unit
+      }
+    }
+
+    itemName = itemName || (itemId ? `Item ${itemId.substring(0, 8)}` : "Unknown Item")
     const quantity = detail.quantity || 0
+    unit = unit || "kg"
 
     items.push(itemName)
-    quantities.push(`${quantity} kg`)
+    quantities.push(`${quantity} ${unit}`)
   })
 
   const school = backendOrder.requestItem?.school
@@ -170,6 +190,7 @@ export function SupplierOrders() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [allItems, setAllItems] = useState<any[]>([])
 
   // Fetch orders from API
   useEffect(() => {
@@ -187,8 +208,18 @@ export function SupplierOrders() {
 
         const backendOrders: BackendOrder[] = await supplierService.getAllOrders(supplierId)
 
+        // Fetch all items for mapping fallback
+        let itemsList: any[] = []
+        try {
+          const itemsResponse = await apiClient.get("/item/all")
+          itemsList = itemsResponse.data || []
+          setAllItems(itemsList)
+        } catch (itemErr) {
+          console.error("Error fetching items for mapping:", itemErr)
+        }
+
         if (backendOrders && Array.isArray(backendOrders)) {
-          const mappedOrders = backendOrders.map(mapBackendOrderToFrontend)
+          const mappedOrders = backendOrders.map(order => mapBackendOrderToFrontend(order, itemsList))
           setOrders(mappedOrders)
         } else {
           setOrders([])
@@ -225,7 +256,7 @@ export function SupplierOrders() {
     const isActive =
       activeTab === "active"
         ? ["PENDING"].includes(order.orderPayState)
-        : ["PAYED", "CANCELLED"].includes(order.orderPayState)
+        : ["PAID", "CANCELLED"].includes(order.orderPayState)
 
     return matchesSearch && matchesStatus && isActive
   })
@@ -262,7 +293,7 @@ export function SupplierOrders() {
         )
       case "PAYED":
       case "PAID":
-        return <Badge className="bg-green-600 hover:bg-green-700">Payed</Badge>
+        return <Badge className="bg-green-600 hover:bg-green-700">PAID</Badge>
       case "CANCELLED":
       case "CANCELED":
         return <Badge variant="destructive">Cancelled</Badge>
@@ -359,7 +390,7 @@ export function SupplierOrders() {
                     <SelectContent>
                       <SelectItem value="all">All Status</SelectItem>
                       <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="payed">Payed</SelectItem>
+                      <SelectItem value="paid">PAID</SelectItem>
                       <SelectItem value="cancelled">Cancelled</SelectItem>
                     </SelectContent>
                   </Select>
@@ -393,7 +424,7 @@ export function SupplierOrders() {
                       {filteredOrders.length > 0 ? (
                         paginatedOrders.map((order) => (
                           <TableRow key={order.id}>
-                            <TableCell className="font-medium">{order.id}</TableCell>
+                            <TableCell className="font-medium">{order.id.substring(0, 8)}</TableCell>
                             <TableCell>{order.school}</TableCell>
                             <TableCell>{order.items.join(", ")}</TableCell>
                             <TableCell>{order.orderDate}</TableCell>
@@ -495,7 +526,7 @@ export function SupplierOrders() {
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Order ID</p>
-                  <p className="font-medium">{selectedOrder.id}</p>
+                  <p className="font-medium">{selectedOrder.id.substring(0, 8)}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Order Date</p>

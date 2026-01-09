@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react"
-import { Edit, Plus, Search, Trash2 } from "lucide-react"
+import { Edit, Package, Plus, Search, Trash2 } from "lucide-react"
 import { Link } from "react-router-dom"
 import apiClient from "@/lib/axios"
 
 import { Button } from "@/components/ui/button"
+import { HeaderActions } from "@/components/shared/header-actions"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -16,8 +17,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 import { toast } from "sonner"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,} from "@/components/ui/alert-dialog"
- 
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, } from "@/components/ui/alert-dialog"
+
 interface ApiRequestItem {
   id: string
   requestStatus: string
@@ -37,7 +38,7 @@ interface Item {
   category?: string
   unit?: string
 }
- 
+
 interface FoodRequest {
   id: string
   items: Array<{ name: string; quantity: number }>
@@ -64,7 +65,7 @@ export function RequestFoodList() {
   })
   const [editLoading, setEditLoading] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
- 
+
   useEffect(() => {
     const fetchItems = async () => {
       try {
@@ -76,7 +77,7 @@ export function RequestFoodList() {
     }
     fetchItems()
   }, [])
- 
+
   useEffect(() => {
     const fetchRequests = async () => {
       const schoolId = localStorage.getItem("schoolId")
@@ -93,7 +94,7 @@ export function RequestFoodList() {
         )
 
         const data: ApiRequestItem[] = response.data
- 
+
         const transformedRequests: FoodRequest[] = data.map((request) => {
           const requestItems = request.requestItemDetails.map((detail) => {
             const item = items.find((i) => i.id === detail.item.id)
@@ -125,17 +126,17 @@ export function RequestFoodList() {
       fetchRequests()
     }
   }, [items])
- 
+
   const getItemIdByName = (name: string): string | null => {
     const normalizedName = name.toLowerCase().trim()
     const item = items.find((i) => i.name.toLowerCase().trim() === normalizedName)
     return item?.id || null
   }
- 
+
   const handleEdit = (request: FoodRequest) => {
     setSelectedRequest(request)
     setEditError(null)
-     
+
     const foodItems = request.items.map((item) => item.name)
     const quantities: Record<string, string> = {}
     request.items.forEach((item) => {
@@ -149,7 +150,7 @@ export function RequestFoodList() {
     })
     setEditDialogOpen(true)
   }
- 
+
   const handleAddFoodItem = (item: string) => {
     if (item && !editFormState.foodItems.includes(item)) {
       setEditFormState({
@@ -159,7 +160,7 @@ export function RequestFoodList() {
       })
     }
   }
- 
+
   const handleRemoveFoodItem = (item: string) => {
     const newFoodItems = editFormState.foodItems.filter((i) => i !== item)
     const newQuantities = { ...editFormState.quantities }
@@ -171,19 +172,19 @@ export function RequestFoodList() {
       quantities: newQuantities,
     })
   }
- 
+
   const handleQuantityChange = (item: string, quantity: string) => {
     setEditFormState({
       ...editFormState,
       quantities: { ...editFormState.quantities, [item]: quantity },
     })
   }
- 
+
   const handleUpdateRequest = async () => {
     if (!selectedRequest) return
 
     setEditError(null)
- 
+
     const missingQuantities = editFormState.foodItems.filter(
       (item) => !editFormState.quantities[item] || editFormState.quantities[item].trim() === ""
     )
@@ -192,7 +193,7 @@ export function RequestFoodList() {
       setEditError("Please enter quantities for all selected items.")
       return
     }
- 
+
     const invalidQuantities = editFormState.foodItems.filter((item) => {
       const qty = parseFloat(editFormState.quantities[item])
       return isNaN(qty) || qty <= 0
@@ -211,7 +212,7 @@ export function RequestFoodList() {
       setEditError("Authentication required. Please log in again.")
       return
     }
- 
+
     const requestItemDetails = editFormState.foodItems
       .map((itemName) => {
         const itemId = getItemIdByName(itemName)
@@ -229,7 +230,7 @@ export function RequestFoodList() {
       setEditError("Could not find item IDs for the selected items. Please try again.")
       return
     }
- 
+
     const requestPayload = {
       district: { id: districtId },
       school: { id: schoolId },
@@ -247,7 +248,7 @@ export function RequestFoodList() {
       const data = response.data
 
       toast.success("Food request updated successfully.")
- 
+
       if (schoolId && token) {
         const refreshResponse = await fetch(
           `http://localhost:8070/api/requestRequestItem/schoolRequest/${schoolId}`,
@@ -290,7 +291,7 @@ export function RequestFoodList() {
     }
   }
 
-  
+
   const handleDeleteRequest = async () => {
     if (!selectedRequest) return
 
@@ -301,7 +302,7 @@ export function RequestFoodList() {
 
       toast.success("Food request deleted successfully.")
 
-     
+
       setRequests(requests.filter((r) => r.id !== selectedRequest.id))
       setDeleteDialogOpen(false)
       setSelectedRequest(null)
@@ -332,6 +333,7 @@ export function RequestFoodList() {
     switch (normalizedStatus) {
       case "pending":
         return "outline"
+      case "approve":
       case "approved":
         return "default"
       case "rejected":
@@ -349,11 +351,12 @@ export function RequestFoodList() {
     const normalizedStatus = status.toLowerCase()
     switch (normalizedStatus) {
       case "pending":
-        return "bg-yellow-100 text-yellow-800 border-yellow-300"
+        return "bg-yellow-300 text-gray-800 border-yellow-300"
+      case "approve":
       case "approved":
-        return "bg-blue-100 text-blue-800 border-blue-300"
+        return "bg-green-600 text-white border-green-700"
       case "rejected":
-        return "bg-red-100 text-red-800 border-red-300"
+        return "bg-red-400 text-white border-red-500"
       case "completed":
         return "bg-green-100 text-green-800 border-green-300"
       case "fulfilled":
@@ -367,31 +370,39 @@ export function RequestFoodList() {
     <div className="flex-1 min-w-0">
       <div className="flex-1 flex flex-col min-w-0">
         <header className="hidden md:flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
-          <h1 className="text-lg font-semibold">Food Requests</h1>
-          <div className="ml-auto"></div>
+          <Link to="/school-dashboard" className="lg:hidden">
+            <Package className="h-6 w-6" />
+            <span className="sr-only">Home</span>
+          </Link>
+          <div className="w-full flex-1">
+            <h1 className="text-lg font-semibold">Food Requests</h1>
+          </div>
+          <HeaderActions role="school" />
         </header>
 
         <main className="flex-1 overflow-auto p-2 sm:p-4 md:p-6 min-w-0">
           <div className="space-y-6">
             {/* Food Requests Table */}
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <div>
-                  <CardTitle>Food Requests</CardTitle>
-                  <CardDescription>View and manage all food requests from your school.</CardDescription>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="flex items-center space-x-2">
+              <CardHeader>
+                <CardTitle>Food Requests</CardTitle>
+                <CardDescription>View and manage all food requests from your school.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-6 flex flex-col gap-4 md:flex-row">
+                  <div className="flex-1 min-w-0">
                     <div className="relative">
                       <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                       <Input
                         type="search"
                         placeholder="Search requests..."
-                        className="w-[180px] pl-8"
+                        className="w-full pl-8"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                       />
                     </div>
+                  </div>
+                  <div className="flex gap-2">
                     <Select value={statusFilter} onValueChange={setStatusFilter}>
                       <SelectTrigger className="w-[140px]">
                         <SelectValue placeholder="Filter by status" />
@@ -399,22 +410,20 @@ export function RequestFoodList() {
                       <SelectContent>
                         <SelectItem value="all">All Status</SelectItem>
                         <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="approved">Approved</SelectItem>
+                        <SelectItem value="approve">Approve</SelectItem>
                         <SelectItem value="rejected">Rejected</SelectItem>
                         <SelectItem value="completed">Completed</SelectItem>
                         <SelectItem value="fulfilled">Fulfilled</SelectItem>
                       </SelectContent>
                     </Select>
+                    <Button asChild>
+                      <Link to="/request-food" className="gap-2">
+                        <Plus className="h-4 w-4" />
+                        New Request
+                      </Link>
+                    </Button>
                   </div>
-                  <Button asChild>
-                    <Link to="/request-food" className="gap-2">
-                      <Plus className="h-4 w-4" />
-                      New Request
-                    </Link>
-                  </Button>
                 </div>
-              </CardHeader>
-              <CardContent>
                 {loading ? (
                   <div className="flex items-center justify-center h-48">
                     <p className="text-muted-foreground">Loading requests...</p>
@@ -440,7 +449,7 @@ export function RequestFoodList() {
                               const isPending = request.status.toUpperCase() === "PENDING"
                               return (
                                 <TableRow key={request.id}>
-                                  <TableCell className="font-medium">{request.id.substring(0, 8)}...</TableCell>
+                                  <TableCell className="font-medium">{request.id.substring(0, 8)}</TableCell>
                                   <TableCell>
                                     <div className="space-y-1">
                                       {request.items.map((item, idx) => (
@@ -505,77 +514,61 @@ export function RequestFoodList() {
                     <div className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <span className="text-sm">
-                          {filteredRequests.length === 0
-                            ? 0
-                            : `${startIndex + 1}–${Math.min(startIndex + pageSize, filteredRequests.length)}`}{" "}
-                          of {filteredRequests.length} requests
+                          Showing {filteredRequests.length === 0 ? 0 : startIndex + 1}–
+                          {Math.min(startIndex + pageSize, filteredRequests.length)} of {filteredRequests.length}
                         </span>
-                        <Select
-                          value={String(pageSize)}
-                          onValueChange={(v) => {
-                            setPageSize(Number(v))
-                            setPage(1)
-                          }}
-                        >
+                        <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1) }}>
                           <SelectTrigger className="w-[110px]">
-                            <SelectValue placeholder="Rows" />
+                            <SelectValue placeholder="Rows per page" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="8">8 per page</SelectItem>
-                            <SelectItem value="10">10 per page</SelectItem>
-                            <SelectItem value="20">20 per page</SelectItem>
-                            <SelectItem value="50">50 per page</SelectItem>
+                            <SelectItem value="5">5</SelectItem>
+                            <SelectItem value="8">8</SelectItem>
+                            <SelectItem value="20">20</SelectItem>
+                            <SelectItem value="50">50</SelectItem>
+                            <SelectItem value="100">100</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
 
-                      <Pagination className="sm:justify-end">
+                      <Pagination>
                         <PaginationContent>
                           <PaginationItem>
                             <PaginationPrevious
-                              href="#"
-                              onClick={(e) => {
-                                e.preventDefault()
-                                if (page > 1) setPage(page - 1)
-                              }}
+                              onClick={(e) => { e.preventDefault(); if (page > 1) setPage((p) => p - 1) }}
                               className={page === 1 ? "pointer-events-none opacity-50" : ""}
+                              href="#"
                             />
                           </PaginationItem>
-                          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                            let pageNum
-                            if (totalPages <= 5) {
-                              pageNum = i + 1
-                            } else if (page <= 3) {
-                              pageNum = i + 1
-                            } else if (page >= totalPages - 2) {
-                              pageNum = totalPages - 4 + i
-                            } else {
-                              pageNum = page - 2 + i
-                            }
 
-                            return (
-                              <PaginationItem key={pageNum}>
+                          {Array.from({ length: Math.ceil(filteredRequests.length / pageSize) }, (_, i) => i + 1)
+                            .filter(p => {
+                              const maxButtons = 5;
+                              const totalPages = Math.ceil(filteredRequests.length / pageSize);
+                              if (totalPages <= maxButtons) return true;
+                              const half = Math.floor(maxButtons / 2);
+                              let start = Math.max(1, page - half);
+                              let end = Math.min(totalPages, start + maxButtons - 1);
+                              if (end - start + 1 < maxButtons) start = Math.max(1, end - maxButtons + 1);
+                              return p >= start && p <= end;
+                            })
+                            .map((p) => (
+                              <PaginationItem key={p}>
                                 <PaginationLink
                                   href="#"
-                                  onClick={(e) => {
-                                    e.preventDefault()
-                                    setPage(pageNum)
-                                  }}
-                                  isActive={page === pageNum}
+                                  isActive={p === page}
+                                  onClick={(e) => { e.preventDefault(); setPage(p) }}
                                 >
-                                  {pageNum}
+                                  {p}
                                 </PaginationLink>
                               </PaginationItem>
-                            )
-                          })}
+                            ))}
+
                           <PaginationItem>
                             <PaginationNext
+                              onClick={(e) => { e.preventDefault(); if (page < Math.ceil(filteredRequests.length / pageSize)) setPage((p) => p + 1) }}
+                              className={page >= Math.ceil(filteredRequests.length / pageSize) ? "pointer-events-none opacity-50" : ""}
                               href="#"
-                              onClick={(e) => {
-                                e.preventDefault()
-                                if (page < totalPages) setPage(page + 1)
-                              }}
-                              className={page >= totalPages ? "pointer-events-none opacity-50" : ""}
                             />
                           </PaginationItem>
                         </PaginationContent>

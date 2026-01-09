@@ -33,8 +33,7 @@ interface Supplier {
   email?: string
   address?: string
   specialties?: string[]
-  items?: Array<{ id: string; name?: string }>
-  rating?: number
+  items?: Array<{ id: string; name?: string }> 
   status?: "active" | "inactive"
   state?: boolean
   tinNumber?: string
@@ -286,7 +285,7 @@ export function SupplierManagement() {
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                       type="search"
-                      placeholder="Search suppliers by name, ID, or specialty..."
+                      placeholder="Search suppliers by name ..."
                       className="w-full pl-8"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
@@ -311,7 +310,6 @@ export function SupplierManagement() {
                       <TableHead>Contact</TableHead>
                       <TableHead>Email</TableHead>
                       <TableHead>Address</TableHead>
-                      <TableHead>Rating</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -324,7 +322,7 @@ export function SupplierManagement() {
                           key={supplier.id}
                           className={supplier.status === "inactive" ? "opacity-60" : ""}
                         >
-                          <TableCell className="font-medium">{supplier.id?.substring(0, 8)}...</TableCell>
+                          <TableCell className="font-medium">{supplier.id?.substring(0, 8)}</TableCell>
                           <TableCell>{supplier.companyName || supplier.name || "N/A"}</TableCell>
                           <TableCell>
                             <div className="flex flex-wrap gap-1">
@@ -344,8 +342,7 @@ export function SupplierManagement() {
                           <TableCell className="whitespace-nowrap">{supplier.phone || supplier.contact || supplier.user?.phone || "N/A"}</TableCell>
                           <TableCell className="whitespace-nowrap">{supplier.email || supplier.user?.email || "N/A"}</TableCell>
                           <TableCell className="whitespace-nowrap">{supplier.address || "N/A"}</TableCell>
-                          <TableCell>{getRatingStars(supplier.rating)}</TableCell>
-                          <TableCell>
+                           <TableCell>
                             {supplier.state !== false && supplier.status !== "inactive" ? (
                               <Badge className="bg-green-600 hover:bg-green-700">Active</Badge>
                             ) : (

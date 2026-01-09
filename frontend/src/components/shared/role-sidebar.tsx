@@ -6,7 +6,7 @@ import { logout } from "@/lib/auth"
 
 interface RoleSidebarProps {
   role: RoleKey
-  onNavigate?: () => void  
+  onNavigate?: () => void
 }
 
 export default function RoleSidebar({ role, onNavigate }: RoleSidebarProps) {
@@ -21,7 +21,7 @@ export default function RoleSidebar({ role, onNavigate }: RoleSidebarProps) {
   }
 
   return (
-    <div className="flex h-full w-64 flex-col bg-primary text-primary-foreground">
+    <div className="flex h-full w-64 flex-col bg-primary dark:bg-black text-primary-foreground border-r dark:border-accent-foreground/10">
       <div className="flex h-14 items-center border-b border-primary-foreground/10 px-4">
         <img src="/logo.svg" alt="Logo" className="h-7 w-auto" /> &nbsp;&nbsp;
         <h2 className="text-lg font-semibold"> School Feeding</h2>

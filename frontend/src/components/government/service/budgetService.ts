@@ -16,6 +16,7 @@ export interface BudgetGov {
     id: string;
     fiscalYear: string;
     budget: number;
+    spentBudget: number;
     description: string;
     fiscalState: EFiscalState;
 }
@@ -74,6 +75,16 @@ export const budgetService = {
 
     allocateBudget: async (id: string): Promise<BudgetGov> => {
         const response = await apiClient.post(`/budgetGov/allocateBudget/${id}`)
+        return response.data
+    },
+
+    getCurrentBudgetStat: async (): Promise<BudgetGov> => {
+        const response = await apiClient.get('/budgetGov/currentBudgetStat')
+        return response.data
+    },
+
+    getAllocatedDistrictCount: async (): Promise<number> => {
+        const response = await apiClient.get('/budgetGov/allocatedDistrict')
         return response.data
     },
 

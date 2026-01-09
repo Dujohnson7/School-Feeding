@@ -546,7 +546,7 @@ export function StockDistribution() {
                       paginatedDistributions.map((distribution) => {
                         return (
                           <TableRow key={distribution.id}>
-                            <TableCell className="font-medium">{distribution.id?.substring(0, 8)}...</TableCell>
+                            <TableCell className="font-medium">{distribution.id?.substring(0, 8)}</TableCell>
                             <TableCell>
                               <div className="flex items-center">
                                 <Calendar className="mr-2 h-4 w-4 text-muted-foreground" />
@@ -670,15 +670,15 @@ export function StockDistribution() {
         <Dialog open={distributeDialogOpen} onOpenChange={setDistributeDialogOpen}>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
-              <DialogTitle>Process Distribution</DialogTitle>
-              <DialogDescription>Verify and process food distribution</DialogDescription>
+              <DialogTitle>Food Distribution</DialogTitle>
+              <DialogDescription>Food distribution</DialogDescription>
             </DialogHeader>
 
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Distribution ID</p>
-                  <p className="font-medium">{selectedDistribution.id?.substring(0, 8)}...</p>
+                  <p className="font-medium">{selectedDistribution.id?.substring(0, 8)}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Date</p>
@@ -795,7 +795,7 @@ export function StockDistribution() {
             </div>
 
             <div className="space-y-2">
-              <Label>Items * (Only items in stock are available)</Label>
+              <Label>Items *</Label>
               <div className="rounded-md border p-4">
                 {loadingItems || loadingInventory ? (
                   <p className="text-sm text-muted-foreground">Loading items...</p>

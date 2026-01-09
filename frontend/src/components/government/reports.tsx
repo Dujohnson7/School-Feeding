@@ -8,6 +8,7 @@ import { governmentService } from "./service/governmentService"
 import { format as formatDateFns } from "date-fns"
 import { DatePickerWithRange } from "@/components/ui/date-range-picker"
 import type { DateRange } from "react-day-picker"
+import { budgetService, BudgetGov } from "./service/budgetService"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -27,6 +28,26 @@ export function GovReports() {
   const [isGenerating, setIsGenerating] = useState<Record<string, boolean>>({})
   const [historyData, setHistoryData] = useState<any[]>([])
   const [isFetchingHistory, setIsFetchingHistory] = useState(false)
+  const [fiscalYears, setFiscalYears] = useState<BudgetGov[]>([])
+
+  useEffect(() => {
+    fetchFiscalYears()
+  }, [])
+
+  const fetchFiscalYears = async () => {
+    try {
+      const data = await budgetService.getAllBudgetGov()
+      setFiscalYears(data)
+      if (data.length > 0) {
+        // Try to find active one first, else use first one
+        const active = data.find(f => f.fiscalState === "ACTIVE")
+        if (active) setFiscalYear(active.fiscalYear)
+        else setFiscalYear(data[0].fiscalYear)
+      }
+    } catch (error) {
+      console.error("Error fetching fiscal years:", error)
+    }
+  }
 
   useEffect(() => {
     setPage(1)
@@ -71,7 +92,7 @@ export function GovReports() {
   const fetchHistoryReport = async () => {
     try {
       if (reportType === "all") {
-        toast.error("Please select a specific category to view report data")
+        toast.error("Please select a specific category to view report")
         return
       }
 
@@ -232,9 +253,14 @@ export function GovReports() {
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="2023-2024">2023-2024</SelectItem>
-                                <SelectItem value="2024-2025">2024-2025</SelectItem>
-                                <SelectItem value="2025-2026">2025-2026</SelectItem>
+                                {fiscalYears.map(fy => (
+                                  <SelectItem key={fy.id} value={fy.fiscalYear}>
+                                    {fy.fiscalYear} 
+                                  </SelectItem>
+                                ))}
+                                {fiscalYears.length === 0 && (
+                                  <SelectItem value="2024-2025">2024-2025</SelectItem>
+                                )}
                               </SelectContent>
                             </Select>
                           </div>
@@ -278,13 +304,13 @@ export function GovReports() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-7">
                   <div>
-                    <CardTitle>Report Data View</CardTitle>
+                    <CardTitle>Report Data</CardTitle>
                     <CardDescription>View live government report data</CardDescription>
                   </div>
                   {historyData.length > 0 && (
                     <Button variant="outline" size="sm" onClick={handleDownloadFromTable}>
                       <Download className="mr-2 h-4 w-4" />
-                      Download view
+                      Download
                     </Button>
                   )}
                 </CardHeader>
@@ -314,9 +340,14 @@ export function GovReports() {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="2023-2024">2023-2024</SelectItem>
-                              <SelectItem value="2024-2025">2024-2025</SelectItem>
-                              <SelectItem value="2025-2026">2025-2026</SelectItem>
+                              {fiscalYears.map(fy => (
+                                <SelectItem key={fy.id} value={fy.fiscalYear}>
+                                  {fy.fiscalYear}
+                                </SelectItem>
+                              ))}
+                              {fiscalYears.length === 0 && (
+                                <SelectItem value="2024-2025">2024-2025</SelectItem>
+                              )}
                             </SelectContent>
                           </Select>
                         </div>
@@ -332,7 +363,7 @@ export function GovReports() {
                         disabled={isFetchingHistory}
                         className="bg-primary hover:bg-primary/90"
                       >
-                        {isFetchingHistory ? "Fetching..." : "View Report Data"}
+                        {isFetchingHistory ? "Fetching..." : "View Report"}
                       </Button>
                     </div>
                   </div>
@@ -348,7 +379,7 @@ export function GovReports() {
                               </TableHead>
                             ))
                           ) : (
-                            <TableHead>No data available. Select filters and click "View Report Data".</TableHead>
+                            <TableHead>No data available. Select filters and click "View Report".</TableHead>
                           )}
                         </TableRow>
                       </TableHeader>

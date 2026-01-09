@@ -1,16 +1,7 @@
 
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import {
-  Package,
-  Users,
-  DollarSign,
-  Download,
-  Search,
-  TrendingUp,
-  AlertCircle,
-  School,
-} from "lucide-react"
+import { Package, Users, DollarSign, Download, Search, TrendingUp, AlertCircle, School, } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -78,20 +69,24 @@ export function DistrictBudget() {
     }
   }
 
-  // Calculate overview totals based on fetched data
-  // Assuming districtBudgetData contains allocations TO the district FROM gov
   const currentBudget = districtBudgetData.find((d: any) => d.budgetGov?.fiscalState === "ACTIVE") || districtBudgetData[0]
   const activeFiscalYear = currentBudget?.budgetGov?.fiscalYear || "N/A"
 
-  const overview = {
-    totalAllocated: districtBudgetData.reduce((acc, curr) => acc + curr.budget, 0),
-    spent: districtBudgetData.reduce((acc, curr) => acc + curr.spentBudget, 0),
-    remaining: districtBudgetData.reduce((acc, curr) => acc + (curr.budget - curr.spentBudget), 0),
-    schools: budgetSchools.length,
-    studentsServed: budgetSchools.reduce((acc, curr) => acc + (curr.school?.student || 0), 0),
+  const district = {
+    name: localStorage.getItem("districtName") || "District"
   }
 
-  // Deduce unique lists for filters
+  const onTrackBudgets = districtBudgetData.filter(d => d.budgetStatus === "ON_TRACK")
+  const onTrackSchools = budgetSchools.filter(s => s.budgetStatus === "ON_TRACK")
+
+  const overview = {
+    totalAllocated: onTrackBudgets.reduce((acc, curr) => acc + curr.budget, 0),
+    spent: onTrackBudgets.reduce((acc, curr) => acc + curr.spentBudget, 0),
+    remaining: onTrackBudgets.reduce((acc, curr) => acc + (curr.budget - curr.spentBudget), 0),
+    schools: onTrackSchools.length,
+    studentsServed: onTrackSchools.reduce((acc, curr) => acc + (curr.school?.student || 0), 0),
+  }
+
   const uniqueSchools = Array.from(new Set(budgetSchools.map(bs => bs.school?.name || bs.school?.schoolName).filter(Boolean)))
   const uniqueFiscalYears = Array.from(new Set(budgetSchools.map(bs => bs.budgetDistrict?.budgetGov?.fiscalYear).filter(Boolean)))
 
@@ -125,7 +120,6 @@ export function DistrictBudget() {
 
   const totalPagesHist = Math.max(1, Math.ceil(budgetFiscals.length / pageSizeHist))
   const startHist = (pageHist - 1) * pageSizeHist
-  // const paginatedHistory = budgetFiscals.slice(startHist, startHist + pageSizeHist) 
   const canPrevHist = pageHist > 1
   const canNextHist = pageHist < totalPagesHist
   const getHistPageWindow = () => {
@@ -140,7 +134,7 @@ export function DistrictBudget() {
 
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
-      case "ON_TRACK": return "default" // or success if available
+      case "ON_TRACK": return "default"
       case "AT_RISK": return "warning"
       case "OFF_TRACK": return "destructive"
       default: return "secondary"
@@ -153,7 +147,6 @@ export function DistrictBudget() {
       return
     }
 
-    // CSV Header with BOM for Excel compatibility
     const header = [
       "School Name", "Fiscal Year", "Student Count", "Allocated Budget", "Spent Budget", "Budget Status", "Percent Utilized"
     ].join(",")
@@ -196,7 +189,7 @@ export function DistrictBudget() {
             <span className="sr-only">Home</span>
           </Link>
           <div className="w-full flex-1">
-            <h1 className="text-lg font-semibold">District Budget</h1>
+            <h1 className="text-lg font-semibold">{district?.name} District Budget</h1>
           </div>
           <HeaderActions role="district" />
         </header>
@@ -212,7 +205,6 @@ export function DistrictBudget() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{formatCurrency(overview.totalAllocated)}</div>
-                <p className="text-xs text-muted-foreground">Across all fiscal years</p>
               </CardContent>
             </Card>
             <Card>
@@ -246,7 +238,6 @@ export function DistrictBudget() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{overview.schools}</div>
-                <p className="text-xs text-muted-foreground">Schools funded</p>
               </CardContent>
             </Card>
             <Card>
@@ -256,7 +247,6 @@ export function DistrictBudget() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{overview.studentsServed.toLocaleString()}</div>
-                <p className="text-xs text-muted-foreground">Beneficiaries</p>
               </CardContent>
             </Card>
           </div>

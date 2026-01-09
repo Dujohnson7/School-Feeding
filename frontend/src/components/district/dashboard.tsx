@@ -293,7 +293,6 @@ export function DistrictDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{loading ? "..." : stats.totalSchools}</div>
-                <p className="text-xs text-muted-foreground">In {stats.districtName || "District"}</p>
               </CardContent>
             </Card>
             <Card>
@@ -303,7 +302,6 @@ export function DistrictDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{loading ? "..." : stats.pendingRequests}</div>
-                <p className="text-xs text-muted-foreground">{stats.highPriorityRequests} high priority</p>
               </CardContent>
             </Card>
             <Card>
@@ -313,7 +311,6 @@ export function DistrictDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{loading ? "..." : stats.activeSuppliers}</div>
-                <p className="text-xs text-muted-foreground">All operational</p>
               </CardContent>
             </Card>
             <Card>

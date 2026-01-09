@@ -11,7 +11,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList } from "@/components/ui/tabs"
 
 import { adminService, AuditLog as Audit, User } from "./service/adminService"
- 
+
 
 export function AdminDashboard() {
   const [totalUsers, setTotalUsers] = useState<number>(0)
@@ -48,7 +48,7 @@ export function AdminDashboard() {
         let loginsPerDayData: any = []
 
         try {
-          users = parseNumber(await adminDashboardService.getTotalUsers())
+          users = parseNumber(await adminService.getTotalUsers())
         } catch (error) {
           console.error("Error fetching total users:", error)
         }
